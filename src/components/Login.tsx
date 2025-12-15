@@ -1,0 +1,142 @@
+import { useState } from 'react';
+import { Lock, Mail, AlertCircle } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Alert } from './ui/alert';
+import { useAuth } from '../contexts/AuthContext';
+
+export function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const success = await login(email, password);
+      if (!success) {
+        setError('メールアドレスまたはパスワードが正しくありません');
+      }
+    } catch (err) {
+      setError('ログインに失敗しました。もう一度お試しください。');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const demoAccounts = [
+    { email: 'admin@example.com', role: '管理', color: 'text-purple-600' },
+    { email: 'salesA@example.com', role: '営業A', color: 'text-blue-600' },
+    { email: 'salesB@example.com', role: '営業B', color: 'text-green-600' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* ロゴ・ヘッダー */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 4C11.6 4 8 7.6 8 12C8 18 16 28 16 28C16 28 24 18 24 12C24 7.6 20.4 4 16 4Z" fill="white" stroke="white" strokeWidth="2"/>
+              <circle cx="16" cy="12" r="3" fill="#5b5fff"/>
+            </svg>
+          </div>
+          <h1 className="text-gray-900 mb-2">UNIVERSEGEO 案件管理システム</h1>
+          <p className="text-muted-foreground">アカウントにログインしてください</p>
+        </div>
+
+        {/* ログインフォーム */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 md:p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* エラーメッセージ */}
+            {error && (
+              <Alert variant="destructive" className="border-red-200 bg-red-50">
+                <AlertCircle className="w-4 h-4" />
+                <p className="text-sm text-red-800 ml-2">{error}</p>
+              </Alert>
+            )}
+
+            {/* メールアドレス */}
+            <div className="space-y-2">
+              <Label htmlFor="email">メールアドレス</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="example@company.com"
+                  className="pl-9"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* パスワード */}
+            <div className="space-y-2">
+              <Label htmlFor="password">パスワード</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="pl-9"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* ログインボタン */}
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11"
+            >
+              {isLoading ? 'ログイン中...' : 'ログイン'}
+            </Button>
+          </form>
+        </div>
+
+        {/* デモアカウント情報 */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-5">
+          <p className="text-sm text-blue-900 mb-3">
+            <strong>デモアカウント</strong>（パスワード: demo123）
+          </p>
+          <div className="space-y-2">
+            {demoAccounts.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => {
+                  setEmail(account.email);
+                  setPassword('demo123');
+                }}
+                className="w-full text-left px-3 py-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">{account.email}</span>
+                  <span className={`text-xs ${account.color}`}>{account.role}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* フッター */}
+        <p className="text-center text-sm text-muted-foreground mt-6">
+          © 2025 UNIVERSEGEO Project Management System
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,28 @@
+シート名,列番号,列記号,フィールド名（表示）,フィールド名（内部）,データ型,必須,最大文字数,プルダウン選択肢,入力規則,デフォルト値,説明,マッピング先テーブル,マッピング先カラム
+②案件情報,1,A,広告主名,advertiser_name,テキスト,⭐,100,,なし,,広告を出す会社名,Project,advertiser_name
+②案件情報,2,B,代理店名,agency_name,テキスト,任意,100,,なし,,代理店がある場合のみ,Project,agency_name
+②案件情報,3,C,訴求内容,appeal_point,テキスト,⭐,200,,なし,,キャンペーンの内容,Project,appeal_point
+②案件情報,4,D,配信開始日,delivery_start_date,日付,⭐,10,,YYYY-MM-DD形式,,配信を開始する日,Project,delivery_start_date
+②案件情報,5,E,配信終了日,delivery_end_date,日付,⭐,10,,YYYY-MM-DD形式、開始日以降,,配信を終了する日,Project,delivery_end_date
+②案件情報,6,F,備考,remarks,テキスト,任意,500,,なし,,自由記述,Project,remarks
+③セグメント設定,1,A,セグメント名,segment_name,テキスト,⭐,100,,同一案件内で一意,,セグメントの識別名,Segment,segment_name
+③セグメント設定,2,B,配信先,media_id,選択,⭐,,UNIVERSE / TVer(スマホ) / TVer(テレビ),プルダウンから選択,,どの媒体に配信するか,Segment,media_id
+③セグメント設定,3,C,配信範囲,designated_radius,選択,⭐,,50m / 100m / 300m / 500m / 1000m / 3000m / 5000m / 10000m,プルダウンから選択,,地点から何メートル範囲内に配信するか,Segment,designated_radius
+③セグメント設定,4,D,配信期間,extraction_period,選択,⭐,,1ヶ月 / 2ヶ月 / 3ヶ月 / 期間指定,プルダウンから選択,,どのくらいの期間のデータを使うか,Segment,extraction_period
+③セグメント設定,5,E,対象者,attribute,選択,⭐,,検知された人 / 居住者 / 勤務者,プルダウンから選択,,どの属性の人に配信するか,Segment,attribute
+③セグメント設定,6,F,検知回数,detection_count,選択,⭐,,1回以上 / 2回以上 / 3回以上 / 4回以上 / 5回以上,プルダウンから選択,,何回以上検知された人に配信するか,Segment,detection_count
+③セグメント設定,7,G,検知時間開始,detection_time_start,時刻,任意,5,,HH:MM形式,,検知する時間帯の開始時刻,Segment,detection_time_start
+③セグメント設定,8,H,検知時間終了,detection_time_end,時刻,任意,5,,HH:MM形式、開始より後,,検知する時間帯の終了時刻,Segment,detection_time_end
+③セグメント設定,9,I,滞在時間,stay_time,選択,任意,,3分以上 / 5分以上 / 10分以上 / 15分以上 / 30分以上,プルダウンから選択,,最低どのくらい滞在した人に配信するか,Segment,stay_time
+③セグメント設定,10,J,AdsアカウントID,ads_account_id,テキスト,任意,50,,半角数字,,広告配信先のアカウントID,Segment,ads_account_id
+④地点リスト,1,A,どのセグメント？,segment_name_ref,選択,⭐,,シート③のセグメント名を動的参照,プルダウンから選択,,この地点をどのセグメントに紐付けるか,PoiInfo,segment_id（参照）
+④地点リスト,2,B,地点の名前,poi_name,テキスト,⭐,100,,なし,,配信地点の名称,PoiInfo,poi_name
+④地点リスト,3,C,住所,address,テキスト,⭐*,200,,なし,,地点の住所（緯度経度がある場合は任意）,PoiInfo,address
+④地点リスト,4,D,緯度,latitude,数値,任意*,,-90〜90の範囲,,住所から自動取得されるため通常は空欄,PoiInfo,latitude
+④地点リスト,5,E,経度,longitude,数値,任意*,,-180〜180の範囲,,住所から自動取得されるため通常は空欄,PoiInfo,longitude
+⑤選択肢リスト,1,A,配信先リスト,media_options,リスト参照,,,\"UNIVERSE, TVer(スマホ), TVer(テレビ)\",,,シート③の配信先プルダウン用データ,,
+⑤選択肢リスト,2,B,配信範囲リスト,radius_options,リスト参照,,,\"50m, 100m, 300m, 500m, 1000m, 3000m, 5000m, 10000m\",,,シート③の配信範囲プルダウン用データ,,
+⑤選択肢リスト,3,C,配信期間リスト,period_options,リスト参照,,,\"1ヶ月, 2ヶ月, 3ヶ月, 期間指定\",,,シート③の配信期間プルダウン用データ,,
+⑤選択肢リスト,4,D,対象者リスト,attribute_options,リスト参照,,,\"検知された人, 居住者, 勤務者\",,,シート③の対象者プルダウン用データ,,
+⑤選択肢リスト,5,E,検知回数リスト,detection_options,リスト参照,,,\"1回以上, 2回以上, 3回以上, 4回以上, 5回以上\",,,シート③の検知回数プルダウン用データ,,
+⑤選択肢リスト,6,F,滞在時間リスト,stay_time_options,リスト参照,,,\"3分以上, 5分以上, 10分以上, 15分以上, 30分以上\",,,シート③の滞在時間プルダウン用データ,,

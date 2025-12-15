@@ -1,0 +1,69 @@
+テーブル名,物理名,論理名,カラム名(物理),カラム名(論理),データ型,桁数,NULL許可,主キー,外部キー,デフォルト値,説明,値の例,選択肢,備考
+User,User,ユーザー,id,ユーザーID,STRING,50,NO,PK,,,システム利用者の一意識別子,user-admin,,自動採番
+User,User,ユーザー,name,ユーザー名,STRING,100,NO,,,,ユーザーの氏名,管理太郎,,
+User,User,ユーザー,email,メールアドレス,STRING,200,NO,UK,,,ログイン用メールアドレス（一意制約）,admin@example.com,,重複不可
+User,User,ユーザー,role,ロール,STRING,20,NO,,,sales,ユーザーの権限ロール,admin,"admin, sales",adminは全権限、salesは営業権限のみ
+User,User,ユーザー,department,部署,STRING,100,YES,,,,所属部署,営業部,,任意項目
+User,User,ユーザー,avatar,アバター画像URL,STRING,500,YES,,,,プロフィール画像のURL,https://...,,任意項目
+Project,Project,案件,project_id,案件ID,STRING,50,NO,PK,,,案件の一意識別子,PRJ-1234567890,,自動採番（PRJ-timestamp形式）
+Project,Project,案件,_register_datetime,登録日時,TIMESTAMP,-,NO,,,,案件が登録された日時,2024-04-01T10:30:00Z,,自動採番
+Project,Project,案件,advertiser_name,広告主法人名,STRING,100,NO,,,,広告を出稿する企業・団体名,株式会社サンプル,,必須項目
+Project,Project,案件,agency_name,代理店名,STRING,100,YES,,,,代理店がある場合の企業名,株式会社広告代理店,,任意項目
+Project,Project,案件,appeal_point,訴求内容,STRING,200,NO,,,,キャンペーンや広告の訴求内容,春の新商品プロモーション,,必須項目
+Project,Project,案件,universe_service_id,UNIVERSEサービスID,STRING,50,YES,,,,UNIVERSEサービスの識別子,SVC001,,任意項目
+Project,Project,案件,universe_service_name,UNIVERSEサービス名,STRING,100,YES,,,,UNIVERSEサービスの名称,サンプルサービス,,任意項目
+Project,Project,案件,delivery_start_date,配信開始日,DATE,10,NO,,,,広告配信を開始する日付,2024-04-01,,必須項目、YYYY-MM-DD形式
+Project,Project,案件,delivery_end_date,配信終了日,DATE,10,NO,,,,広告配信を終了する日付,2024-06-30,,必須項目、YYYY-MM-DD形式、開始日以降
+Project,Project,案件,person_in_charge,主担当者,STRING,50,NO,,FK:User.id,,案件の主担当者のユーザーID,user-sales,,User.idを参照
+Project,Project,案件,sub_person_in_charge,副担当者,STRING,50,YES,,FK:User.id,,案件の副担当者のユーザーID,user-sales2,,User.idを参照、任意項目
+Project,Project,案件,remarks,備考,STRING,500,YES,,,,案件に関する自由記述の備考,テスト案件です,,任意項目
+Project,Project,案件,project_status,案件ステータス,STRING,20,YES,,,draft,案件の進行状況,in_progress,"draft, in_progress, pending, completed, cancelled",準備中/進行中/保留/完了/キャンセル
+Segment,Segment,セグメント,project_id,案件ID,STRING,50,NO,PK,FK:Project.project_id,,セグメントが属する案件のID,PRJ-1234567890,,Project.project_idを参照
+Segment,Segment,セグメント,segment_id,セグメントID,STRING,50,NO,PK,,,セグメントの一意識別子,SEG-1234567890-0,,自動採番（SEG-timestamp-index形式）
+Segment,Segment,セグメント,segment_name,セグメント名,STRING,100,YES,,,,セグメントの名称,東京エリア,,任意項目、同一案件内で重複不可
+Segment,Segment,セグメント,segment_registered_at,セグメント登録日時,TIMESTAMP,-,NO,,,,セグメントが登録された日時,2024-04-01T11:00:00Z,,自動採番
+Segment,Segment,セグメント,media_id,配信媒体ID,STRING,100,NO,,,,配信する媒体の識別子,universe,"universe, tver_sp, tver_ctv",配列形式で複数選択可、TVer(CTV)は他媒体と併用不可
+Segment,Segment,セグメント,location_request_status,地点依頼ステータス,STRING,20,NO,,,not_requested,地点データの格納依頼状況,storing,"not_requested, storing, completed",未依頼/格納対応中/格納完了、営業が管理
+Segment,Segment,セグメント,request_confirmed,連携依頼フラグ,BOOLEAN,-,YES,,,false,営業が入力を確定したかどうか,true,"true, false",trueの場合は確定済み
+Segment,Segment,セグメント,data_link_status,データ連携ステータス,STRING,20,NO,,,before_request,データ連携の依頼状況,requested,"before_request, requested, linked",連携依頼前/連携依頼済/連携済、管理部が管理
+Segment,Segment,セグメント,data_link_scheduled_date,連携予定日,DATE,10,YES,,,,データ連携を予定している日付,2024-04-15,,任意項目
+Segment,Segment,セグメント,data_link_request_date,データ連携依頼日,TIMESTAMP,-,YES,,,,営業がデータ連携を依頼した日時,2024-04-10T14:00:00Z,,依頼時に自動設定
+Segment,Segment,セグメント,ads_account_id,AdsアカウントID,STRING,50,YES,,,,広告配信先のアカウント識別子,17890,,任意項目、数字
+Segment,Segment,セグメント,provider_segment_id,プロバイダセグメントID,STRING,50,YES,,,,パイロット/プロバイダのセグメント識別子,PSG-001,,管理部のみ入力可能
+Segment,Segment,セグメント,poi_id,地点グループID,STRING,50,YES,,,,地点グループの識別子,POI-1234567890,,自動採番
+Segment,Segment,セグメント,segment_expire_date,セグメント有効期限日,DATE,10,YES,,,,セグメントの有効期限,2024-10-15,,データ連携完了から6ヶ月後
+Segment,Segment,セグメント,designated_radius,指定半径,STRING,10,YES,,,,地点からの配信範囲,500m,"50m〜10000m",セグメント共通条件
+Segment,Segment,セグメント,extraction_period,抽出期間,STRING,20,YES,,,,データ抽出の期間,1month,"1month, 2month, 3month, 4month, 5month, 6month",セグメント共通条件、プリセット値
+Segment,Segment,セグメント,extraction_period_type,抽出期間タイプ,STRING,10,YES,,,preset,期間の指定方法,custom,"preset, custom",preset=プリセット選択、custom=期間指定
+Segment,Segment,セグメント,extraction_start_date,抽出開始日,DATE,10,YES,,,,抽出期間の開始日（期間指定時）,2024-01-01,,extraction_period_type=customの場合
+Segment,Segment,セグメント,extraction_end_date,抽出終了日,DATE,10,YES,,,,抽出期間の終了日（期間指定時）,2024-12-31,,extraction_period_type=customの場合、開始日以降
+Segment,Segment,セグメント,attribute,属性,STRING,10,YES,,,detector,配信対象の属性,resident,"detector, resident, worker",検知者/居住者/勤務者、セグメント共通条件
+Segment,Segment,セグメント,detection_count,検知回数,INTEGER,-,YES,,,1,地点で検知される最低回数,3,,セグメント共通条件、〇回以上
+Segment,Segment,セグメント,detection_time_start,検知時間開始,STRING,5,YES,,,,検知時間帯の開始時刻,09:00,,HH:MM形式、セグメント共通条件
+Segment,Segment,セグメント,detection_time_end,検知時間終了,STRING,5,YES,,,,検知時間帯の終了時刻,18:00,,HH:MM形式、開始時刻より後、セグメント共通条件
+Segment,Segment,セグメント,stay_time,滞在時間,STRING,10,YES,,,,地点での最低滞在時間,30min,"5min, 10min, 15min, 30min, 45min, 1hour, 2hour, 3hour",セグメント共通条件
+PoiInfo,PoiInfo,地点情報,project_id,案件ID,STRING,50,NO,PK,FK:Project.project_id,,地点が属する案件のID,PRJ-1234567890,,Project.project_idを参照
+PoiInfo,PoiInfo,地点情報,segment_id,セグメントID,STRING,50,NO,PK,FK:Segment.segment_id,,地点が属するセグメントのID,SEG-1234567890-0,,Segment.segment_idを参照
+PoiInfo,PoiInfo,地点情報,poi_id,地点ID,STRING,50,NO,PK,,,地点の一意識別子,POI-1234567890-0,,自動採番（POI-timestamp-index形式）
+PoiInfo,PoiInfo,地点情報,poi_type,地点タイプ,STRING,20,YES,,,manual,地点の登録方法,prefecture,"manual, prefecture, pkg",任意地点/都道府県市区町村/PKG指定
+PoiInfo,PoiInfo,地点情報,poi_name,地点名,STRING,100,NO,,,,地点の名称,新宿駅東口,,必須項目
+PoiInfo,PoiInfo,地点情報,address,住所,STRING,200,YES,,,,地点の住所,東京都新宿区新宿3-38-1,,任意地点指定時に使用
+PoiInfo,PoiInfo,地点情報,prefectures,都道府県リスト,STRING,500,YES,,,,都道府県の配列,"[""東京都"", ""神奈川県""]",,都道府県市区町村指定時に使用、配列形式
+PoiInfo,PoiInfo,地点情報,cities,市区町村リスト,STRING,2000,YES,,,,市区町村の配列,"[""新宿区"", ""渋谷区""]",,都道府県市区町村指定時に使用、配列形式
+PoiInfo,PoiInfo,地点情報,pkg_category,PKGカテゴリ,STRING,50,YES,,,,PKGのカテゴリ,convenience_store,"convenience_store, supermarket, department_store, ...",PKG指定時に使用
+PoiInfo,PoiInfo,地点情報,latitude,緯度,FLOAT,-,YES,,,,地点の緯度,35.690921,,-90〜90の範囲
+PoiInfo,PoiInfo,地点情報,longitude,経度,FLOAT,-,YES,,,,地点の経度,139.700258,,-180〜180の範囲
+PoiInfo,PoiInfo,地点情報,designated_radius,指定半径,STRING,10,YES,,,,地点からの配信範囲,500m,,セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,extraction_period,抽出期間,STRING,20,YES,,,,データ抽出の期間,1month,,セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,extraction_period_type,抽出期間タイプ,STRING,10,YES,,,,期間の指定方法,preset,"preset, custom",セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,extraction_start_date,抽出開始日,DATE,10,YES,,,,抽出期間の開始日,2024-01-01,,セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,extraction_end_date,抽出終了日,DATE,10,YES,,,,抽出期間の終了日,2024-12-31,,セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,attribute,属性,STRING,10,YES,,,,配信対象の属性,detector,"detector, resident, worker",セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,detection_time_start,検知時間開始,STRING,5,YES,,,,検知時間帯の開始時刻,09:00,,セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,detection_time_end,検知時間終了,STRING,5,YES,,,,検知時間帯の終了時刻,18:00,,セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,detection_count,検知回数,INTEGER,-,YES,,,,地点で検知される最低回数,3,,セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,stay_time,滞在時間,STRING,10,YES,,,,地点での最低滞在時間,30min,,セグメント共通条件から継承（後方互換性のため保持）
+PoiInfo,PoiInfo,地点情報,category_id,カテゴリID,STRING,50,YES,,,,半径を変換したID,CAT-500,,システム内部で使用
+PoiInfo,PoiInfo,地点情報,setting_flag,設定フラグ,STRING,10,YES,,,,設定状態を示すフラグ,1,,システム内部で使用
+PoiInfo,PoiInfo,地点情報,created,地点登録日,TIMESTAMP,-,YES,,,,地点が登録された日時,2024-04-01T12:00:00Z,,自動設定
+PoiInfo,PoiInfo,地点情報,detail_specification_flag,詳細指定フラグ,STRING,10,YES,,,,詳細設定の有無を示すフラグ,1,,システム内部で使用

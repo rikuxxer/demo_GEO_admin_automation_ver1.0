@@ -1,0 +1,71 @@
+name: Development CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  test-and-build:
+    name: Test and Build (Development)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify Dockerfile
+        run: |
+          echo "🔍 Checking Dockerfile..."
+          if [ -d "Dockerfile" ]; then
+            echo "❌ ERROR: Dockerfile is a directory!"
+            exit 1
+          fi
+          if [ ! -f "Dockerfile" ]; then
+            echo "❌ ERROR: Dockerfile not found!"
+            exit 1
+          fi
+          echo "✅ Dockerfile is valid"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-develop-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+      - name: Summary
+        run: |
+          echo "## ✅ Development Build Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: develop" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build artifacts**: Uploaded for 7 days" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download artifacts to test locally" >> $GITHUB_STEP_SUMMARY
+          echo "2. Create PR to main when ready" >> $GITHUB_STEP_SUMMARY
