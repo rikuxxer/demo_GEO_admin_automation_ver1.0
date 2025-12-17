@@ -44,21 +44,29 @@ jobs:
           echo "Environment: production"
           echo ""
           
-          # GCP_SA_KEY の確認
+          # GCP_SA_KEY の確認（Repository secrets または Environment secrets）
           GCP_SA_KEY_VALUE="${{ secrets.GCP_SA_KEY }}"
           if [ -z "$GCP_SA_KEY_VALUE" ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません"
             echo ""
-            echo "📝 Environment secrets の設定方法:"
+            echo "📝 設定方法（推奨: Repository secrets）:"
+            echo "1. Settings > Secrets and variables > Actions を開く"
+            echo "2. Repository secrets タブを選択"
+            echo "3. New repository secret をクリック"
+            echo "4. Name: GCP_SA_KEY"
+            echo "5. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
+            echo "6. Add secret をクリック"
+            echo ""
+            echo "📝 または Environment secrets の場合:"
             echo "1. Settings > Environments > production を開く"
             echo "2. Environment secrets セクションで Add secret をクリック"
             echo "3. Name: GCP_SA_KEY"
             echo "4. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
             echo ""
-            echo "⚠️ 確認事項:"
-            echo "- Environment名が 'production' であるか確認"
-            echo "- Environment secrets に GCP_SA_KEY が存在するか確認"
-            echo "- JSONファイルの内容全体をコピー&ペーストしているか確認"
+            echo "⚠️ 重要:"
+            echo "- Repository secrets の使用を推奨します（より確実に動作します）"
+            echo "- JSONファイルの内容全体をコピー&ペーストしてください"
+            echo "- 改行も含めてそのまま貼り付け"
             exit 1
           fi
           GCP_SA_KEY_LENGTH=${#GCP_SA_KEY_VALUE}
@@ -68,6 +76,11 @@ jobs:
           GCP_PROJECT_ID_VALUE="${{ secrets.GCP_PROJECT_ID }}"
           if [ -z "$GCP_PROJECT_ID_VALUE" ]; then
             echo "❌ エラー: GCP_PROJECT_ID が設定されていません"
+            echo ""
+            echo "📝 設定方法:"
+            echo "1. Settings > Secrets and variables > Actions > Repository secrets"
+            echo "2. Name: GCP_PROJECT_ID"
+            echo "3. Secret: univere-geo-demo"
             exit 1
           fi
           echo "✅ GCP_PROJECT_ID: $GCP_PROJECT_ID_VALUE"
