@@ -159,6 +159,24 @@ jobs:
       - name: Deploy Backend
         working-directory: ./backend
         run: |
+          # サービスアカウントの権限を確認
+          if [ -n "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" ]; then
+            echo "🔍 サービスアカウント権限を確認中..."
+            echo "Backend Service Account: ${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
+            
+            # サービスアカウントが存在するか確認
+            if gcloud iam service-accounts describe "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" --project ${{ env.PROJECT_ID }} 2>/dev/null; then
+              echo "✅ サービスアカウントが存在します"
+              SERVICE_ACCOUNT_FLAG="--service-account=${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
+            else
+              echo "⚠️ 警告: サービスアカウントが見つかりません。デフォルトのサービスアカウントを使用します"
+              SERVICE_ACCOUNT_FLAG=""
+            fi
+          else
+            echo "⚠️ 警告: BACKEND_SERVICE_ACCOUNT が設定されていません。デフォルトのサービスアカウントを使用します"
+            SERVICE_ACCOUNT_FLAG=""
+          fi
+          
           gcloud run deploy universegeo-backend \
             --source . \
             --region ${{ env.REGION }} \
@@ -172,7 +190,7 @@ jobs:
             --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
             --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
             --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
-            --service-account=${{ secrets.BACKEND_SERVICE_ACCOUNT }} \
+            $SERVICE_ACCOUNT_FLAG \
             --project ${{ env.PROJECT_ID }}
 
       - name: Get Backend URL
