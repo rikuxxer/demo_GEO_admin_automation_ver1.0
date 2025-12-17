@@ -194,52 +194,67 @@ jobs:
             echo "📋 ビルドログを取得中..."
             echo ""
             
+            # プロジェクトIDを変数に保存（マスクされないように）
+            PROJECT_ID="${{ env.PROJECT_ID }}"
+            echo "プロジェクトID: $PROJECT_ID"
+            echo ""
+            
             # 少し待ってからビルドログを取得（ビルドが完了するまで待つ）
-            echo "ビルド完了を待機中（10秒）..."
-            sleep 10
+            echo "ビルド完了を待機中（15秒）..."
+            sleep 15
             
             # 最新のビルドIDを取得（複数の方法を試す）
             echo "ビルドIDを取得中..."
-            LATEST_BUILD=$(gcloud builds list --limit=1 --sort-by=~createTime --format='value(id)' --project ${{ env.PROJECT_ID }} 2>&1 | head -1 || echo "")
+            LATEST_BUILD=$(gcloud builds list --limit=1 --sort-by=~createTime --format='value(id)' --project "$PROJECT_ID" 2>&1 | head -1)
             
-            if [ -z "$LATEST_BUILD" ] || [ "$LATEST_BUILD" = "" ]; then
-              echo "別の方法でビルドIDを取得中..."
-              LATEST_BUILD=$(gcloud builds list --limit=1 --format='value(id)' --project ${{ env.PROJECT_ID }} 2>&1 | head -1 || echo "")
+            # 警告メッセージを除外
+            if echo "$LATEST_BUILD" | grep -q "WARNING"; then
+              LATEST_BUILD=$(echo "$LATEST_BUILD" | grep -v "WARNING" | head -1)
             fi
             
-            if [ -n "$LATEST_BUILD" ] && [ "$LATEST_BUILD" != "" ]; then
+            if [ -z "$LATEST_BUILD" ] || [ "$LATEST_BUILD" = "" ] || [ "${LATEST_BUILD:0:1}" = "W" ]; then
+              echo "別の方法でビルドIDを取得中..."
+              LATEST_BUILD=$(gcloud builds list --limit=1 --format='value(id)' --project "$PROJECT_ID" 2>&1 | grep -v "WARNING" | head -1)
+            fi
+            
+            if [ -n "$LATEST_BUILD" ] && [ "$LATEST_BUILD" != "" ] && [ "${LATEST_BUILD:0:1}" != "W" ] && [ "${#LATEST_BUILD}" -gt 10 ]; then
               echo "✅ 最新のビルドID: $LATEST_BUILD"
               echo ""
-              echo "📋 ビルドログ（最後の300行）:"
+              echo "📋 ビルドログ（最後の400行）:"
               echo "=========================================="
-              gcloud builds log "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} 2>&1 | tail -300 || echo "ログの取得に失敗しました"
+              gcloud builds log "$LATEST_BUILD" --project "$PROJECT_ID" 2>&1 | tail -400
               echo "=========================================="
               echo ""
               echo "📋 ビルドの詳細情報:"
-              gcloud builds describe "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} --format='yaml(status,logUrl,steps)' 2>&1 | head -50 || echo "詳細情報の取得に失敗しました"
+              gcloud builds describe "$LATEST_BUILD" --project "$PROJECT_ID" --format='yaml(status,logUrl,steps)' 2>&1 | head -100
             else
               echo "⚠️ ビルドIDを取得できませんでした"
+              echo "取得結果: $LATEST_BUILD"
               echo ""
               echo "最近のビルド一覧（デバッグ情報）:"
               echo "----------------------------------------"
-              gcloud builds list --limit=5 --project ${{ env.PROJECT_ID }} 2>&1 || echo "ビルド一覧の取得に失敗しました"
+              gcloud builds list --limit=5 --project "$PROJECT_ID" 2>&1
               echo "----------------------------------------"
-              echo ""
-              echo "gcloud builds list の実行結果:"
-              gcloud builds list --limit=1 --project ${{ env.PROJECT_ID }} 2>&1 || echo "コマンド実行に失敗しました"
             fi
             
             echo ""
             echo "📋 ビルドログを確認する方法:"
-            echo "1. Google Cloud Console > Cloud Build > History を開く"
-            echo "   https://console.cloud.google.com/cloud-build/builds?project=${{ env.PROJECT_ID }}"
-            echo "2. 最新のビルドをクリック"
-            echo "3. ビルドログを確認"
+            echo ""
+            echo "方法1: Google Cloud Console"
+            echo "   1. https://console.cloud.google.com/cloud-build/builds を開く"
+            echo "   2. プロジェクトを選択: $PROJECT_ID"
+            echo "   3. 最新のビルドをクリック"
+            echo "   4. ビルドログを確認"
+            echo ""
+            echo "方法2: gcloud CLI（ローカルで実行）"
+            echo "   gcloud builds list --limit=1 --project $PROJECT_ID"
+            echo "   gcloud builds log [BUILD_ID] --project $PROJECT_ID"
             echo ""
             echo "💡 ヒント: ビルドが失敗している場合、以下の点を確認してください:"
             echo "   - Dockerfileが正しく配置されているか"
             echo "   - package.jsonとtsconfig.jsonが存在するか"
             echo "   - 必要なファイルがすべてコピーされているか"
+            echo "   - TypeScriptのコンパイルエラーがないか"
             echo ""
             exit $DEPLOY_EXIT_CODE
           fi
