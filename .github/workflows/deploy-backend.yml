@@ -133,6 +133,25 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Verify Backend Files
+        working-directory: ./backend
+        run: |
+          echo "🔍 バックエンドファイルの確認:"
+          echo ""
+          echo "📁 ディレクトリ構造:"
+          ls -la
+          echo ""
+          echo "📄 重要なファイルの確認:"
+          echo "  Dockerfile: $([ -f Dockerfile ] && echo '✅ 存在' || echo '❌ 存在しない')"
+          echo "  package.json: $([ -f package.json ] && echo '✅ 存在' || echo '❌ 存在しない')"
+          echo "  tsconfig.json: $([ -f tsconfig.json ] && echo '✅ 存在' || echo '❌ 存在しない')"
+          echo "  src/index.ts: $([ -f src/index.ts ] && echo '✅ 存在' || echo '❌ 存在しない')"
+          echo ""
+          if [ -f Dockerfile ]; then
+            echo "📋 Dockerfileの内容:"
+            head -20 Dockerfile
+          fi
+
       - name: Deploy to Cloud Run
         working-directory: ./backend
         run: |
@@ -150,6 +169,7 @@ jobs:
           echo ""
           
           # デフォルトのサービスアカウントでデプロイ（権限エラーを回避）
+          # ビルドログを詳細に表示
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region ${{ env.REGION }} \
@@ -163,7 +183,20 @@ jobs:
             --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
             --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
             --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
-            --project ${{ env.PROJECT_ID }}
+            --project ${{ env.PROJECT_ID }} \
+            --log-http || {
+              echo ""
+              echo "❌ デプロイが失敗しました"
+              echo ""
+              echo "📋 ビルドログを確認する方法:"
+              echo "1. Google Cloud Console > Cloud Build > History を開く"
+              echo "2. 最新のビルドをクリック"
+              echo "3. ビルドログを確認"
+              echo ""
+              echo "または、以下のコマンドで確認:"
+              echo "gcloud builds list --limit=1 --format='value(id)' | xargs gcloud builds log"
+              exit 1
+            }
 
       - name: Get backend URL
         id: get-backend-url

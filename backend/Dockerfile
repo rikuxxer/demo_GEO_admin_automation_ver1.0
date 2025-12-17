@@ -5,10 +5,13 @@ WORKDIR /app
 
 # 依存関係をインストール
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+# TypeScript設定ファイルをコピー
+COPY tsconfig.json ./
 
 # ソースコードをコピー
-COPY . .
+COPY src ./src
 
 # TypeScriptをビルド
 RUN npm run build
@@ -20,7 +23,7 @@ WORKDIR /app
 
 # 本番依存関係のみをインストール
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev --legacy-peer-deps || npm install --production --legacy-peer-deps
 
 # ビルド済みファイルをコピー
 COPY --from=builder /app/dist ./dist
