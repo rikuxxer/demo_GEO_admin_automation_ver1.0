@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     
     environment:
-      name: production
+      name: Environment secrets
     
     permissions:
       contents: read
@@ -61,11 +61,11 @@ jobs:
             echo ""
             echo "📝 設定方法（Environment secrets）:"
             echo ""
-            echo "このワークフローは 'environment: production' を設定しているため、"
+            echo "このワークフローは 'environment: Environment secrets' を設定しているため、"
             echo "Environment secrets を参照します。"
             echo ""
             echo "設定手順:"
-            echo "1. https://github.com/${{ github.repository }}/settings/environments/production を開く"
+            echo "1. https://github.com/${{ github.repository }}/settings/environments/Environment%20secrets を開く"
             echo "2. Environment secrets セクションで Add secret をクリック"
             echo "3. Name: GCP_SA_KEY（大文字・小文字を正確に）"
             echo "   ⚠️ 重要: Secret名は 'GCP_SA_KEY' と完全に一致する必要があります"

@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     
     environment:
-      name: production
+      name: Environment secrets
     
     permissions:
       contents: read
@@ -41,10 +41,10 @@ jobs:
           echo "GitHub Event: ${{ github.event_name }}"
           echo "GitHub Repository: ${{ github.repository }}"
           echo "Environment: ${{ job.environment }}"
-          echo "Environment Name: production"
+          echo "Environment Name: Environment secrets"
           echo ""
           echo "📋 ワークフロー設定確認:"
-          echo "  environment.name: production ✅"
+          echo "  environment.name: Environment secrets ✅"
           echo ""
           echo "📋 Secrets確認（値は表示しません）:"
           echo ""
@@ -75,17 +75,17 @@ jobs:
           echo "  BQ_DATASET exists: $BQ_DATASET_EXISTS"
           echo ""
           echo "📝 重要:"
-          echo "このワークフローは 'environment: name: production' を設定しているため、"
-          echo "Environment secrets (production) を参照します。"
+          echo "このワークフローは 'environment: name: Environment secrets' を設定しているため、"
+          echo "Environment secrets (Environment secrets) を参照します。"
           echo ""
           if [ "$GCP_SA_KEY_EXISTS" = "NO" ]; then
             echo "⚠️ 問題: GCP_SA_KEY が取得できていません"
             echo ""
             echo "確認事項:"
-            echo "1. https://github.com/${{ github.repository }}/settings/environments/production を開く"
+            echo "1. https://github.com/${{ github.repository }}/settings/environments/Environment%20secrets を開く"
             echo "2. Environment secrets セクションで 'GCP_SA_KEY' が存在するか確認"
             echo "3. Secret名が正確に 'GCP_SA_KEY' であるか確認（大文字・小文字）"
-            echo "4. Environment名が 'production' であるか確認"
+            echo "4. Environment名が 'Environment secrets' であるか確認"
           fi
 
       - name: Verify Secrets
@@ -102,11 +102,11 @@ jobs:
             echo ""
             echo "📝 設定方法（Environment secrets）:"
             echo ""
-            echo "このワークフローは 'environment: production' を設定しているため、"
+            echo "このワークフローは 'environment: Environment secrets' を設定しているため、"
             echo "Environment secrets を参照します。"
             echo ""
             echo "設定手順:"
-            echo "1. https://github.com/${{ github.repository }}/settings/environments/production を開く"
+            echo "1. https://github.com/${{ github.repository }}/settings/environments/Environment%20secrets を開く"
             echo "2. Environment secrets セクションで Add secret をクリック"
             echo "3. Name: GCP_SA_KEY（大文字・小文字を正確に）"
             echo "   ⚠️ 重要: Secret名は 'GCP_SA_KEY' と完全に一致する必要があります"
@@ -189,7 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     
     environment:
-      name: production
+      name: Environment secrets
     
     permissions:
       contents: read
