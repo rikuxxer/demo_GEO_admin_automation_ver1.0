@@ -35,14 +35,54 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug Secrets
+        run: |
+          echo "🔍 デバッグ情報:"
+          echo "GitHub Event: ${{ github.event_name }}"
+          echo "GitHub Repository: ${{ github.repository }}"
+          echo ""
+          echo "📋 Secrets確認（値は表示しません）:"
+          echo "GCP_SA_KEY exists: $([ -n "${{ secrets.GCP_SA_KEY }}" ] && echo 'YES' || echo 'NO')"
+          echo "GCP_SA_KEY length: $(echo -n "${{ secrets.GCP_SA_KEY }}" | wc -c)"
+          echo "GCP_PROJECT_ID exists: $([ -n "${{ secrets.GCP_PROJECT_ID }}" ] && echo 'YES' || echo 'NO')"
+          echo "GCP_PROJECT_ID value: ${{ secrets.GCP_PROJECT_ID }}"
+
       - name: Verify Secrets
         run: |
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+          echo "🔍 Secret確認中..."
+          echo ""
+          
+          # GCP_SA_KEY の確認
+          GCP_SA_KEY_VALUE="${{ secrets.GCP_SA_KEY }}"
+          GCP_SA_KEY_LENGTH=$(echo -n "$GCP_SA_KEY_VALUE" | wc -c)
+          
+          if [ -z "$GCP_SA_KEY_VALUE" ] || [ "$GCP_SA_KEY_LENGTH" -eq 0 ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません"
-            echo "Settings > Environments > production > Environment secrets で GCP_SA_KEY を設定してください"
+            echo ""
+            echo "📝 設定方法（Repository secrets）:"
+            echo "1. https://github.com/${{ github.repository }}/settings/secrets/actions を開く"
+            echo "2. Repository secrets タブを選択"
+            echo "3. New repository secret をクリック"
+            echo "4. Name: GCP_SA_KEY（大文字・小文字を正確に）"
+            echo "5. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
             exit 1
           fi
-          echo "✅ GCP_SA_KEY が設定されています"
+          
+          echo "✅ GCP_SA_KEY が設定されています（長さ: $GCP_SA_KEY_LENGTH 文字）"
+          
+          # GCP_PROJECT_ID の確認
+          GCP_PROJECT_ID_VALUE="${{ secrets.GCP_PROJECT_ID }}"
+          if [ -z "$GCP_PROJECT_ID_VALUE" ]; then
+            echo "❌ エラー: GCP_PROJECT_ID が設定されていません"
+            exit 1
+          fi
+          echo "✅ GCP_PROJECT_ID: $GCP_PROJECT_ID_VALUE"
+          
+          # その他のSecretsの確認
+          echo ""
+          echo "📋 その他のSecrets確認:"
+          echo "BQ_DATASET: $([ -z "${{ secrets.BQ_DATASET }}" ] && echo "❌ 未設定" || echo "✅ 設定済み")"
+          echo "BACKEND_SERVICE_ACCOUNT: $([ -z "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" ] && echo "❌ 未設定" || echo "✅ 設定済み")"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -76,7 +116,14 @@ jobs:
         run: |
           BACKEND_URL=$(gcloud run services describe universegeo-backend \
             --region ${{ env.REGION }} \
-            --format 'value(status.url)')
+            --format 'value(status.url)' \
+            --project ${{ env.PROJECT_ID }})
+          
+          if [ -z "$BACKEND_URL" ]; then
+            echo "❌ エラー: バックエンドURLを取得できませんでした"
+            exit 1
+          fi
+          
           echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
           echo "✅ Backend URL: $BACKEND_URL"
 
@@ -109,6 +156,23 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Verify Secrets
+        run: |
+          echo "🔍 Secret確認中..."
+          
+          # GCP_SA_KEY の確認
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ エラー: GCP_SA_KEY が設定されていません"
+            exit 1
+          fi
+          echo "✅ GCP_SA_KEY が設定されています"
+          
+          # フロントエンド用Secretsの確認
+          echo ""
+          echo "📋 フロントエンド用Secrets確認:"
+          echo "VITE_GOOGLE_SPREADSHEET_ID: $([ -z "${{ secrets.VITE_GOOGLE_SPREADSHEET_ID }}" ] && echo "⚠️ 未設定（オプション）" || echo "✅ 設定済み")"
+          echo "VITE_GOOGLE_SHEETS_API_KEY: $([ -z "${{ secrets.VITE_GOOGLE_SHEETS_API_KEY }}" ] && echo "⚠️ 未設定（オプション）" || echo "✅ 設定済み")"
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -126,16 +190,26 @@ jobs:
           IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/universegeo/universegeo"
           BACKEND_URL="${{ needs.deploy-backend.outputs.backend_url }}"
           
+          if [ -z "$BACKEND_URL" ]; then
+            echo "❌ エラー: バックエンドURLが取得できませんでした"
+            exit 1
+          fi
+          
+          echo "🏗️ Dockerイメージをビルド中..."
+          echo "Backend URL: $BACKEND_URL"
+          
           docker build \
             --build-arg VITE_API_BASE_URL=$BACKEND_URL \
-            --build-arg VITE_GOOGLE_SPREADSHEET_ID=${{ secrets.VITE_GOOGLE_SPREADSHEET_ID }} \
-            --build-arg VITE_GOOGLE_SHEETS_API_KEY=${{ secrets.VITE_GOOGLE_SHEETS_API_KEY }} \
+            --build-arg VITE_GOOGLE_SPREADSHEET_ID=${{ secrets.VITE_GOOGLE_SPREADSHEET_ID || '' }} \
+            --build-arg VITE_GOOGLE_SHEETS_API_KEY=${{ secrets.VITE_GOOGLE_SHEETS_API_KEY || '' }} \
             -t ${IMAGE_NAME}:${{ github.sha }} \
             -t ${IMAGE_NAME}:latest \
             .
           
+          echo "📤 Dockerイメージをプッシュ中..."
           docker push ${IMAGE_NAME}:${{ github.sha }}
           docker push ${IMAGE_NAME}:latest
+          echo "✅ Dockerイメージのビルドとプッシュが完了しました"
 
       - name: Deploy to Cloud Run
         run: |
@@ -157,7 +231,14 @@ jobs:
         run: |
           FRONTEND_URL=$(gcloud run services describe universegeo \
             --region ${{ env.REGION }} \
-            --format 'value(status.url)')
+            --format 'value(status.url)' \
+            --project ${{ env.PROJECT_ID }})
+          
+          if [ -z "$FRONTEND_URL" ]; then
+            echo "❌ エラー: フロントエンドURLを取得できませんでした"
+            exit 1
+          fi
+          
           echo "frontend_url=$FRONTEND_URL" >> $GITHUB_OUTPUT
           echo "✅ Frontend URL: $FRONTEND_URL"
 
