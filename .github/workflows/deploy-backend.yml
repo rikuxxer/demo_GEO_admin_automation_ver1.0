@@ -41,33 +41,47 @@ jobs:
       - name: Verify Secrets
         run: |
           echo "🔍 Secret確認中..."
-          echo "GCP_SA_KEY の存在確認..."
-          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+          echo "Environment: production"
+          echo ""
+          
+          # GCP_SA_KEY の確認
+          GCP_SA_KEY_VALUE="${{ secrets.GCP_SA_KEY }}"
+          if [ -z "$GCP_SA_KEY_VALUE" ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません"
             echo ""
             echo "📝 設定方法:"
             echo "1. Settings > Secrets and variables > Actions を開く"
-            echo "2. Repository secrets タブを選択"
+            echo "2. Repository secrets タブを選択（Environment secrets ではない）"
             echo "3. New repository secret をクリック"
             echo "4. Name: GCP_SA_KEY"
             echo "5. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
             echo ""
+            echo "⚠️ 注意: Environment secrets ではなく、Repository secrets に設定してください"
             exit 1
           fi
-          GCP_SA_KEY_LENGTH=${#GCP_SA_KEY}
+          GCP_SA_KEY_LENGTH=${#GCP_SA_KEY_VALUE}
           echo "✅ GCP_SA_KEY が設定されています（長さ: $GCP_SA_KEY_LENGTH 文字）"
           
-          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+          # GCP_PROJECT_ID の確認
+          GCP_PROJECT_ID_VALUE="${{ secrets.GCP_PROJECT_ID }}"
+          if [ -z "$GCP_PROJECT_ID_VALUE" ]; then
             echo "❌ エラー: GCP_PROJECT_ID が設定されていません"
             exit 1
           fi
-          echo "✅ GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}"
+          echo "✅ GCP_PROJECT_ID: $GCP_PROJECT_ID_VALUE"
+          
+          # その他のSecretsの確認
+          echo ""
+          echo "📋 その他のSecrets確認:"
+          echo "BQ_DATASET: $([ -z "${{ secrets.BQ_DATASET }}" ] && echo "❌ 未設定" || echo "✅ 設定済み")"
+          echo "GOOGLE_SPREADSHEET_ID: $([ -z "${{ secrets.GOOGLE_SPREADSHEET_ID }}" ] && echo "❌ 未設定" || echo "✅ 設定済み")"
+          echo "GOOGLE_SHEETS_API_KEY: $([ -z "${{ secrets.GOOGLE_SHEETS_API_KEY }}" ] && echo "❌ 未設定" || echo "✅ 設定済み")"
+          echo "BACKEND_SERVICE_ACCOUNT: $([ -z "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" ] && echo "❌ 未設定" || echo "✅ 設定済み")"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-        if: ${{ secrets.GCP_SA_KEY != '' }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
