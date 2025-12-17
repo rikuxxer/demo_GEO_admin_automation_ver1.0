@@ -40,5 +40,5 @@ yarn-error.log*
 Thumbs.db
 
 # Docker
-.dockerignore
+# .dockerignore は含める（Docker設定ファイルのため）
 

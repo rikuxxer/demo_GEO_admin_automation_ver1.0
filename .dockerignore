@@ -1,0 +1,39 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Environment files（機密情報を含む）
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Build output
+dist
+build
+
+# Documentation
+*.md
+!README.md
+
+# Tests
+coverage
+.nyc_output
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deployment scripts（イメージ内に含める必要がない）
+deploy.sh
+deploy.ps1
+
