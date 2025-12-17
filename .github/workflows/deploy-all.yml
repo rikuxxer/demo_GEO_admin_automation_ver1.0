@@ -159,7 +159,10 @@ jobs:
       - name: Deploy Backend
         working-directory: ./backend
         run: |
-          # サービスアカウントの権限を確認
+          echo "🚀 Deploying backend to Cloud Run..."
+          
+          # サービスアカウントの権限を確認（エラーが発生した場合はデフォルトを使用）
+          SERVICE_ACCOUNT_FLAG=""
           if [ -n "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" ]; then
             echo "🔍 サービスアカウント権限を確認中..."
             echo "Backend Service Account: ${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
@@ -177,21 +180,73 @@ jobs:
             SERVICE_ACCOUNT_FLAG=""
           fi
           
-          gcloud run deploy universegeo-backend \
-            --source . \
-            --region ${{ env.REGION }} \
-            --allow-unauthenticated \
-            --memory 512Mi \
-            --cpu 1 \
-            --max-instances 10 \
-            --set-env-vars GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
-            --set-env-vars BQ_DATASET=${{ secrets.BQ_DATASET }} \
-            --set-env-vars GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
-            --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
-            --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
-            --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
-            $SERVICE_ACCOUNT_FLAG \
-            --project ${{ env.PROJECT_ID }}
+          echo ""
+          echo "📋 デプロイ設定:"
+          echo "  Service: universegeo-backend"
+          echo "  Region: ${{ env.REGION }}"
+          echo "  Project: ${{ env.PROJECT_ID }}"
+          if [ -n "$SERVICE_ACCOUNT_FLAG" ]; then
+            echo "  Service Account: ${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
+            echo "  ⚠️ 権限エラーが発生した場合は、デフォルトのサービスアカウントで再試行します"
+          else
+            echo "  Service Account: (デフォルト)"
+          fi
+          echo ""
+          
+          # デプロイを試行（エラーが発生した場合はサービスアカウントなしで再試行）
+          if [ -n "$SERVICE_ACCOUNT_FLAG" ]; then
+            echo "🔄 サービスアカウント指定でデプロイを試行中..."
+            set +e
+            gcloud run deploy universegeo-backend \
+              --source . \
+              --region ${{ env.REGION }} \
+              --allow-unauthenticated \
+              --memory 512Mi \
+              --cpu 1 \
+              --max-instances 10 \
+              --set-env-vars GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
+              --set-env-vars BQ_DATASET=${{ secrets.BQ_DATASET }} \
+              --set-env-vars GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
+              --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
+              --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
+              --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
+              $SERVICE_ACCOUNT_FLAG \
+              --project ${{ env.PROJECT_ID }} 2>&1 | tee /tmp/deploy_output.log
+            DEPLOY_EXIT_CODE=${PIPESTATUS[0]}
+            set -e
+            
+            if [ $DEPLOY_EXIT_CODE -eq 0 ]; then
+              echo "✅ デプロイ成功（サービスアカウント指定）"
+            elif grep -q "iam.serviceaccounts.actAs" /tmp/deploy_output.log; then
+              echo ""
+              echo "⚠️ サービスアカウントの権限エラーが発生しました"
+              echo "🔄 デフォルトのサービスアカウントで再試行します..."
+              SERVICE_ACCOUNT_FLAG=""
+            else
+              cat /tmp/deploy_output.log
+              exit $DEPLOY_EXIT_CODE
+            fi
+            rm -f /tmp/deploy_output.log
+          fi
+          
+          # サービスアカウントなしでデプロイ（初回または再試行）
+          if [ -z "$SERVICE_ACCOUNT_FLAG" ]; then
+            echo "🔄 デフォルトのサービスアカウントでデプロイ中..."
+            gcloud run deploy universegeo-backend \
+              --source . \
+              --region ${{ env.REGION }} \
+              --allow-unauthenticated \
+              --memory 512Mi \
+              --cpu 1 \
+              --max-instances 10 \
+              --set-env-vars GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
+              --set-env-vars BQ_DATASET=${{ secrets.BQ_DATASET }} \
+              --set-env-vars GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
+              --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
+              --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
+              --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
+              --project ${{ env.PROJECT_ID }}
+          fi
 
       - name: Get Backend URL
         id: backend-url
