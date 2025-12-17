@@ -27,6 +27,9 @@ jobs:
     name: Deploy Backend to Cloud Run
     runs-on: ubuntu-latest
     
+    environment:
+      name: production
+    
     permissions:
       contents: read
       id-token: write
