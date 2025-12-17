@@ -38,39 +38,64 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug Secrets
+        run: |
+          echo "🔍 デバッグ情報:"
+          echo "GitHub Event: ${{ github.event_name }}"
+          echo "GitHub Ref: ${{ github.ref }}"
+          echo "GitHub Repository: ${{ github.repository }}"
+          echo ""
+          echo "📋 Secrets確認（値は表示しません）:"
+          echo "GCP_SA_KEY exists: $([ -n "${{ secrets.GCP_SA_KEY }}" ] && echo 'YES' || echo 'NO')"
+          echo "GCP_SA_KEY length: $(echo -n "${{ secrets.GCP_SA_KEY }}" | wc -c)"
+          echo "GCP_PROJECT_ID exists: $([ -n "${{ secrets.GCP_PROJECT_ID }}" ] && echo 'YES' || echo 'NO')"
+          echo "GCP_PROJECT_ID value: ${{ secrets.GCP_PROJECT_ID }}"
+          echo ""
+          echo "📝 確認方法:"
+          echo "1. https://github.com/${{ github.repository }}/settings/secrets/actions を開く"
+          echo "2. Repository secrets タブで以下を確認:"
+          echo "   - GCP_SA_KEY が存在するか"
+          echo "   - GCP_PROJECT_ID が存在するか"
+          echo "   - Secret名が正確に一致しているか（大文字・小文字）"
+
       - name: Verify Secrets
         run: |
           echo "🔍 Secret確認中..."
-          echo "Environment: production"
           echo ""
           
           # GCP_SA_KEY の確認（Repository secrets または Environment secrets）
           GCP_SA_KEY_VALUE="${{ secrets.GCP_SA_KEY }}"
-          if [ -z "$GCP_SA_KEY_VALUE" ]; then
+          GCP_SA_KEY_LENGTH=$(echo -n "$GCP_SA_KEY_VALUE" | wc -c)
+          
+          echo "GCP_SA_KEY length: $GCP_SA_KEY_LENGTH"
+          
+          if [ -z "$GCP_SA_KEY_VALUE" ] || [ "$GCP_SA_KEY_LENGTH" -eq 0 ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません"
             echo ""
-            echo "📝 設定方法（推奨: Repository secrets）:"
-            echo "1. Settings > Secrets and variables > Actions を開く"
+            echo "📝 設定方法（Repository secrets）:"
+            echo "1. https://github.com/${{ github.repository }}/settings/secrets/actions を開く"
             echo "2. Repository secrets タブを選択"
             echo "3. New repository secret をクリック"
-            echo "4. Name: GCP_SA_KEY"
+            echo "4. Name: GCP_SA_KEY（大文字・小文字を正確に）"
             echo "5. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
             echo "6. Add secret をクリック"
             echo ""
-            echo "📝 または Environment secrets の場合:"
-            echo "1. Settings > Environments > production を開く"
-            echo "2. Environment secrets セクションで Add secret をクリック"
-            echo "3. Name: GCP_SA_KEY"
-            echo "4. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
-            echo ""
             echo "⚠️ 重要:"
-            echo "- Repository secrets の使用を推奨します（より確実に動作します）"
-            echo "- JSONファイルの内容全体をコピー&ペーストしてください"
+            echo "- Secret名は正確に 'GCP_SA_KEY' である必要があります"
+            echo "- JSONファイルの内容全体（{ から } まで）をコピー&ペーストしてください"
             echo "- 改行も含めてそのまま貼り付け"
+            echo "- Repository secrets に設定してください（Environment secretsではない）"
             exit 1
           fi
-          GCP_SA_KEY_LENGTH=${#GCP_SA_KEY_VALUE}
+          
           echo "✅ GCP_SA_KEY が設定されています（長さ: $GCP_SA_KEY_LENGTH 文字）"
+          
+          # JSON形式の確認
+          if echo "$GCP_SA_KEY_VALUE" | grep -q '"type": "service_account"'; then
+            echo "✅ JSON形式が正しいです"
+          else
+            echo "⚠️ 警告: JSON形式が正しくない可能性があります"
+          fi
           
           # GCP_PROJECT_ID の確認
           GCP_PROJECT_ID_VALUE="${{ secrets.GCP_PROJECT_ID }}"
