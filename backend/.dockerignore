@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.env
+.env.local
+*.log
+.git
+.gitignore
+README.md
+deploy.sh
+service-account-key.json
+*.key.json
+dist
+.DS_Store
+

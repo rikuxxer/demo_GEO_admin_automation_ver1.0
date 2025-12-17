@@ -26,7 +26,7 @@ WORKDIR /app
 
 # 本番依存関係のみをインストール
 COPY package*.json ./
-RUN npm ci --omit=dev --legacy-peer-deps || npm install --production --legacy-peer-deps
+RUN npm ci --omit=dev || npm install --production
 
 # ビルド済みファイルをコピー
 COPY --from=builder /app/dist ./dist

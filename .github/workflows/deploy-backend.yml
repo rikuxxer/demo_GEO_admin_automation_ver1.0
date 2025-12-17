@@ -195,25 +195,38 @@ jobs:
             echo ""
             
             # 少し待ってからビルドログを取得（ビルドが完了するまで待つ）
-            sleep 5
+            echo "ビルド完了を待機中（10秒）..."
+            sleep 10
             
-            # 最新のビルドIDを取得
-            LATEST_BUILD=$(gcloud builds list --limit=1 --sort-by=~createTime --format='value(id)' --project ${{ env.PROJECT_ID }} 2>/dev/null || echo "")
+            # 最新のビルドIDを取得（複数の方法を試す）
+            echo "ビルドIDを取得中..."
+            LATEST_BUILD=$(gcloud builds list --limit=1 --sort-by=~createTime --format='value(id)' --project ${{ env.PROJECT_ID }} 2>&1 | head -1 || echo "")
             
-            if [ -n "$LATEST_BUILD" ]; then
-              echo "最新のビルドID: $LATEST_BUILD"
+            if [ -z "$LATEST_BUILD" ] || [ "$LATEST_BUILD" = "" ]; then
+              echo "別の方法でビルドIDを取得中..."
+              LATEST_BUILD=$(gcloud builds list --limit=1 --format='value(id)' --project ${{ env.PROJECT_ID }} 2>&1 | head -1 || echo "")
+            fi
+            
+            if [ -n "$LATEST_BUILD" ] && [ "$LATEST_BUILD" != "" ]; then
+              echo "✅ 最新のビルドID: $LATEST_BUILD"
               echo ""
-              echo "📋 ビルドログ（最後の200行）:"
+              echo "📋 ビルドログ（最後の300行）:"
               echo "=========================================="
-              gcloud builds log "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} 2>/dev/null | tail -200 || echo "ログの取得に失敗しました"
+              gcloud builds log "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} 2>&1 | tail -300 || echo "ログの取得に失敗しました"
               echo "=========================================="
               echo ""
               echo "📋 ビルドの詳細情報:"
-              gcloud builds describe "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} --format='value(status,logUrl)' 2>/dev/null || echo "詳細情報の取得に失敗しました"
+              gcloud builds describe "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} --format='yaml(status,logUrl,steps)' 2>&1 | head -50 || echo "詳細情報の取得に失敗しました"
             else
-              echo "ビルドIDを取得できませんでした"
-              echo "最近のビルド一覧:"
-              gcloud builds list --limit=5 --project ${{ env.PROJECT_ID }} 2>/dev/null || echo "ビルド一覧の取得に失敗しました"
+              echo "⚠️ ビルドIDを取得できませんでした"
+              echo ""
+              echo "最近のビルド一覧（デバッグ情報）:"
+              echo "----------------------------------------"
+              gcloud builds list --limit=5 --project ${{ env.PROJECT_ID }} 2>&1 || echo "ビルド一覧の取得に失敗しました"
+              echo "----------------------------------------"
+              echo ""
+              echo "gcloud builds list の実行結果:"
+              gcloud builds list --limit=1 --project ${{ env.PROJECT_ID }} 2>&1 || echo "コマンド実行に失敗しました"
             fi
             
             echo ""
@@ -222,6 +235,11 @@ jobs:
             echo "   https://console.cloud.google.com/cloud-build/builds?project=${{ env.PROJECT_ID }}"
             echo "2. 最新のビルドをクリック"
             echo "3. ビルドログを確認"
+            echo ""
+            echo "💡 ヒント: ビルドが失敗している場合、以下の点を確認してください:"
+            echo "   - Dockerfileが正しく配置されているか"
+            echo "   - package.jsonとtsconfig.jsonが存在するか"
+            echo "   - 必要なファイルがすべてコピーされているか"
             echo ""
             exit $DEPLOY_EXIT_CODE
           fi
