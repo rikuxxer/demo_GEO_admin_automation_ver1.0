@@ -58,7 +58,19 @@ jobs:
         run: |
           if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません"
-            echo "Settings > Environments > production > Environment secrets で GCP_SA_KEY を設定してください"
+            echo ""
+            echo "📝 設定方法（Environment secrets）:"
+            echo ""
+            echo "このワークフローは 'environment: production' を設定しているため、"
+            echo "Environment secrets を参照します。"
+            echo ""
+            echo "設定手順:"
+            echo "1. https://github.com/${{ github.repository }}/settings/environments/production を開く"
+            echo "2. Environment secrets セクションで Add secret をクリック"
+            echo "3. Name: GCP_SA_KEY（大文字・小文字を正確に）"
+            echo "   ⚠️ 重要: Secret名は 'GCP_SA_KEY' と完全に一致する必要があります"
+            echo "4. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
+            echo "5. Add secret をクリック"
             exit 1
           fi
           echo "✅ GCP_SA_KEY が設定されています"
