@@ -38,6 +38,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ エラー: GCP_SA_KEY が設定されていません"
+            echo "Settings > Environments > production > Environment secrets で GCP_SA_KEY を設定してください"
+            exit 1
+          fi
+          echo "✅ GCP_SA_KEY が設定されています（長さ: ${#GCP_SA_KEY} 文字）"
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "❌ エラー: GCP_PROJECT_ID が設定されていません"
+            exit 1
+          fi
+          echo "✅ GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}"
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:

@@ -54,6 +54,15 @@ jobs:
           npm run build
           echo "✅ Build completed"
 
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ エラー: GCP_SA_KEY が設定されていません"
+            echo "Settings > Environments > production > Environment secrets で GCP_SA_KEY を設定してください"
+            exit 1
+          fi
+          echo "✅ GCP_SA_KEY が設定されています"
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
