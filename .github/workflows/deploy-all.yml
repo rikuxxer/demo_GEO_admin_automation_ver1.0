@@ -89,15 +89,25 @@ jobs:
           fi
 
       - name: Verify Secrets
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           echo "🔍 Secret確認中..."
           echo ""
           
           # GCP_SA_KEY の確認
-          GCP_SA_KEY_VALUE='${{ secrets.GCP_SA_KEY }}'
-          GCP_SA_KEY_LENGTH=$(echo -n "$GCP_SA_KEY_VALUE" | wc -c)
+          # 環境変数から安全に取得
+          if [ -z "$GCP_SA_KEY" ]; then
+            GCP_SA_KEY_LENGTH=0
+          else
+            # 一時ファイルに書き込んで長さを確認（安全な方法）
+            echo "$GCP_SA_KEY" > /tmp/gcp_sa_key_check.json
+            GCP_SA_KEY_LENGTH=$(wc -c < /tmp/gcp_sa_key_check.json | tr -d ' ')
+            rm -f /tmp/gcp_sa_key_check.json
+          fi
           
-          if [ -z "$GCP_SA_KEY_VALUE" ] || [ "$GCP_SA_KEY_LENGTH" -eq 0 ] || [ "$GCP_SA_KEY_VALUE" = "***" ]; then
+          if [ -z "$GCP_SA_KEY" ] || [ "$GCP_SA_KEY_LENGTH" -eq 0 ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません"
             echo ""
             echo "📝 設定方法（Environment secrets）:"
@@ -126,12 +136,11 @@ jobs:
           echo "✅ GCP_SA_KEY が設定されています（長さ: $GCP_SA_KEY_LENGTH 文字）"
           
           # GCP_PROJECT_ID の確認
-          GCP_PROJECT_ID_VALUE="${{ secrets.GCP_PROJECT_ID }}"
-          if [ -z "$GCP_PROJECT_ID_VALUE" ]; then
+          if [ -z "$GCP_PROJECT_ID" ]; then
             echo "❌ エラー: GCP_PROJECT_ID が設定されていません"
             exit 1
           fi
-          echo "✅ GCP_PROJECT_ID: $GCP_PROJECT_ID_VALUE"
+          echo "✅ GCP_PROJECT_ID: $GCP_PROJECT_ID"
           
           # その他のSecretsの確認
           echo ""
