@@ -27,8 +27,10 @@ jobs:
     name: Deploy Backend to Cloud Run
     runs-on: ubuntu-latest
     
-    environment:
-      name: production
+    # Repository secretsを使う場合は environment ブロックを削除
+    # Environment secretsを使う場合はコメントアウトを外す
+    # environment:
+    #   name: production
     
     permissions:
       contents: read
@@ -56,7 +58,13 @@ jobs:
             echo "4. Name: GCP_SA_KEY"
             echo "5. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
             echo ""
-            echo "⚠️ 注意: Environment secrets ではなく、Repository secrets に設定してください"
+            echo "⚠️ 重要: Repository secrets に設定してください"
+            echo ""
+            echo "現在の設定状況:"
+            echo "- Repository secrets: Settings > Secrets and variables > Actions > Repository secrets"
+            echo "- Environment secrets: Settings > Environments > production > Environment secrets"
+            echo ""
+            echo "✅ 推奨: Repository secrets に設定してください"
             exit 1
           fi
           GCP_SA_KEY_LENGTH=${#GCP_SA_KEY_VALUE}

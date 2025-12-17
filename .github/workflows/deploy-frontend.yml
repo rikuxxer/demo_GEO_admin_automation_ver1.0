@@ -28,8 +28,9 @@ jobs:
     name: Deploy Frontend to Cloud Run
     runs-on: ubuntu-latest
     
-    environment:
-      name: production
+    # Repository secretsを使う場合は environment ブロックを削除
+    # environment:
+    #   name: production
     
     permissions:
       contents: read
