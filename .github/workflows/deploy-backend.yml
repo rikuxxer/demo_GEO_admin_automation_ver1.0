@@ -138,6 +138,49 @@ jobs:
         run: |
           echo "🚀 Deploying backend to Cloud Run..."
           
+          # サービスアカウントの権限を確認
+          SERVICE_ACCOUNT_FLAG=""
+          if [ -n "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" ]; then
+            echo "🔍 サービスアカウント権限を確認中..."
+            echo "Backend Service Account: ${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
+            
+            # サービスアカウントが存在するか確認
+            if gcloud iam service-accounts describe "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" --project ${{ env.PROJECT_ID }} 2>/dev/null; then
+              echo "✅ サービスアカウントが存在します"
+              # 権限を確認（actAs権限があるか）
+              if gcloud iam service-accounts get-iam-policy "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" --project ${{ env.PROJECT_ID }} 2>/dev/null | grep -q "serviceAccount:${{ secrets.GCP_SA_KEY }}" || true; then
+                echo "✅ サービスアカウントの権限を確認しました"
+                SERVICE_ACCOUNT_FLAG="--service-account=${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
+              else
+                echo "⚠️ 警告: サービスアカウントのactAs権限がありません。デフォルトのサービスアカウントを使用します"
+                echo "💡 ヒント: 以下のコマンドで権限を付与できます:"
+                echo "   gcloud iam service-accounts add-iam-policy-binding ${{ secrets.BACKEND_SERVICE_ACCOUNT }} \\"
+                echo "     --member=\"serviceAccount:$(gcloud config get-value account)\" \\"
+                echo "     --role=\"roles/iam.serviceAccountUser\" \\"
+                echo "     --project=${{ env.PROJECT_ID }}"
+                SERVICE_ACCOUNT_FLAG=""
+              fi
+            else
+              echo "⚠️ 警告: サービスアカウントが見つかりません。デフォルトのサービスアカウントを使用します"
+              SERVICE_ACCOUNT_FLAG=""
+            fi
+          else
+            echo "⚠️ 警告: BACKEND_SERVICE_ACCOUNT が設定されていません。デフォルトのサービスアカウントを使用します"
+            SERVICE_ACCOUNT_FLAG=""
+          fi
+          
+          echo ""
+          echo "📋 デプロイ設定:"
+          echo "  Service: ${{ env.SERVICE_NAME }}"
+          echo "  Region: ${{ env.REGION }}"
+          echo "  Project: ${{ env.PROJECT_ID }}"
+          if [ -n "$SERVICE_ACCOUNT_FLAG" ]; then
+            echo "  Service Account: ${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
+          else
+            echo "  Service Account: (デフォルト)"
+          fi
+          echo ""
+          
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region ${{ env.REGION }} \
@@ -151,7 +194,7 @@ jobs:
             --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
             --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
             --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
-            --service-account=${{ secrets.BACKEND_SERVICE_ACCOUNT }} \
+            $SERVICE_ACCOUNT_FLAG \
             --project ${{ env.PROJECT_ID }}
 
       - name: Get backend URL
