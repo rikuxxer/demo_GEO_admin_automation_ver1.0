@@ -27,10 +27,8 @@ jobs:
     name: Deploy Backend to Cloud Run
     runs-on: ubuntu-latest
     
-    # Repository secretsを使う場合は environment ブロックを削除
-    # Environment secretsを使う場合はコメントアウトを外す
-    # environment:
-    #   name: production
+    environment:
+      name: production
     
     permissions:
       contents: read
@@ -51,20 +49,16 @@ jobs:
           if [ -z "$GCP_SA_KEY_VALUE" ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません"
             echo ""
-            echo "📝 設定方法:"
-            echo "1. Settings > Secrets and variables > Actions を開く"
-            echo "2. Repository secrets タブを選択（Environment secrets ではない）"
-            echo "3. New repository secret をクリック"
-            echo "4. Name: GCP_SA_KEY"
-            echo "5. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
+            echo "📝 Environment secrets の設定方法:"
+            echo "1. Settings > Environments > production を開く"
+            echo "2. Environment secrets セクションで Add secret をクリック"
+            echo "3. Name: GCP_SA_KEY"
+            echo "4. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
             echo ""
-            echo "⚠️ 重要: Repository secrets に設定してください"
-            echo ""
-            echo "現在の設定状況:"
-            echo "- Repository secrets: Settings > Secrets and variables > Actions > Repository secrets"
-            echo "- Environment secrets: Settings > Environments > production > Environment secrets"
-            echo ""
-            echo "✅ 推奨: Repository secrets に設定してください"
+            echo "⚠️ 確認事項:"
+            echo "- Environment名が 'production' であるか確認"
+            echo "- Environment secrets に GCP_SA_KEY が存在するか確認"
+            echo "- JSONファイルの内容全体をコピー&ペーストしているか確認"
             exit 1
           fi
           GCP_SA_KEY_LENGTH=${#GCP_SA_KEY_VALUE}
