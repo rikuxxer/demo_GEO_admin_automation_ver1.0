@@ -228,13 +228,18 @@ jobs:
               echo "📋 ビルドの詳細情報:"
               gcloud builds describe "$LATEST_BUILD" --project "$PROJECT_ID" --format='yaml(status,logUrl,steps)' 2>&1 | head -100
             else
-              echo "⚠️ ビルドIDを取得できませんでした"
-              echo "取得結果: $LATEST_BUILD"
-              echo ""
-              echo "最近のビルド一覧（デバッグ情報）:"
-              echo "----------------------------------------"
-              gcloud builds list --limit=5 --project "$PROJECT_ID" 2>&1
-              echo "----------------------------------------"
+            echo "⚠️ ビルドIDを取得できませんでした"
+            echo "取得結果: $LATEST_BUILD"
+            echo ""
+            echo "最近のビルド一覧（デバッグ情報）:"
+            echo "----------------------------------------"
+            gcloud builds list --limit=5 --project "$PROJECT_ID" 2>&1
+            echo "----------------------------------------"
+            echo ""
+            echo "💡 代替方法: サービス名からビルドを検索..."
+            SERVICE_NAME="${{ env.SERVICE_NAME }}"
+            echo "サービス名: $SERVICE_NAME"
+            gcloud builds list --filter="substitutions.SERVICE_NAME=$SERVICE_NAME" --limit=1 --project "$PROJECT_ID" 2>&1
             fi
             
             echo ""
