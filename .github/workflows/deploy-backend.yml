@@ -64,12 +64,12 @@ jobs:
           echo ""
           
           # GCP_SA_KEY の確認（Repository secrets または Environment secrets）
-          GCP_SA_KEY_VALUE="${{ secrets.GCP_SA_KEY }}"
+          GCP_SA_KEY_VALUE='${{ secrets.GCP_SA_KEY }}'
           GCP_SA_KEY_LENGTH=$(echo -n "$GCP_SA_KEY_VALUE" | wc -c)
           
           echo "GCP_SA_KEY length: $GCP_SA_KEY_LENGTH"
           
-          if [ -z "$GCP_SA_KEY_VALUE" ] || [ "$GCP_SA_KEY_LENGTH" -eq 0 ]; then
+          if [ -z "$GCP_SA_KEY_VALUE" ] || [ "$GCP_SA_KEY_LENGTH" -eq 0 ] || [ "$GCP_SA_KEY_VALUE" = "***" ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません"
             echo ""
             echo "📝 設定方法（Environment secrets）:"
