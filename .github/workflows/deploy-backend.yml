@@ -169,7 +169,7 @@ jobs:
           echo ""
           
           # デフォルトのサービスアカウントでデプロイ（権限エラーを回避）
-          # ビルドログを詳細に表示
+          set +e
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region ${{ env.REGION }} \
@@ -183,20 +183,40 @@ jobs:
             --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
             --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
             --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
-            --project ${{ env.PROJECT_ID }} \
-            --log-http || {
+            --project ${{ env.PROJECT_ID }}
+          DEPLOY_EXIT_CODE=$?
+          set -e
+          
+          if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "❌ デプロイが失敗しました"
+            echo ""
+            echo "📋 ビルドログを取得中..."
+            echo ""
+            
+            # 最新のビルドIDを取得
+            LATEST_BUILD=$(gcloud builds list --limit=1 --sort-by=~createTime --format='value(id)' --project ${{ env.PROJECT_ID }} 2>/dev/null || echo "")
+            
+            if [ -n "$LATEST_BUILD" ]; then
+              echo "最新のビルドID: $LATEST_BUILD"
               echo ""
-              echo "❌ デプロイが失敗しました"
-              echo ""
-              echo "📋 ビルドログを確認する方法:"
-              echo "1. Google Cloud Console > Cloud Build > History を開く"
-              echo "2. 最新のビルドをクリック"
-              echo "3. ビルドログを確認"
-              echo ""
-              echo "または、以下のコマンドで確認:"
-              echo "gcloud builds list --limit=1 --format='value(id)' | xargs gcloud builds log"
-              exit 1
-            }
+              echo "📋 ビルドログ（最後の100行）:"
+              echo "=========================================="
+              gcloud builds log "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} 2>/dev/null | tail -100 || echo "ログの取得に失敗しました"
+              echo "=========================================="
+            else
+              echo "ビルドIDを取得できませんでした"
+            fi
+            
+            echo ""
+            echo "📋 ビルドログを確認する方法:"
+            echo "1. Google Cloud Console > Cloud Build > History を開く"
+            echo "   https://console.cloud.google.com/cloud-build/builds?project=${{ env.PROJECT_ID }}"
+            echo "2. 最新のビルドをクリック"
+            echo "3. ビルドログを確認"
+            echo ""
+            exit $DEPLOY_EXIT_CODE
+          fi
 
       - name: Get backend URL
         id: get-backend-url

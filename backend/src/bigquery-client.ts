@@ -4,11 +4,18 @@ const projectId = process.env.GCP_PROJECT_ID || 'universegeo-project';
 const datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
 
 // BigQueryクライアントの初期化
-const bigquery = new BigQuery({
+// Cloud Runではサービスアカウントが自動的に認証されるため、keyFilenameは不要
+const bigqueryConfig: any = {
   projectId,
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
   location: 'asia-northeast1', // 東京リージョン
-});
+};
+
+// ローカル開発環境でのみkeyFilenameを使用
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.NODE_ENV !== 'production') {
+  bigqueryConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+}
+
+const bigquery = new BigQuery(bigqueryConfig);
 
 const dataset = bigquery.dataset(datasetId);
 
