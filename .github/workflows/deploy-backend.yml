@@ -137,90 +137,33 @@ jobs:
         working-directory: ./backend
         run: |
           echo "🚀 Deploying backend to Cloud Run..."
-          
-          # サービスアカウントの権限を確認（エラーが発生した場合はデフォルトを使用）
-          SERVICE_ACCOUNT_FLAG=""
-          if [ -n "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" ]; then
-            echo "🔍 サービスアカウント権限を確認中..."
-            echo "Backend Service Account: ${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
-            
-            # サービスアカウントが存在するか確認
-            if gcloud iam service-accounts describe "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" --project ${{ env.PROJECT_ID }} 2>/dev/null; then
-              echo "✅ サービスアカウントが存在します"
-              # 権限チェックは複雑なため、デプロイ時にエラーが発生した場合は再試行
-              SERVICE_ACCOUNT_FLAG="--service-account=${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
-            else
-              echo "⚠️ 警告: サービスアカウントが見つかりません。デフォルトのサービスアカウントを使用します"
-              SERVICE_ACCOUNT_FLAG=""
-            fi
-          else
-            echo "⚠️ 警告: BACKEND_SERVICE_ACCOUNT が設定されていません。デフォルトのサービスアカウントを使用します"
-            SERVICE_ACCOUNT_FLAG=""
-          fi
-          
           echo ""
           echo "📋 デプロイ設定:"
           echo "  Service: ${{ env.SERVICE_NAME }}"
           echo "  Region: ${{ env.REGION }}"
           echo "  Project: ${{ env.PROJECT_ID }}"
-          if [ -n "$SERVICE_ACCOUNT_FLAG" ]; then
-            echo "  Service Account: ${{ secrets.BACKEND_SERVICE_ACCOUNT }}"
-            echo "  ⚠️ 権限エラーが発生した場合は、デフォルトのサービスアカウントで再試行します"
-          else
-            echo "  Service Account: (デフォルト)"
-          fi
+          echo "  Service Account: (デフォルト - 権限エラーを回避するため)"
+          echo ""
+          echo "💡 注意: サービスアカウントの権限エラーを回避するため、"
+          echo "   デフォルトのサービスアカウントを使用します。"
+          echo "   必要に応じて、後でCloud Runサービスの設定から変更できます。"
           echo ""
           
-          # デプロイを試行（エラーが発生した場合はサービスアカウントなしで再試行）
-          if [ -n "$SERVICE_ACCOUNT_FLAG" ]; then
-            echo "🔄 サービスアカウント指定でデプロイを試行中..."
-            if gcloud run deploy ${{ env.SERVICE_NAME }} \
-              --source . \
-              --region ${{ env.REGION }} \
-              --allow-unauthenticated \
-              --memory 512Mi \
-              --cpu 1 \
-              --max-instances 10 \
-              --set-env-vars GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
-              --set-env-vars BQ_DATASET=${{ secrets.BQ_DATASET }} \
-              --set-env-vars GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
-              --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
-              --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
-              --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
-              $SERVICE_ACCOUNT_FLAG \
-              --project ${{ env.PROJECT_ID }} 2>&1; then
-              echo "✅ デプロイ成功（サービスアカウント指定）"
-            else
-              DEPLOY_ERROR=$?
-              if echo "$DEPLOY_ERROR" | grep -q "iam.serviceaccounts.actAs" || [ $DEPLOY_ERROR -ne 0 ]; then
-                echo ""
-                echo "⚠️ サービスアカウントの権限エラーが発生しました"
-                echo "🔄 デフォルトのサービスアカウントで再試行します..."
-                SERVICE_ACCOUNT_FLAG=""
-              else
-                exit $DEPLOY_ERROR
-              fi
-            fi
-          fi
-          
-          # サービスアカウントなしでデプロイ（初回または再試行）
-          if [ -z "$SERVICE_ACCOUNT_FLAG" ]; then
-            echo "🔄 デフォルトのサービスアカウントでデプロイ中..."
-            gcloud run deploy ${{ env.SERVICE_NAME }} \
-              --source . \
-              --region ${{ env.REGION }} \
-              --allow-unauthenticated \
-              --memory 512Mi \
-              --cpu 1 \
-              --max-instances 10 \
-              --set-env-vars GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
-              --set-env-vars BQ_DATASET=${{ secrets.BQ_DATASET }} \
-              --set-env-vars GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
-              --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
-              --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
-              --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
-              --project ${{ env.PROJECT_ID }}
-          fi
+          # デフォルトのサービスアカウントでデプロイ（権限エラーを回避）
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --source . \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 10 \
+            --set-env-vars GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
+            --set-env-vars BQ_DATASET=${{ secrets.BQ_DATASET }} \
+            --set-env-vars GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
+            --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
+            --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
+            --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
+            --project ${{ env.PROJECT_ID }}
 
       - name: Get backend URL
         id: get-backend-url
