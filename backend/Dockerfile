@@ -4,11 +4,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # ビルドに必要なツールをインストール
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ libc6-compat
 
 # 依存関係をインストール
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+RUN npm ci || npm install
 
 # TypeScript設定ファイルをコピー
 COPY tsconfig.json ./
@@ -16,8 +16,8 @@ COPY tsconfig.json ./
 # ソースコードをコピー
 COPY src ./src
 
-# TypeScriptをビルド（エラー詳細を表示）
-RUN npm run build 2>&1 | tee /tmp/build.log || (cat /tmp/build.log && exit 1)
+# TypeScriptをビルド
+RUN npm run build
 
 # 本番ステージ
 FROM node:20-alpine

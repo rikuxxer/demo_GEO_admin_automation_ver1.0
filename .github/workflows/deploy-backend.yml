@@ -194,18 +194,26 @@ jobs:
             echo "📋 ビルドログを取得中..."
             echo ""
             
+            # 少し待ってからビルドログを取得（ビルドが完了するまで待つ）
+            sleep 5
+            
             # 最新のビルドIDを取得
             LATEST_BUILD=$(gcloud builds list --limit=1 --sort-by=~createTime --format='value(id)' --project ${{ env.PROJECT_ID }} 2>/dev/null || echo "")
             
             if [ -n "$LATEST_BUILD" ]; then
               echo "最新のビルドID: $LATEST_BUILD"
               echo ""
-              echo "📋 ビルドログ（最後の100行）:"
+              echo "📋 ビルドログ（最後の200行）:"
               echo "=========================================="
-              gcloud builds log "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} 2>/dev/null | tail -100 || echo "ログの取得に失敗しました"
+              gcloud builds log "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} 2>/dev/null | tail -200 || echo "ログの取得に失敗しました"
               echo "=========================================="
+              echo ""
+              echo "📋 ビルドの詳細情報:"
+              gcloud builds describe "$LATEST_BUILD" --project ${{ env.PROJECT_ID }} --format='value(status,logUrl)' 2>/dev/null || echo "詳細情報の取得に失敗しました"
             else
               echo "ビルドIDを取得できませんでした"
+              echo "最近のビルド一覧:"
+              gcloud builds list --limit=5 --project ${{ env.PROJECT_ID }} 2>/dev/null || echo "ビルド一覧の取得に失敗しました"
             fi
             
             echo ""
