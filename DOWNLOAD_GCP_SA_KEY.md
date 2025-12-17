@@ -1,6 +1,59 @@
 # GCP_SA_KEY（サービスアカウントキー）のダウンロード方法
 
-## 方法1: Google Cloud Consoleを使用（推奨）
+## 📋 既にキーファイルを持っている場合
+
+### ステップ1: 既存のJSONファイルを探す
+
+以下の場所を確認してください：
+
+- **ダウンロードフォルダ**: `C:\Users\YourName\Downloads\`
+- **デスクトップ**: `C:\Users\YourName\Desktop\`
+- **プロジェクトフォルダ**: プロジェクトのルートディレクトリ
+
+ファイル名の例：
+- `your-project-id-xxxxx.json`
+- `key.json`
+- `service-account-key.json`
+- `universegeo-backend-sa-xxxxx.json`
+
+### ステップ2: JSONファイルの内容をコピー
+
+#### PowerShellを使用する場合
+
+```powershell
+# ファイルのパスを指定してクリップボードにコピー
+Get-Content "C:\Users\YourName\Downloads\your-project-id-xxxxx.json" | Set-Clipboard
+
+# または、ファイルを探す
+Get-ChildItem -Path $env:USERPROFILE\Downloads -Filter "*.json" | Select-Object -First 1 | Get-Content | Set-Clipboard
+```
+
+#### メモ帳などのテキストエディタを使用
+
+1. JSONファイルを右クリック > **プログラムから開く** > **メモ帳**
+2. 内容全体を選択（Ctrl+A）
+3. コピー（Ctrl+C）
+
+### ステップ3: GitHub Environment Secretsに設定
+
+1. GitHubリポジトリの **Settings** > **Environments** > **production** を開く
+2. **Environment secrets** セクションで **Add secret** をクリック
+3. **Name**: `GCP_SA_KEY`
+4. **Secret**: コピーしたJSONの内容全体を貼り付け
+5. **Add secret** をクリック
+
+**重要**: 
+- JSON全体をそのままコピー&ペーストしてください
+- 改行も含めてそのまま貼り付け
+- 前後の空白を削除しない
+
+---
+
+## 🔄 既存のキーを再ダウンロードする場合
+
+既存のキーファイルが見つからない、または失効した場合は、新しいキーを作成する必要があります。
+
+### 方法1: Google Cloud Consoleを使用（推奨）
 
 ### ステップ1: Google Cloud Consoleにアクセス
 
@@ -28,14 +81,18 @@
 2. **CONTINUE** をクリック
 3. **DONE** をクリック
 
-### ステップ5: キーの作成
+### ステップ5: キーの作成（新規作成または再ダウンロード）
 
-1. 作成したサービスアカウントをクリック
+1. 既存のサービスアカウントをクリック
 2. **Keys** タブを開く
 3. **ADD KEY** > **Create new key** をクリック
 4. **Key type** で **JSON** を選択
 5. **CREATE** をクリック
 6. JSONファイルが自動的にダウンロードされます
+
+**注意**: 
+- 既存のキーがある場合、新しいキーを作成すると古いキーは無効になりません
+- セキュリティのため、古いキーは削除することを推奨します
 
 ### ステップ6: キーファイルの内容をコピー
 
@@ -169,7 +226,58 @@ type key.json
 
 ---
 
+## 🔍 既存のキーが有効か確認する方法
+
+### 方法1: gcloud CLIで確認
+
+```bash
+# サービスアカウントキーで認証を試す
+gcloud auth activate-service-account --key-file=key.json
+
+# 認証が成功したら、プロジェクト情報を取得
+gcloud config get-value project
+```
+
+### 方法2: キーファイルの内容を確認
+
+JSONファイルが正しい形式か確認：
+
+```json
+{
+  "type": "service_account",
+  "project_id": "your-project-id",
+  "private_key_id": "...",
+  "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+  "client_email": "...@...iam.gserviceaccount.com",
+  ...
+}
+```
+
+**確認ポイント**:
+- `type` が `"service_account"` である
+- `project_id` が正しいプロジェクトIDである
+- `private_key` が存在する（`-----BEGIN PRIVATE KEY-----` で始まる）
+- `client_email` が正しいサービスアカウントのメールアドレスである
+
+---
+
 ## トラブルシューティング
+
+### エラー: 既存のキーファイルが見つからない
+
+**解決方法**:
+1. Google Cloud Consoleで既存のキーを確認
+2. キーが存在する場合は再ダウンロードできないため、新しいキーを作成
+3. 古いキーを削除して新しいキーを使用
+
+### エラー: キーが無効になっている
+
+**原因**: キーが削除された、または期限切れ
+
+**解決方法**:
+1. Google Cloud Console > Service Accounts > Keys タブを確認
+2. キーが存在しない場合は、新しいキーを作成
+3. 新しいキーをGitHub Secretsに設定
 
 ### エラー: 権限が不足している
 
