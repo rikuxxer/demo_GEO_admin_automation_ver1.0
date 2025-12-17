@@ -353,15 +353,23 @@ export function useProjectSystem() {
         segment_id: segmentId,
         poi_name: poiData.poi_name || "",
         address: poiData.address,
+        poi_type: poiData.poi_type,
+        poi_category: poiData.poi_category,
         designated_radius: poiData.designated_radius,
         latitude: poiData.latitude,
         longitude: poiData.longitude,
         extraction_period: poiData.extraction_period,
+        extraction_period_type: poiData.extraction_period_type,
+        extraction_start_date: poiData.extraction_start_date,
+        extraction_end_date: poiData.extraction_end_date,
         attribute: poiData.attribute,
         detection_count: poiData.detection_count,
         detection_time_start: poiData.detection_time_start,
         detection_time_end: poiData.detection_time_end,
         stay_time: poiData.stay_time,
+        location_id: poiData.location_id,
+        prefectures: poiData.prefectures,
+        cities: poiData.cities,
       });
 
       setPois((prev) => [newPoi, ...prev]);
@@ -418,6 +426,72 @@ export function useProjectSystem() {
     } catch (error) {
       console.error("Error creating POI:", error);
       toast.error("地点の登録に失敗しました");
+      throw error;
+    }
+  };
+
+  // 地点一括登録
+  const createPoisBulk = async (segmentId: string, poisData: Partial<PoiInfo>[]) => {
+    try {
+      if (!selectedProject) return;
+
+      const poisToCreate = poisData.map(poiData => ({
+        project_id: selectedProject.project_id,
+        segment_id: segmentId,
+        poi_name: poiData.poi_name || "",
+        address: poiData.address,
+        poi_type: poiData.poi_type,
+        poi_category: poiData.poi_category,
+        designated_radius: poiData.designated_radius,
+        latitude: poiData.latitude,
+        longitude: poiData.longitude,
+        extraction_period: poiData.extraction_period,
+        extraction_period_type: poiData.extraction_period_type,
+        extraction_start_date: poiData.extraction_start_date,
+        extraction_end_date: poiData.extraction_end_date,
+        attribute: poiData.attribute,
+        detection_count: poiData.detection_count,
+        detection_time_start: poiData.detection_time_start,
+        detection_time_end: poiData.detection_time_end,
+        stay_time: poiData.stay_time,
+        location_id: poiData.location_id,
+        prefectures: poiData.prefectures,
+        cities: poiData.cities,
+      }));
+
+      const newPois = await bigQueryService.createPoisBulk(poisToCreate);
+
+      setPois((prev) => [...newPois, ...prev]);
+      setAllPois((prev) => [...newPois, ...prev]);
+      
+      // セグメントに共通条件が未設定の場合、最初の地点の条件でセグメントを更新
+      const segment = segments.find(s => s.segment_id === segmentId);
+      if (segment && !segment.designated_radius && poisData[0]?.designated_radius) {
+        const segmentUpdates: Partial<Segment> = {
+          designated_radius: poisData[0].designated_radius,
+          extraction_period: poisData[0].extraction_period,
+          extraction_period_type: poisData[0].extraction_period_type,
+          extraction_start_date: poisData[0].extraction_start_date,
+          extraction_end_date: poisData[0].extraction_end_date,
+          attribute: poisData[0].attribute,
+          detection_count: poisData[0].detection_count,
+          detection_time_start: poisData[0].detection_time_start,
+          detection_time_end: poisData[0].detection_time_end,
+          stay_time: poisData[0].stay_time,
+        };
+        
+        const updatedSegment = await bigQueryService.updateSegment(segmentId, segmentUpdates);
+        if (updatedSegment) {
+          setSegments((prev) => prev.map((s) => (s.segment_id === segmentId ? updatedSegment : s)));
+          setAllSegments((prev) => prev.map((s) => (s.segment_id === segmentId ? updatedSegment : s)));
+        }
+      }
+      
+      toast.success(`${newPois.length}件の地点が登録されました`);
+      return newPois;
+    } catch (error) {
+      console.error("Error creating POIs in bulk:", error);
+      toast.error("地点の一括登録に失敗しました");
       throw error;
     }
   };
@@ -594,6 +668,7 @@ export function useProjectSystem() {
     updateSegmentStatus,
     confirmSegmentLink,
     createPoi,
+    createPoisBulk,
     updatePoi,
     deletePoi,
     createEditRequest,

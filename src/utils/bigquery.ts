@@ -7,7 +7,11 @@
  * このファイルはモック実装（ローカルストレージ使用）を提供します。
  */
 
-import type { Project, Segment, PoiInfo, EditRequest, ProjectMessage, ChangeHistory } from '../types/schema';
+import type { Project, Segment, PoiInfo, EditRequest, ProjectMessage, ChangeHistory, VisitMeasurementGroup, FeatureRequest } from '../types/schema';
+
+// API Base URL（環境変数から取得、未設定の場合はlocalStorageモックを使用）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const USE_API = !!API_BASE_URL;
 
 // Mock implementation using localStorage
 class BigQueryService {
@@ -17,18 +21,25 @@ class BigQueryService {
   private readonly editRequestStorageKey = 'bq_edit_requests';
   private readonly messageStorageKey = 'bq_messages';
   private readonly changeHistoryStorageKey = 'bq_change_history';
+  private readonly visitMeasurementGroupStorageKey = 'bq_visit_measurement_groups';
+  private readonly featureRequestStorageKey = 'bq_feature_requests';
+  private readonly userStorageKey = 'bq_users';
+  private readonly userRequestStorageKey = 'bq_user_requests';
 
   constructor() {
     // 初期化時にデータマイグレーションを実行
     this.migrateSegmentIds();
-    // デモデータの投入（メッセージがない場合）
-    this.seedDemoData();
+    // デモデータの投入（環境変数で制御）
+    // 開発環境でデモデータを使いたい場合は .env に VITE_USE_DEMO_DATA=true を追加
+    if (import.meta.env.VITE_USE_DEMO_DATA === 'true') {
+      this.seedDemoData();
+    }
     // 6か月以上古い履歴を削除
     this.cleanupOldHistory();
   }
 
-  // デモデータの投入
-  private seedDemoData(): void {
+  // デモデータの投入（外部から呼び出し可能にする）
+  public seedDemoData(): void {
     try {
       // 1. プロジェクトの確認・作成
       let projects: Project[] = [];
@@ -276,22 +287,54 @@ class BigQueryService {
     try {
       const segments = await this.getSegments();
       
-      // 最大のセグメントIDを取得して+1
-      let maxId = 0;
+      // 配信媒体に応じたプレフィックスを決定
+      let prefix = 'seg-uni'; // デフォルトはuniverse
+      
+      if (segment.media_id) {
+        if (Array.isArray(segment.media_id)) {
+          // 複数の媒体がある場合、優先順位で決定（CTV > universe）
+          if (segment.media_id.includes('tver_ctv')) {
+            prefix = 'seg-ctv';
+          } else if (segment.media_id.includes('universe')) {
+            prefix = 'seg-uni';
+          }
+        } else {
+          // 単一の媒体の場合
+          if (segment.media_id === 'tver_ctv') {
+            prefix = 'seg-ctv';
+          } else if (segment.media_id === 'universe') {
+            prefix = 'seg-uni';
+          }
+        }
+      }
+      
+      // 該当プレフィックスの最大番号を取得（案件横断）
+      let maxNumber = 0;
       segments.forEach(s => {
-        const id = parseInt(s.segment_id);
-        if (!isNaN(id) && id > maxId) {
-          maxId = id;
+        // 例: seg-ctv-001 から 001 を抽出
+        const match = s.segment_id.match(new RegExp(`^${prefix}-(\\d+)$`));
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
         }
       });
       
+      // 次の番号を3桁ゼロ埋めで生成
+      const nextNumber = maxNumber + 1;
+      const segmentId = `${prefix}-${String(nextNumber).padStart(3, '0')}`;
+      
       const newSegment: Segment = {
         ...segment,
-        segment_id: String(maxId + 1),
+        segment_id: segmentId,
         segment_registered_at: new Date().toISOString(),
       };
       segments.unshift(newSegment);
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));
+      
+      console.log(`✅ セグメント作成: ${segmentId} (media: ${segment.media_id})`);
+      
       return newSegment;
     } catch (error) {
       console.error('Error creating segment:', error);
@@ -432,9 +475,28 @@ class BigQueryService {
   async createPoi(poi: Omit<PoiInfo, 'poi_id' | 'created'>): Promise<PoiInfo> {
     try {
       const pois = await this.getPoiInfos();
+      
+      // セグメント単位で連番を生成
+      const segmentPois = pois.filter(p => p.segment_id === poi.segment_id);
+      const maxNumber = segmentPois.reduce((max, p) => {
+        // 既存のlocation_idから番号を抽出（形式: S1-001, S1-002など）
+        if (p.location_id) {
+          const match = p.location_id.match(/-(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            return Math.max(max, num);
+          }
+        }
+        return max;
+      }, 0);
+      
+      const nextNumber = maxNumber + 1;
+      const locationId = `${poi.segment_id}-${String(nextNumber).padStart(3, '0')}`;
+      
       const newPoi: PoiInfo = {
         ...poi,
         poi_id: `POI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        location_id: locationId,
         created: new Date().toISOString(),
       };
       pois.unshift(newPoi);
@@ -443,6 +505,61 @@ class BigQueryService {
       return newPoi;
     } catch (error) {
       console.error('Error creating POI:', error);
+      throw error;
+    }
+  }
+
+  async createPoisBulk(poisData: Omit<PoiInfo, 'poi_id' | 'created'>[]): Promise<PoiInfo[]> {
+    try {
+      const existingPois = await this.getPoiInfos();
+      
+      // セグメントごとにグループ化
+      const poisBySegment = new Map<string, Omit<PoiInfo, 'poi_id' | 'created'>[]>();
+      poisData.forEach(poi => {
+        if (!poisBySegment.has(poi.segment_id)) {
+          poisBySegment.set(poi.segment_id, []);
+        }
+        poisBySegment.get(poi.segment_id)!.push(poi);
+      });
+      
+      const newPois: PoiInfo[] = [];
+      
+      // セグメントごとに連番を割り当て
+      for (const [segmentId, segmentPoisData] of poisBySegment.entries()) {
+        // 既存の地点から最大番号を取得
+        const segmentExistingPois = existingPois.filter(p => p.segment_id === segmentId);
+        let maxNumber = segmentExistingPois.reduce((max, p) => {
+          if (p.location_id) {
+            const match = p.location_id.match(/-(\d+)$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              return Math.max(max, num);
+            }
+          }
+          return max;
+        }, 0);
+        
+        // 各地点に連番を割り当て
+        for (const poi of segmentPoisData) {
+          maxNumber++;
+          const locationId = `${segmentId}-${String(maxNumber).padStart(3, '0')}`;
+          
+          newPois.push({
+            ...poi,
+            poi_id: `POI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            location_id: locationId,
+            created: new Date().toISOString(),
+          });
+        }
+      }
+      
+      // 新しいPOIを既存のPOIの先頭に追加
+      const updatedPois = [...newPois, ...existingPois];
+      localStorage.setItem(this.poiStorageKey, JSON.stringify(updatedPois));
+      console.log(`📍 ${newPois.length}件のPOIを一括登録しました`);
+      return newPois;
+    } catch (error) {
+      console.error('Error creating POIs in bulk:', error);
       throw error;
     }
   }
@@ -710,6 +827,416 @@ class BigQueryService {
     } catch (error) {
       console.error('Error cleaning up old history:', error);
     }
+  }
+
+  // 計測地点グループ管理
+  async getVisitMeasurementGroups(projectId: string): Promise<VisitMeasurementGroup[]> {
+    try {
+      const data = localStorage.getItem(this.visitMeasurementGroupStorageKey);
+      const groups: VisitMeasurementGroup[] = data ? JSON.parse(data) : [];
+      return groups.filter(g => g.project_id === projectId);
+    } catch (error) {
+      console.error('Error fetching visit measurement groups:', error);
+      return [];
+    }
+  }
+
+  async createVisitMeasurementGroup(group: Omit<VisitMeasurementGroup, 'group_id' | 'created'>): Promise<VisitMeasurementGroup> {
+    try {
+      const groups = await this.getAllVisitMeasurementGroups();
+      const newGroup: VisitMeasurementGroup = {
+        ...group,
+        group_id: `VMG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        created: new Date().toISOString(),
+      };
+      groups.unshift(newGroup);
+      localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(groups));
+      console.log('📍 Visit Measurement Group created:', newGroup);
+      return newGroup;
+    } catch (error) {
+      console.error('Error creating visit measurement group:', error);
+      throw error;
+    }
+  }
+
+  async updateVisitMeasurementGroup(groupId: string, updates: Partial<VisitMeasurementGroup>): Promise<VisitMeasurementGroup> {
+    try {
+      const groups = await this.getAllVisitMeasurementGroups();
+      const index = groups.findIndex(g => g.group_id === groupId);
+      if (index === -1) {
+        throw new Error(`Visit measurement group not found: ${groupId}`);
+      }
+      groups[index] = { ...groups[index], ...updates };
+      localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(groups));
+      console.log('📍 Visit Measurement Group updated:', groups[index]);
+      return groups[index];
+    } catch (error) {
+      console.error('Error updating visit measurement group:', error);
+      throw error;
+    }
+  }
+
+  async deleteVisitMeasurementGroup(groupId: string): Promise<void> {
+    try {
+      const groups = await this.getAllVisitMeasurementGroups();
+      const filtered = groups.filter(g => g.group_id !== groupId);
+      localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(filtered));
+      console.log('📍 Visit Measurement Group deleted:', groupId);
+    } catch (error) {
+      console.error('Error deleting visit measurement group:', error);
+      throw error;
+    }
+  }
+
+  private async getAllVisitMeasurementGroups(): Promise<VisitMeasurementGroup[]> {
+    try {
+      const data = localStorage.getItem(this.visitMeasurementGroupStorageKey);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error fetching all visit measurement groups:', error);
+      return [];
+    }
+  }
+
+  // 計測地点グループ管理
+  async getVisitMeasurementGroups(projectId: string): Promise<VisitMeasurementGroup[]> {
+    try {
+      const data = localStorage.getItem(this.visitMeasurementGroupStorageKey);
+      const groups: VisitMeasurementGroup[] = data ? JSON.parse(data) : [];
+      return groups.filter(g => g.project_id === projectId);
+    } catch (error) {
+      console.error('Error fetching visit measurement groups:', error);
+      return [];
+    }
+  }
+
+  async createVisitMeasurementGroup(group: Omit<VisitMeasurementGroup, 'group_id' | 'created'>): Promise<VisitMeasurementGroup> {
+    try {
+      const groups = await this.getAllVisitMeasurementGroups();
+      const newGroup: VisitMeasurementGroup = {
+        ...group,
+        group_id: `VMG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        created: new Date().toISOString(),
+      };
+      groups.unshift(newGroup);
+      localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(groups));
+      console.log('📍 Visit Measurement Group created:', newGroup);
+      return newGroup;
+    } catch (error) {
+      console.error('Error creating visit measurement group:', error);
+      throw error;
+    }
+  }
+
+  async updateVisitMeasurementGroup(groupId: string, updates: Partial<VisitMeasurementGroup>): Promise<VisitMeasurementGroup> {
+    try {
+      const groups = await this.getAllVisitMeasurementGroups();
+      const index = groups.findIndex(g => g.group_id === groupId);
+      if (index === -1) {
+        throw new Error(`Visit measurement group not found: ${groupId}`);
+      }
+      groups[index] = { ...groups[index], ...updates };
+      localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(groups));
+      console.log('📍 Visit Measurement Group updated:', groups[index]);
+      return groups[index];
+    } catch (error) {
+      console.error('Error updating visit measurement group:', error);
+      throw error;
+    }
+  }
+
+  async deleteVisitMeasurementGroup(groupId: string): Promise<void> {
+    try {
+      const groups = await this.getAllVisitMeasurementGroups();
+      const filtered = groups.filter(g => g.group_id !== groupId);
+      localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(filtered));
+      console.log('📍 Visit Measurement Group deleted:', groupId);
+    } catch (error) {
+      console.error('Error deleting visit measurement group:', error);
+      throw error;
+    }
+  }
+
+  private async getAllVisitMeasurementGroups(): Promise<VisitMeasurementGroup[]> {
+    try {
+      const data = localStorage.getItem(this.visitMeasurementGroupStorageKey);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error fetching all visit measurement groups:', error);
+      return [];
+    }
+  }
+
+  // 機能リクエスト管理
+  async getFeatureRequests(): Promise<FeatureRequest[]> {
+    try {
+      const data = localStorage.getItem(this.featureRequestStorageKey);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error fetching feature requests:', error);
+      return [];
+    }
+  }
+
+  async createFeatureRequest(request: Omit<FeatureRequest, 'request_id' | 'requested_at' | 'status'>): Promise<FeatureRequest> {
+    try {
+      const requests = await this.getFeatureRequests();
+      const newRequest: FeatureRequest = {
+        ...request,
+        request_id: `FRQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        requested_at: new Date().toISOString(),
+        status: 'pending',
+      };
+      requests.unshift(newRequest);
+      localStorage.setItem(this.featureRequestStorageKey, JSON.stringify(requests));
+      console.log('💡 Feature request created:', newRequest);
+      return newRequest;
+    } catch (error) {
+      console.error('Error creating feature request:', error);
+      throw error;
+    }
+  }
+
+  async updateFeatureRequest(requestId: string, updates: Partial<FeatureRequest>): Promise<FeatureRequest> {
+    try {
+      const requests = await this.getFeatureRequests();
+      const index = requests.findIndex(r => r.request_id === requestId);
+      if (index === -1) {
+        throw new Error(`Feature request not found: ${requestId}`);
+      }
+      requests[index] = { ...requests[index], ...updates };
+      localStorage.setItem(this.featureRequestStorageKey, JSON.stringify(requests));
+      console.log('💡 Feature request updated:', requests[index]);
+      return requests[index];
+    } catch (error) {
+      console.error('Error updating feature request:', error);
+      throw error;
+    }
+  }
+  // ユーザー管理
+  async getUsers(): Promise<any[]> {
+    const data = localStorage.getItem(this.userStorageKey);
+    return data ? JSON.parse(data) : [];
+  }
+
+  async getUserByEmail(email: string): Promise<any | null> {
+    const users = await this.getUsers();
+    return users.find(u => u.email === email) || null;
+  }
+
+  async createUser(userData: {
+    name: string;
+    email: string;
+    password: string;
+    role: 'admin' | 'sales';
+    department?: string;
+  }): Promise<any> {
+    const users = await this.getUsers();
+    
+    // メールアドレスの重複チェック
+    const existing = users.find(u => u.email === userData.email);
+    if (existing) {
+      throw new Error('このメールアドレスは既に登録されています');
+    }
+
+    const newUser = {
+      user_id: `USER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: userData.name,
+      email: userData.email,
+      // 注意: 実際の本番環境では、パスワードをハッシュ化して保存する必要があります
+      password_hash: btoa(userData.password), // 簡易的なエンコード（本番では使用しないでください）
+      role: userData.role,
+      department: userData.department,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      last_login: null
+    };
+
+    users.push(newUser);
+    localStorage.setItem(this.userStorageKey, JSON.stringify(users));
+    console.log('✅ ユーザー作成:', newUser.user_id);
+    
+    // パスワードハッシュは返さない
+    const { password_hash, ...userWithoutPassword } = newUser;
+    return userWithoutPassword;
+  }
+
+  async updateUser(userId: string, updates: any): Promise<any> {
+    const users = await this.getUsers();
+    const index = users.findIndex(u => u.user_id === userId);
+    
+    if (index === -1) {
+      throw new Error('ユーザーが見つかりません');
+    }
+
+    users[index] = {
+      ...users[index],
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+
+    localStorage.setItem(this.userStorageKey, JSON.stringify(users));
+    console.log('✅ ユーザー更新:', userId);
+    
+    const { password_hash, ...userWithoutPassword } = users[index];
+    return userWithoutPassword;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    const users = await this.getUsers();
+    const filtered = users.filter(u => u.user_id !== userId);
+    
+    if (filtered.length === users.length) {
+      throw new Error('ユーザーが見つかりません');
+    }
+
+    localStorage.setItem(this.userStorageKey, JSON.stringify(filtered));
+    console.log('✅ ユーザー削除:', userId);
+  }
+
+  // ユーザー登録申請管理
+  async getUserRequests(): Promise<any[]> {
+    const data = localStorage.getItem(this.userRequestStorageKey);
+    return data ? JSON.parse(data) : [];
+  }
+
+  async createUserRequest(requestData: {
+    name: string;
+    email: string;
+    password: string;
+    requested_role: 'admin' | 'sales';
+    department?: string;
+    reason?: string;
+  }): Promise<any> {
+    // バックエンドAPIを使用する場合
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/user-requests`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'ユーザー登録申請に失敗しました');
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('ユーザー登録申請APIエラー:', error);
+        throw error;
+      }
+    }
+
+    // モック実装（localStorage）
+    const requests = await this.getUserRequests();
+    
+    // メールアドレスの重複チェック（既存ユーザー）
+    const existingUser = await this.getUserByEmail(requestData.email);
+    if (existingUser) {
+      throw new Error('このメールアドレスは既に登録されています');
+    }
+
+    // 既に申請済みかチェック
+    const existingRequest = requests.find(r => 
+      r.email === requestData.email && r.status === 'pending'
+    );
+    if (existingRequest) {
+      throw new Error('このメールアドレスで既に申請が行われています');
+    }
+
+    const newRequest = {
+      user_id: `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: requestData.name,
+      email: requestData.email,
+      password_hash: btoa(requestData.password), // 簡易エンコード
+      requested_role: requestData.requested_role,
+      department: requestData.department,
+      reason: requestData.reason,
+      status: 'pending',
+      requested_at: new Date().toISOString(),
+      reviewed_at: null,
+      reviewed_by: null,
+      review_comment: null
+    };
+
+    requests.push(newRequest);
+    localStorage.setItem(this.userRequestStorageKey, JSON.stringify(requests));
+    console.log('✅ ユーザー登録申請作成:', newRequest.user_id);
+    
+    const { password_hash, ...requestWithoutPassword } = newRequest;
+    return requestWithoutPassword;
+  }
+
+  async approveUserRequest(requestId: string, reviewedBy: string, comment?: string): Promise<void> {
+    const requests = await this.getUserRequests();
+    const index = requests.findIndex(r => r.user_id === requestId);
+    
+    if (index === -1) {
+      throw new Error('申請が見つかりません');
+    }
+
+    const request = requests[index];
+    if (request.status !== 'pending') {
+      throw new Error('この申請は既に処理されています');
+    }
+
+    // ユーザーを作成
+    const newUser = {
+      user_id: `USER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: request.name,
+      email: request.email,
+      password_hash: request.password_hash,
+      role: request.requested_role,
+      department: request.department,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      last_login: null
+    };
+
+    const users = await this.getUsers();
+    users.push(newUser);
+    localStorage.setItem(this.userStorageKey, JSON.stringify(users));
+
+    // 申請を承認済みに更新
+    requests[index] = {
+      ...request,
+      status: 'approved',
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewedBy,
+      review_comment: comment || null
+    };
+
+    localStorage.setItem(this.userRequestStorageKey, JSON.stringify(requests));
+    console.log('✅ ユーザー登録申請承認:', requestId, '-> ユーザー作成:', newUser.user_id);
+  }
+
+  async rejectUserRequest(requestId: string, reviewedBy: string, comment: string): Promise<void> {
+    const requests = await this.getUserRequests();
+    const index = requests.findIndex(r => r.user_id === requestId);
+    
+    if (index === -1) {
+      throw new Error('申請が見つかりません');
+    }
+
+    const request = requests[index];
+    if (request.status !== 'pending') {
+      throw new Error('この申請は既に処理されています');
+    }
+
+    requests[index] = {
+      ...request,
+      status: 'rejected',
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewedBy,
+      review_comment: comment
+    };
+
+    localStorage.setItem(this.userRequestStorageKey, JSON.stringify(requests));
+    console.log('✅ ユーザー登録申請却下:', requestId);
   }
 }
 

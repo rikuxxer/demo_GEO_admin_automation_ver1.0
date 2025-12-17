@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Calendar, ArrowUpDown, ChevronLeft, ChevronRight, ChevronDown, User, FileEdit, Loader2, CheckCircle2, MapPin, Building2, Send, AlertTriangle, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
 import type { Project, Segment, PoiInfo } from '../types/schema';
 import { useAuth } from '../contexts/AuthContext';
-import { getAutoProjectStatus, getStatusColor, getStatusIcon, getStatusLabel, AutoProjectStatus } from '../utils/projectStatus';
+import { getAutoProjectStatus, getStatusColor, getStatusIcon, getStatusLabel, AutoProjectStatus, countProjectsByStatus } from '../utils/projectStatus';
 import { canViewProject } from '../utils/editRequest';
 
 interface ProjectTableProps {
@@ -29,7 +29,13 @@ export function ProjectTable({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showMyProjectsOnly, setShowMyProjectsOnly] = useState(true); // デフォルトでオン
+  const [statusFilterLocal, setStatusFilterLocal] = useState<AutoProjectStatus | 'total' | null>(statusFilter ?? null);
   const itemsPerPage = 10;
+  
+  // 外部からのフィルタ変更を同期
+  useEffect(() => {
+    setStatusFilterLocal(statusFilter ?? null);
+  }, [statusFilter]);
   
   // ユーザー情報が読み込まれたらフィルター状態を設定
   useEffect(() => {
@@ -82,6 +88,9 @@ export function ProjectTable({
     }
   }, [user]);
 
+  // ステータス別件数
+  const statusCounts = useMemo(() => countProjectsByStatus(allProjects, segments, pois), [allProjects, segments, pois]);
+
   const filteredProjects = allProjects
     .filter(project => {
       // 【閲覧権限チェック】
@@ -98,15 +107,15 @@ export function ProjectTable({
       }
 
       // ステータスフィルタ
-      if (statusFilter && statusFilter !== 'total') {
-        if (statusFilter === 'waiting_input') {
+      if (statusFilterLocal && statusFilterLocal !== 'total') {
+        if (statusFilterLocal === 'waiting_input') {
           // 入力不備系ステータスをまとめてフィルタリング
           if (statusInfo.status !== 'waiting_poi' && 
               statusInfo.status !== 'waiting_account_id' && 
               statusInfo.status !== 'waiting_service_id') {
             return false;
           }
-        } else if (statusInfo.status !== statusFilter) {
+        } else if (statusInfo.status !== statusFilterLocal) {
           return false;
         }
       }

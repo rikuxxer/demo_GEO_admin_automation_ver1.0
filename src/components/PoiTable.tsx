@@ -121,17 +121,8 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
               <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[25%]">住所/市区町村</th>
               <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[10%]">指定半径</th>
               <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[20%]">緯度経度</th>
-              <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[10%]">検知回数</th>
-              {hasEditingRow && !readOnly && (
-                <>
-                  <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[12%]">抽出期間</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[10%]">属性</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[12%]">滞在時間</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[15%]">検知時間</th>
-                </>
-              )}
               {!readOnly && (
-                <th className="px-4 py-3 text-right text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[5%]">アクション</th>
+                <th className="px-4 py-3 text-right text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[5%]"></th>
               )}
             </tr>
           </thead>
@@ -258,170 +249,8 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                     )}
                   </td>
 
-                  {/* 検知回数（検知者の場合のみ表示） */}
-                  <td className="px-4 py-4 align-top">
-                    {(isEditing ? editForm.attribute : poi.attribute) === 'detector' ? (
-                      isEditing ? (
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            min="1"
-                            max="5"
-                            value={editForm.detection_count || 1}
-                            onChange={(e) => handleInputChange('detection_count', e.target.value)}
-                            className="h-8 text-sm w-16"
-                          />
-                          <span className="text-xs text-gray-500">回</span>
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-900">{poi.detection_count || 1}回以上</div>
-                      )
-                    ) : (
-                      <div className="text-sm text-gray-400">-</div>
-                    )}
-                  </td>
-
-                  {/* 抽出条件（編集モード時のみ表示） */}
-                  {isEditing && (
-                    <>
-                      {/* 抽出期間 */}
-                      <td className="px-4 py-4 align-top">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-gray-500">抽出期間</Label>
-                          <div className="space-y-1">
-                            <div className="flex gap-2 text-xs">
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={`period_type_${poi.poi_id}`}
-                                  checked={editForm.extraction_period_type === 'preset'}
-                                  onChange={() => handleInputChange('extraction_period_type', 'preset')}
-                                  disabled={editForm.attribute === 'resident' || editForm.attribute === 'worker'}
-                                  className="text-[#5b5fff] focus:ring-[#5b5fff]"
-                                />
-                                <span>プリセット</span>
-                              </label>
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={`period_type_${poi.poi_id}`}
-                                  checked={editForm.extraction_period_type === 'custom'}
-                                  onChange={() => handleInputChange('extraction_period_type', 'custom')}
-                                  disabled={editForm.attribute === 'resident' || editForm.attribute === 'worker'}
-                                  className="text-[#5b5fff] focus:ring-[#5b5fff]"
-                                />
-                                <span>期間指定</span>
-                              </label>
-                            </div>
-                            {editForm.extraction_period_type === 'preset' ? (
-                              <select
-                                value={editForm.extraction_period || ''}
-                                onChange={(e) => handleInputChange('extraction_period', e.target.value)}
-                                className="h-8 text-sm w-full px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                                disabled={editForm.attribute === 'resident' || editForm.attribute === 'worker'}
-                              >
-                                <option value="">選択</option>
-                                {EXTRACTION_PERIOD_PRESET_OPTIONS.map(option => (
-                                  <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <div className="flex gap-1">
-                                <Input
-                                  type="date"
-                                  value={editForm.extraction_start_date || ''}
-                                  onChange={(e) => handleInputChange('extraction_start_date', e.target.value)}
-                                  className="h-8 text-xs"
-                                />
-                                <span className="text-xs text-gray-400 self-center">〜</span>
-                                <Input
-                                  type="date"
-                                  value={editForm.extraction_end_date || ''}
-                                  onChange={(e) => handleInputChange('extraction_end_date', e.target.value)}
-                                  className="h-8 text-xs"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 属性 */}
-                      <td className="px-4 py-4 align-top">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-gray-500">属性</Label>
-                          <select
-                            value={editForm.attribute || ''}
-                            onChange={(e) => handleInputChange('attribute', e.target.value)}
-                            className="h-8 text-sm w-full px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                          >
-                            <option value="">選択</option>
-                            {ATTRIBUTE_OPTIONS.map(option => (
-                              <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </td>
-
-                      {/* 滞在時間 */}
-                      <td className="px-4 py-4 align-top">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-gray-500">滞在時間</Label>
-                          <select
-                            value={editForm.stay_time || ''}
-                            onChange={(e) => handleInputChange('stay_time', e.target.value)}
-                            className="h-8 text-sm w-full px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                          >
-                            <option value="">選択</option>
-                            {STAY_TIME_OPTIONS.map(option => (
-                              <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </td>
-
-                      {/* 検知時間（検知者の場合のみ表示） */}
-                      {editForm.attribute === 'detector' && (
-                        <td className="px-4 py-4 align-top">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-gray-500">検知時間</Label>
-                            <div className="flex gap-1">
-                              <Input
-                                type="time"
-                                value={editForm.detection_time_start || ''}
-                                onChange={(e) => handleInputChange('detection_time_start', e.target.value)}
-                                className="h-8 text-sm w-20"
-                                placeholder="開始"
-                              />
-                              <span className="text-xs text-gray-400 self-center">〜</span>
-                              <Input
-                                type="time"
-                                value={editForm.detection_time_end || ''}
-                                onChange={(e) => handleInputChange('detection_time_end', e.target.value)}
-                                className="h-8 text-sm w-20"
-                                placeholder="終了"
-                              />
-                            </div>
-                          </div>
-                        </td>
-                      )}
-                      {editForm.attribute !== 'detector' && (
-                        <td className="px-4 py-4 align-top">
-                          <div className="text-sm text-gray-400">-</div>
-                        </td>
-                      )}
-                    </>
-                  )}
-
-                  {/* 抽出条件（編集モードでない場合の空セル） */}
-                  {hasEditingRow && !readOnly && !isEditing && (
-                    <>
+                  {/* 検知回数（UI非表示） */}
                       <td className="px-4 py-4 align-top"></td>
-                      <td className="px-4 py-4 align-top"></td>
-                      <td className="px-4 py-4 align-top"></td>
-                      <td className="px-4 py-4 align-top"></td>
-                    </>
-                  )}
 
                   {/* アクション */}
                   {!readOnly && (
@@ -520,7 +349,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                 <Button
                   variant="outline"
                   size="icon"
-                  className="rounded-l-md w-8 h-8 p-0"
+                  className="rounded-l-md w-8 h-8 p-0 border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
                   onClick={() => handlePageChange(1)}
                   disabled={currentPage === 1}
                 >
@@ -529,21 +358,21 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                 <Button
                   variant="outline"
                   size="icon"
-                  className="w-8 h-8 p-0"
+                  className="w-8 h-8 p-0 border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 
-                <span className="inline-flex items-center px-4 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 focus:outline-offset-0 bg-white">
+                <span className="inline-flex items-center px-4 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-200 focus:outline-offset-0 bg-white">
                   {currentPage} / {totalPages}
                 </span>
 
                 <Button
                   variant="outline"
                   size="icon"
-                  className="w-8 h-8 p-0"
+                  className="w-8 h-8 p-0 border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
                   onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                 >
@@ -552,7 +381,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                 <Button
                   variant="outline"
                   size="icon"
-                  className="rounded-r-md w-8 h-8 p-0"
+                  className="rounded-r-md w-8 h-8 p-0 border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
                   onClick={() => handlePageChange(totalPages)}
                   disabled={currentPage === totalPages}
                 >
@@ -575,7 +404,9 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>キャンセル</AlertDialogCancel>
+              <AlertDialogCancel className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50">
+                キャンセル
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => deleteTarget && handleDelete(deleteTarget)}
                 className="bg-red-600 hover:bg-red-700"

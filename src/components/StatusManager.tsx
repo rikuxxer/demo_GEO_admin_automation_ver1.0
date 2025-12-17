@@ -4,18 +4,22 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Card } from './ui/card';
+import { SummaryCards } from './SummaryCards';
 import { DATA_LINK_STATUS_OPTIONS, MEDIA_OPTIONS, LOCATION_REQUEST_STATUS_OPTIONS } from '../types/schema';
-import type { Project, Segment } from '../types/schema';
+import type { Project, Segment, PoiInfo } from '../types/schema';
+import { AutoProjectStatus } from '../utils/projectStatus';
 
 interface StatusManagerProps {
   projects: Project[];
   segments: Segment[];
+  pois?: PoiInfo[];
   onProjectClick?: (projectId: string) => void;
 }
 
 export function StatusManager({ 
   projects, 
   segments, 
+  pois = [],
   onProjectClick
 }: StatusManagerProps) {
   const [segmentSearchTerm, setSegmentSearchTerm] = useState('');
@@ -23,6 +27,7 @@ export function StatusManager({
   const [segmentFilterMedia, setSegmentFilterMedia] = useState<string>('all');
   const [segmentFilterDate, setSegmentFilterDate] = useState<string>('all');
   const [segmentFilterLocation, setSegmentFilterLocation] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<AutoProjectStatus | 'total' | null>(null);
 
   // セグメントのフィルタリング
   const getProjectName = (projectId: string) => {
@@ -126,6 +131,15 @@ export function StatusManager({
         <h1 className="text-gray-900 mb-2">案件一覧</h1>
         <p className="text-muted-foreground">案件とセグメントの一覧を確認できます</p>
       </div>
+
+      {/* 案件サマリ */}
+      <SummaryCards 
+        projects={projects}
+        segments={segments}
+        pois={pois}
+        selectedStatus={statusFilter}
+        onCardClick={setStatusFilter}
+      />
 
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 space-y-4">
@@ -236,7 +250,7 @@ export function StatusManager({
                       return (
                         <tr key={segment.segment_id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-3 py-2">
-                            <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs font-mono px-2 py-1 whitespace-nowrap">
                               {segment.segment_id}
                             </Badge>
                           </td>

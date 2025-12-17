@@ -23,12 +23,33 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
   const [result, setResult] = useState<ExcelParseResult | null>(null);
   const [importing, setImporting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
       setResult(null);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    setDownloading(true);
+    try {
+      // 最低表示時間を確保してユーザーにフィードバックを提供
+      await Promise.all([
+        downloadExcelTemplate(),
+        new Promise(resolve => setTimeout(resolve, 800)) // 最低800ms表示
+      ]);
+      
+      // ダウンロード完了後、さらに200ms待ってから通常状態に戻す
+      setTimeout(() => {
+        setDownloading(false);
+      }, 200);
+    } catch (error) {
+      console.error('テンプレートダウンロードエラー:', error);
+      alert('テンプレートのダウンロード中にエラーが発生しました。');
+      setDownloading(false);
     }
   };
 
@@ -145,15 +166,24 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
       const spreadsheetRows: any[] = []; // スプレッドシート出力用のデータを蓄積
       
       for (const location of result.locations) {
-        const segmentId = segmentMap.get(location.segment_name_ref);
+        // 来店計測地点の場合はセグメント不要
+        let segmentId: string | undefined;
+        let segmentData: ExcelSegmentData | undefined;
 
-        if (!segmentId) {
-          console.error(`❌ セグメント「${location.segment_name_ref}」が見つかりません`);
-          continue;
+        if (location.poi_category === 'visit_measurement') {
+          // 来店計測地点：セグメント不要
+          segmentId = undefined;
+          segmentData = undefined;
+        } else {
+          // TG地点：セグメント必須
+          segmentId = segmentMap.get(location.segment_name_ref);
+          if (!segmentId) {
+            console.error(`❌ セグメント「${location.segment_name_ref}」が見つかりません`);
+            continue;
+          }
+          // 対応するセグメントデータを取得（共通条件を引き継ぐため）
+          segmentData = result.segments.find(s => s.segment_name === location.segment_name_ref);
         }
-
-        // 対応するセグメントデータを取得（共通条件を引き継ぐため）
-        const segmentData = result.segments.find(s => s.segment_name === location.segment_name_ref);
 
         const createdPoi = await bigQueryService.createPoi({
           poi_name: location.poi_name,
@@ -161,13 +191,15 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
           latitude: location.latitude,
           longitude: location.longitude,
           project_id: createdProject.project_id,
-          segment_id: segmentId,
+          segment_id: segmentId, // 来店計測地点の場合はundefined
           // 手動登録フォームとの整合性のため、poi_typeを設定
           poi_type: 'manual',
-          // セグメントの共通条件を地点にも引き継ぐ（後方互換性のため）
+          // 地点カテゴリを設定（v4.0で追加）
+          poi_category: location.poi_category || 'tg',
+          // セグメントの共通条件を地点にも引き継ぐ（TG地点の場合のみ）
           designated_radius: segmentData?.designated_radius,
           extraction_period: segmentData?.extraction_period,
-          extraction_period_type: 'preset',
+          extraction_period_type: segmentData ? 'preset' : undefined,
           extraction_start_date: segmentData?.extraction_start_date || '',
           extraction_end_date: segmentData?.extraction_end_date || '',
           attribute: segmentData?.attribute,
@@ -177,12 +209,15 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
           stay_time: segmentData?.stay_time || '',
         });
 
-        // 営業ユーザーによる地点登録の場合、スプレッドシート出力用データを蓄積
-        if (user?.role === 'sales') {
+        // 営業ユーザーによるTG地点登録の場合、スプレッドシート出力用データを蓄積
+        // （来店計測地点はスプレッドシート出力対象外）
+        if (user?.role === 'sales' && location.poi_category !== 'visit_measurement') {
           try {
             const segment = segmentDataMap.get(location.segment_name_ref);
-            const spreadsheetRow = convertPoiToSpreadsheetRow(createdPoi, createdProject, segment);
-            spreadsheetRows.push(spreadsheetRow);
+            if (segment) {
+              const spreadsheetRow = convertPoiToSpreadsheetRow(createdPoi, createdProject, segment);
+              spreadsheetRows.push(spreadsheetRow);
+            }
           } catch (error) {
             console.error('スプレッドシート出力データの作成に失敗しました:', error);
             // エラーが発生しても地点登録は成功とする
@@ -229,7 +264,8 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
   };
 
   const hasErrors = result && result.errors.length > 0;
-  const canImport = result && !hasErrors && result.project && result.segments.length > 0 && result.locations.length > 0;
+  // セグメントまたは地点のどちらかがあればOK（来店計測地点のみの場合、セグメントは不要）
+  const canImport = result && !hasErrors && result.project && result.locations.length > 0;
 
   return (
     <div className="space-y-6">
@@ -242,10 +278,13 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
             <p className="font-medium text-blue-900">Excelファイルの構成</p>
             <ul className="list-disc list-inside space-y-1 text-blue-800">
               <li><strong>①入力ガイド</strong>: 使い方の説明</li>
-              <li><strong>②案件情報</strong>: 案件の基本情報（1件）</li>
-              <li><strong>③セグメント設定</strong>: 配信条件（複数件可・プルダウン選択）</li>
-              <li><strong>④地点リスト</strong>: 配信地点一覧</li>
+              <li><strong>②案件情報</strong>: 案件の基本情報（<span className="text-red-600 font-bold">1案件のみ登録可能</span>）</li>
+              <li><strong>③セグメント・TG地点設定</strong>: セグメント＋TG地点（複数件可）</li>
+              <li><strong>④来店計測地点リスト</strong>: 来店計測地点（複数件可）</li>
             </ul>
+            <p className="text-red-600 font-semibold mt-3 border-t border-red-200 pt-2">
+              ⚠️ 複数案件を登録する場合は、案件ごとにExcelファイルを分けてください
+            </p>
             <p className="text-blue-700 mt-2">
               ※ プルダウンで簡単入力。広告主や代理店の方も入力しやすい形式です
             </p>
@@ -264,12 +303,22 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
             まずはテンプレートをダウンロードして、必要な情報を入力してください
           </p>
           <Button
-            onClick={downloadExcelTemplate}
+            onClick={handleDownloadTemplate}
             variant="outline"
             className="flex items-center gap-2 border border-gray-300 text-blue-600 hover:bg-gray-50"
+            disabled={downloading}
           >
-            <Download className="w-4 h-4 text-blue-600" />
-            Excelテンプレートをダウンロード
+            {downloading ? (
+              <>
+                <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                ダウンロード中...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 text-blue-600" />
+                Excelテンプレートをダウンロード
+              </>
+            )}
           </Button>
         </div>
       </Card>

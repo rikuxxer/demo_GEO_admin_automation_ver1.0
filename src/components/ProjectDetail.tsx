@@ -1,9 +1,11 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Upload, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History } from 'lucide-react';
+import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2 } from 'lucide-react';
 import { RADIUS_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { Card } from './ui/card';
+import { Progress } from './ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
@@ -13,7 +15,6 @@ import { SegmentForm } from './SegmentForm';
 import { SegmentTable } from './SegmentTable';
 import { PoiForm } from './PoiForm';
 import { PoiTable } from './PoiTable';
-import { PoiBulkUpload } from './PoiBulkUpload';
 import { PoiMapViewer } from './PoiMapViewer';
 import { ProjectEditRequestDialog } from './ProjectEditRequestDialog';
 import { PoiEditRequestDialog } from './PoiEditRequestDialog';
@@ -22,13 +23,14 @@ import { GeocodeProgressDialog } from './GeocodeProgressDialog';
 import { ProjectMessages } from './ProjectMessages';
 import { ProjectChangeHistory } from './ProjectChangeHistory';
 import { useAuth } from '../contexts/AuthContext';
-import type { Project, Segment, PoiInfo, EditRequest, ProjectMessage, ChangeHistory } from '../types/schema';
+import type { Project, Segment, PoiInfo, EditRequest, ProjectMessage, ChangeHistory, VisitMeasurementGroup } from '../types/schema';
 import { PROJECT_STATUS_OPTIONS } from '../types/schema';
 import { getAutoProjectStatus, getStatusColor, getStatusLabel } from '../utils/projectStatus';
 import { canDirectEdit, canEditProject, requiresEditRequest } from '../utils/editRequest';
 import { enrichPOIsWithGeocode, GeocodeError } from '../utils/geocoding';
 import { calculateDataCoordinationDate } from '../utils/dataCoordinationDate';
 import { bigQueryService } from '../utils/bigquery'; // 追加
+import { exportPoisToSheet } from '../utils/googleSheets';
 
 interface ProjectDetailProps {
   project: Project;
@@ -40,6 +42,7 @@ interface ProjectDetailProps {
   onSegmentUpdate: (segmentId: string, updates: Partial<Segment>) => void;
   onSegmentDelete: (segmentId: string) => void;
   onPoiCreate: (segmentId: string, poiData: Partial<PoiInfo>) => void;
+  onPoiCreateBulk?: (segmentId: string, poisData: Partial<PoiInfo>[]) => Promise<any>;
   onPoiUpdate: (poiId: string, updates: Partial<PoiInfo>) => Promise<void>;
   onPoiDelete: (poiId: string) => void;
   editRequests?: EditRequest[];
@@ -60,6 +63,7 @@ export function ProjectDetail({
   onSegmentUpdate,
   onSegmentDelete,
   onPoiCreate,
+  onPoiCreateBulk,
   onPoiUpdate,
   onPoiDelete,
   editRequests = [],
@@ -76,9 +80,11 @@ export function ProjectDetail({
   const [showPoiForm, setShowPoiForm] = useState(false);
   const [editingPoi, setEditingPoi] = useState<PoiInfo | null>(null);
   const [selectedSegmentForPoi, setSelectedSegmentForPoi] = useState<string | null>(null);
-  const [managingSegment, setManagingSegment] = useState<Segment | null>(null); // Used for Upload Dialog context
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [poiViewMode, setPoiViewMode] = useState<'list' | 'map'>('list');
+  const [poiViewModeByCategory, setPoiViewModeByCategory] = useState<Record<'tg' | 'visit_measurement', 'list' | 'map'>>({
+    tg: 'list',
+    visit_measurement: 'list',
+  });
   const [showProjectEditDialog, setShowProjectEditDialog] = useState(false);
   const [showPoiEditDialog, setShowPoiEditDialog] = useState(false);
   const [editRequestPoi, setEditRequestPoi] = useState<PoiInfo | null>(null);
@@ -86,6 +92,14 @@ export function ProjectDetail({
   const [editedProject, setEditedProject] = useState<Partial<Project>>({});
   const [showSegmentSelectForPoi, setShowSegmentSelectForPoi] = useState(false);
   const [expandedSegmentId, setExpandedSegmentId] = useState<string | undefined>(undefined);
+  const [selectedPoiCategory, setSelectedPoiCategory] = useState<'tg' | 'visit_measurement'>('tg');
+  
+  // 計測地点グループ関連の状態
+  const [visitMeasurementGroups, setVisitMeasurementGroups] = useState<VisitMeasurementGroup[]>([]);
+  const [showGroupForm, setShowGroupForm] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<VisitMeasurementGroup | null>(null);
+  const [groupFormData, setGroupFormData] = useState({ group_name: '' });
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   
   // ジオコーディング関連の��態
   const [showGeocodeProgress, setShowGeocodeProgress] = useState(false);
@@ -96,6 +110,8 @@ export function ProjectDetail({
   const [geocodeErrors, setGeocodeErrors] = useState<GeocodeError[]>([]);
   const [geocodeCompleted, setGeocodeCompleted] = useState(false);
   const [geocodingSegment, setGeocodingSegment] = useState<Segment | null>(null);
+  const [isGeocodingRunning, setIsGeocodingRunning] = useState(false);
+  const [backgroundGeocodingSegment, setBackgroundGeocodingSegment] = useState<string | null>(null);
 
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [showExtractionConditionsPopup, setShowExtractionConditionsPopup] = useState(false);
@@ -111,9 +127,22 @@ export function ProjectDetail({
       const userRole = user.role === 'admin' ? 'admin' : 'sales';
       const count = messages.filter(m => m.sender_role !== userRole && !m.is_read).length;
       setUnreadMessageCount(count);
+      
+      // messagesタブが開かれたときに既読処理を実行
+      if (activeTab === 'messages') {
+        try {
+          await bigQueryService.markMessagesAsRead(project.project_id, userRole);
+          // 未読数を更新
+          if (onUnreadCountUpdate) {
+            onUnreadCountUpdate();
+          }
+        } catch (error) {
+          console.error('Failed to mark messages as read:', error);
+        }
+      }
     };
     loadUnreadCount();
-  }, [project.project_id, user, activeTab]);
+  }, [project.project_id, user, activeTab, onUnreadCountUpdate]);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
@@ -148,7 +177,12 @@ export function ProjectDetail({
 
   const handleEditPoi = (poi: PoiInfo) => {
     const parentSegment = segments.find(s => s.segment_id === poi.segment_id);
-    if (requiresEditRequest('poi', poi, undefined, parentSegment)) {
+    // 来店計測地点はセグメントに従属しないため、セグメントの状態に関係なく編集可能
+    if (poi.poi_category === 'visit_measurement') {
+      setSelectedSegmentForPoi(poi.segment_id);
+      setEditingPoi(poi);
+      setShowPoiForm(true);
+    } else if (requiresEditRequest('poi', poi, undefined, parentSegment)) {
       setEditRequestPoi(poi);
       setShowPoiEditDialog(true);
     } else {
@@ -169,35 +203,110 @@ export function ProjectDetail({
     setExpandedSegmentId(segment.segment_id);
   };
 
-  const handleOpenBulkUpload = (segment: Segment) => {
-    setManagingSegment(segment);
-    setShowBulkUpload(true);
-  };
-
-  const handleBulkUploadComplete = (pois: Partial<PoiInfo>[]) => {
-    pois.forEach(poi => {
-      if (managingSegment) {
-        onPoiCreate(managingSegment.segment_id, poi);
-      }
-    });
-    setShowBulkUpload(false);
-    setManagingSegment(null);
-  };
 
   // PoiFormからのCSV一括登録ハンドラ
-  const handlePoiFormBulkSubmit = (pois: Partial<PoiInfo>[]) => {
-    pois.forEach(poi => {
-      if (selectedSegmentForPoi) {
-        onPoiCreate(selectedSegmentForPoi, poi);
+  const handlePoiFormBulkSubmit = async (pois: Partial<PoiInfo>[]) => {
+    if (!selectedSegmentForPoi) return;
+    
+    console.log(`🔄 一括登録開始: ${pois.length}件の地点`);
+    
+    try {
+      const poisWithCategory = pois.map(poi => ({
+        ...poi,
+        poi_category: poi.poi_category || selectedPoiCategory,
+        visit_measurement_group_id: poi.visit_measurement_group_id || (selectedPoiCategory === 'visit_measurement' && selectedGroupId ? selectedGroupId : undefined),
+      }));
+      
+      // 一括登録専用メソッドを使用
+      if (onPoiCreateBulk) {
+        await onPoiCreateBulk(selectedSegmentForPoi, poisWithCategory);
+      } else {
+        // フォールバック: 順次実行
+        for (const poi of poisWithCategory) {
+          await onPoiCreate(selectedSegmentForPoi, poi);
+        }
+        toast.success(`${pois.length}件の地点が登録されました`);
       }
-    });
-    setShowPoiForm(false);
-    setEditingPoi(null);
-    setSelectedSegmentForPoi(null);
+      
+      console.log(`✅ 一括登録完了: ${pois.length}件`);
+      
+      setShowPoiForm(false);
+      setEditingPoi(null);
+      setSelectedSegmentForPoi(null);
+    } catch (error) {
+      console.error('一括登録エラー:', error);
+      toast.error('地点の一括登録に失敗しました');
+    }
   };
 
   const handleConfirmSegment = async (segment: Segment) => {
     await executeGeocoding(segment);
+  };
+
+  // 計測地点グループの読み込み
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
+        setVisitMeasurementGroups(groups);
+      } catch (error) {
+        console.error('Error loading visit measurement groups:', error);
+      }
+    };
+    loadGroups();
+  }, [project.project_id]);
+
+  // 計測地点グループの作成・更新
+  const handleGroupSubmit = async () => {
+    if (!groupFormData.group_name.trim()) {
+      toast.error('グループ名を入力してください');
+      return;
+    }
+    try {
+      if (editingGroup) {
+        await bigQueryService.updateVisitMeasurementGroup(editingGroup.group_id, {
+          group_name: groupFormData.group_name.trim(),
+        });
+        toast.success('グループを更新しました');
+      } else {
+        const newGroup = await bigQueryService.createVisitMeasurementGroup({
+          project_id: project.project_id,
+          group_name: groupFormData.group_name.trim(),
+        });
+        console.log('Created group:', newGroup);
+        toast.success('グループを作成しました');
+      }
+      const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
+      console.log('Loaded groups:', groups);
+      setVisitMeasurementGroups(groups);
+      setShowGroupForm(false);
+      setEditingGroup(null);
+      setGroupFormData({ group_name: '' });
+    } catch (error) {
+      console.error('Error saving group:', error);
+      const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+      toast.error(`グループの保存に失敗しました: ${errorMessage}`);
+    }
+  };
+
+  // 計測地点グループの削除
+  const handleGroupDelete = async (groupId: string) => {
+    if (!confirm('このグループを削除しますか？グループに属する地点は削除されません。')) {
+      return;
+    }
+    try {
+      await bigQueryService.deleteVisitMeasurementGroup(groupId);
+      toast.success('グループを削除しました');
+      const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
+      setVisitMeasurementGroups(groups);
+      // 削除されたグループが選択されていた場合は選択を解除
+      if (selectedGroupId === groupId) {
+        setSelectedGroupId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      toast.error('グループの削除に失敗しました');
+    }
   };
 
   const handleDataLinkRequest = (segment: Segment) => {
@@ -211,21 +320,102 @@ export function ProjectDetail({
   };
 
   // ジオコーディング実行関数
-  const executeGeocoding = async (segment: Segment) => {
-    setGeocodingSegment(segment);
-    
-    const segmentPois = pois.filter(poi => poi.segment_id === segment.segment_id);
-    
-    if (segmentPois.length === 0) {
-      toast.error('地点が登録されていません');
+  const executeGeocoding = async (segment: Segment, runInBackground: boolean = false) => {
+    // 既に実行中の場合はスキップ
+    if (isGeocodingRunning) {
+      toast.warning('ジオコーディング処理は既に実行中です');
       return;
     }
 
-    const needsGeocoding = segmentPois.filter(
-      poi => !poi.latitude || !poi.longitude || poi.latitude === 0 || poi.longitude === 0
-    );
+    setGeocodingSegment(segment);
+    setIsGeocodingRunning(true);
+    
+    // 最新の地点データを取得（地点登録直後の反映を確実にするため）
+    let latestPois = pois;
+    try {
+      const freshPois = await bigQueryService.getPoisByProject(project.project_id);
+      latestPois = freshPois;
+      console.log(`🔄 最新の地点データを取得: ${freshPois.length}件（元の地点数: ${pois.length}件）`);
+    } catch (error) {
+      console.warn('最新の地点データの取得に失敗しました。既存のデータを使用します:', error);
+    }
+    
+    const segmentPois = latestPois.filter(poi => poi.segment_id === segment.segment_id);
+    
+    if (segmentPois.length === 0) {
+      toast.error('地点が登録されていません');
+      setIsGeocodingRunning(false);
+      return;
+    }
 
-    setShowGeocodeProgress(true);
+    // 指定半径のバリデーション（都道府県指定の地点を除く）
+    const nonPrefecturePois = segmentPois.filter(poi => poi.poi_type !== 'prefecture');
+    if (nonPrefecturePois.length > 0) {
+      // セグメントの指定半径をチェック
+      if (!segment.designated_radius || segment.designated_radius.trim() === '') {
+        toast.error('指定半径が設定されていません。セグメント共通条件で指定半径を設定してください。');
+        setIsGeocodingRunning(false);
+        return;
+      }
+      
+      // 地点ごとの指定半径もチェック（地点に設定されていない場合はセグメントの値を使用）
+      const poisWithoutRadius = nonPrefecturePois.filter(poi => 
+        !poi.designated_radius || poi.designated_radius.trim() === ''
+      );
+      if (poisWithoutRadius.length > 0 && !segment.designated_radius) {
+        toast.error(`${poisWithoutRadius.length}件の地点で指定半径が設定されていません。`);
+        setIsGeocodingRunning(false);
+        return;
+      }
+    }
+
+    // 緯度経度が必要なPOIをフィルタリング
+    // 住所がある場合、または都道府県・市区町村がある場合（都道府県指定の地点）
+    console.log(`📍 セグメントPOI詳細:`, segmentPois.map(poi => ({
+      poi_id: poi.poi_id,
+      poi_name: poi.poi_name,
+      address: poi.address,
+      latitude: poi.latitude,
+      longitude: poi.longitude,
+      poi_type: poi.poi_type,
+      hasAddress: !!(poi.address && poi.address.trim() !== ''),
+      hasPrefecture: !!(poi.prefectures && poi.prefectures.length > 0),
+    })));
+    
+    const needsGeocoding = segmentPois.filter(poi => {
+      const hasCoords = poi.latitude !== undefined && poi.latitude !== null && 
+                        poi.longitude !== undefined && poi.longitude !== null &&
+                        poi.latitude !== 0 && poi.longitude !== 0;
+      if (hasCoords) {
+        console.log(`✅ POI ${poi.poi_id} (${poi.poi_name}): 既に緯度経度あり (${poi.latitude}, ${poi.longitude})`);
+        return false;
+      }
+      
+      // 住所がある場合
+      if (poi.address && poi.address.trim() !== '') {
+        console.log(`🔍 POI ${poi.poi_id} (${poi.poi_name}): ジオコーディング必要（住所: ${poi.address}）`);
+        return true;
+      }
+      
+      // 都道府県・市区町村がある場合（都道府県指定の地点）
+      if (poi.prefectures && poi.prefectures.length > 0) {
+        console.log(`🔍 POI ${poi.poi_id} (${poi.poi_name}): ジオコーディング必要（都道府県: ${poi.prefectures.join(', ')}）`);
+        return true;
+      }
+      
+      console.log(`⚠️ POI ${poi.poi_id} (${poi.poi_name}): ジオコーディング対象外（住所も都道府県もなし）`);
+      return false;
+    });
+
+    if (needsGeocoding.length === 0) {
+      toast.info('ジオコーディングが必要な地点がありません');
+      setIsGeocodingRunning(false);
+      return;
+    }
+
+    if (!runInBackground) {
+      setShowGeocodeProgress(true);
+    }
     setGeocodeProgress(0);
     setGeocodeTotal(needsGeocoding.length);
     setGeocodeSuccessCount(0);
@@ -233,57 +423,224 @@ export function ProjectDetail({
     setGeocodeErrors([]);
     setGeocodeCompleted(false);
 
-    try {
-      const { enriched, errors } = await enrichPOIsWithGeocode(
-        segmentPois,
-        (current, total) => {
-          setGeocodeProgress(current);
-          setGeocodeTotal(total);
-        }
-      );
-
-      const successCount = enriched.filter(poi => poi.latitude && poi.longitude).length - (segmentPois.length - needsGeocoding.length);
-      const errorCount = errors.length;
-
-      setGeocodeSuccessCount(successCount);
-      setGeocodeErrorCount(errorCount);
-      setGeocodeErrors(errors);
-      setGeocodeCompleted(true);
-
-      enriched.forEach(poi => {
-        if (poi.poi_id) {
-          onPoiUpdate(poi.poi_id, {
-            latitude: poi.latitude,
-            longitude: poi.longitude,
-          });
-        }
-      });
-
-      const requestDateTime = new Date().toISOString();
-      const coordinationDate = calculateDataCoordinationDate(requestDateTime);
-
-      onSegmentUpdate(segment.segment_id, {
-        location_request_status: 'storing',
-        data_coordination_date: coordinationDate,
-      });
-
-      if (errorCount === 0) {
-        toast.success(`地点データの格納依頼が完了しました（${successCount}件）`);
-      } else {
-        toast.warning(`格納依頼完了: 成功${successCount}件、エラー${errorCount}件`);
-      }
-
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      toast.error('ジオコーディング処理に失敗しました');
+    // バックグラウンドで実行する場合は、ダイアログを閉じる
+    if (runInBackground) {
       setShowGeocodeProgress(false);
+      setBackgroundGeocodingSegment(segment.segment_name || segment.segment_id);
+      toast.info('ジオコーディングをバックグラウンドで実行中です。完了時に通知します。');
     }
+
+    // バックグラウンドで実行
+    (async () => {
+      try {
+        // ジオコーディングが必要なPOIのみを処理
+        const poisToGeocode = segmentPois.filter(poi => {
+          const hasCoords = poi.latitude !== undefined && poi.latitude !== null && 
+                            poi.longitude !== undefined && poi.longitude !== null &&
+                            poi.latitude !== 0 && poi.longitude !== 0;
+          if (hasCoords) return false;
+          
+          const hasAddress = poi.address && poi.address.trim() !== '';
+          const hasPrefecture = poi.prefectures && poi.prefectures.length > 0;
+          
+          return hasAddress || hasPrefecture;
+        });
+
+        console.log(`🚀 executeGeocoding開始: セグメント=${segment.segment_id}, 総地点数=${segmentPois.length}, ジオコーディング必要=${poisToGeocode.length}`);
+        
+        // すべてのセグメントのPOIをenrichPOIsWithGeocodeに渡す（既に緯度経度があるPOIも含む）
+        // これにより、すべてのPOIがenriched配列に含まれる
+        const { enriched, errors } = await enrichPOIsWithGeocode(
+          segmentPois, // すべてのPOIを渡す（既に緯度経度があるPOIも含む）
+          (current, total) => {
+            setGeocodeProgress(current);
+            setGeocodeTotal(total);
+          }
+        );
+
+        console.log(`📊 enrichPOIsWithGeocode結果: enriched=${enriched.length}, errors=${errors.length}, 元の地点数=${segmentPois.length}`);
+        
+        // enriched配列にすべてのPOIが含まれているか確認
+        if (enriched.length !== segmentPois.length) {
+          console.warn(`⚠️ enriched配列の数が元の地点数と一致しません: enriched=${enriched.length}, 元=${segmentPois.length}`);
+        }
+        
+        // 成功件数を計算（ジオコーディングで新たに緯度経度が設定されたPOIの数）
+        const successCount = enriched.filter(poi => {
+          // 元のpoisToGeocodeに含まれていたPOIで、新たに緯度経度が設定されたもの
+          const wasInOriginal = poisToGeocode.some(p => p.poi_id === poi.poi_id);
+          if (!wasInOriginal) return false;
+          
+          const hasNewCoords = poi.latitude !== undefined && poi.latitude !== null && 
+                               poi.longitude !== undefined && poi.longitude !== null &&
+                               poi.latitude !== 0 && poi.longitude !== 0;
+          return hasNewCoords;
+        }).length;
+        const errorCount = errors.length;
+
+        console.log(`✅ 成功件数=${successCount}, エラー件数=${errorCount}`);
+
+        setGeocodeSuccessCount(successCount);
+        setGeocodeErrorCount(errorCount);
+        setGeocodeErrors(errors);
+        setGeocodeCompleted(true);
+
+        // 地点情報を更新（ジオコーディングで更新されたPOIのみ）
+        // ただし、すべてのPOIがenriched配列に含まれていることを確認
+        let updateCount = 0;
+        const updatedPoiIds = new Set<string>();
+        
+        for (const poi of enriched) {
+          // 元のpoisToGeocodeに含まれていたPOIで、新たに緯度経度が設定されたもののみ更新
+          const wasInOriginal = poisToGeocode.some(p => p.poi_id === poi.poi_id);
+          if (wasInOriginal && poi.poi_id && poi.latitude !== undefined && poi.longitude !== undefined) {
+            // 重複更新を防ぐ
+            if (!updatedPoiIds.has(poi.poi_id)) {
+              try {
+                await onPoiUpdate(poi.poi_id, {
+                  latitude: poi.latitude,
+                  longitude: poi.longitude,
+                });
+                updatedPoiIds.add(poi.poi_id);
+                updateCount++;
+                console.log(`🔄 POI更新: ${poi.poi_id} -> (${poi.latitude}, ${poi.longitude})`);
+              } catch (error) {
+                console.error(`❌ POI更新エラー: ${poi.poi_id}`, error);
+              }
+            }
+          }
+        }
+        console.log(`📝 地点更新完了: ${updateCount}件`);
+        
+        // すべての元のPOIがenriched配列に含まれているか確認
+        const missingPois = segmentPois.filter(poi => 
+          !enriched.some(e => e.poi_id === poi.poi_id)
+        );
+        if (missingPois.length > 0) {
+          console.error(`❌ 以下の地点がenriched配列に含まれていません:`, missingPois.map(p => p.poi_id));
+        }
+
+        const requestDateTime = new Date().toISOString();
+        const coordinationDate = calculateDataCoordinationDate(requestDateTime);
+
+        onSegmentUpdate(segment.segment_id, {
+          location_request_status: 'storing',
+          data_coordination_date: coordinationDate,
+        });
+
+        // スプレッドシートに自動出力（営業ユーザーの場合）
+        // TG地点のみを出力（来店計測地点は出力しない）
+        if (user?.role === 'sales') {
+          try {
+            console.log('📊 スプレッドシートに出力中...');
+            
+            // TG地点のみをフィルタリング
+            const tgPois = segmentPois.filter(poi => 
+              poi.poi_category === 'tg' || !poi.poi_category
+            );
+            
+            console.log(`📊 出力対象: TG地点=${tgPois.length}件（全地点=${segmentPois.length}件）`);
+            
+            if (tgPois.length === 0) {
+              console.log('⚠️ TG地点が存在しないため、スプレッドシート出力をスキップします');
+            } else {
+              const sheetResult = await exportPoisToSheet(
+                tgPois,
+                project,
+                segments
+              );
+              
+              if (sheetResult.success) {
+                console.log('✅ スプレッドシート出力成功:', sheetResult.message);
+              } else {
+                console.warn('⚠️ スプレッドシート出力失敗:', sheetResult.message);
+                // スプレッドシート出力失敗してもエラーにはしない（格納依頼自体は成功）
+              }
+            }
+          } catch (error) {
+            console.error('❌ スプレッドシート出力エラー:', error);
+            // エラーでも処理は継続
+          }
+        }
+
+        // お知らせに通知を送信（1回だけ）
+        if (user) {
+          const messageContent = errorCount === 0
+            ? `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${successCount}件`
+            : `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${successCount}件、エラー: ${errorCount}件\n\nエラーの詳細は案件詳細画面で確認できます。`;
+
+          await bigQueryService.sendProjectMessage({
+            project_id: project.project_id,
+            sender_id: 'system',
+            sender_name: 'システム',
+            sender_role: 'admin',
+            content: messageContent,
+            message_type: 'system',
+          });
+
+          // 未読数を更新
+          if (onUnreadCountUpdate) {
+            onUnreadCountUpdate();
+          }
+        }
+
+        if (errorCount === 0) {
+          toast.success(`地点データの格納依頼が完了しました（${successCount}件）`);
+        } else {
+          toast.warning(`格納依頼完了: 成功${successCount}件、エラー${errorCount}件`);
+        }
+
+        // バックグラウンド実行の場合はダイアログを閉じる
+        if (runInBackground) {
+          setGeocodingSegment(null);
+          setBackgroundGeocodingSegment(null);
+        }
+
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        toast.error('ジオコーディング処理に失敗しました');
+        
+        // エラー時もお知らせに通知（1回だけ）
+        if (user) {
+          await bigQueryService.sendProjectMessage({
+            project_id: project.project_id,
+            sender_id: 'system',
+            sender_name: 'システム',
+            sender_role: 'admin',
+            content: `地点データの格納依頼処理中にエラーが発生しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n\n詳細は案件詳細画面で確認してください。`,
+            message_type: 'system',
+          });
+
+          if (onUnreadCountUpdate) {
+            onUnreadCountUpdate();
+          }
+        }
+
+        if (!runInBackground) {
+          setShowGeocodeProgress(false);
+        } else {
+          setBackgroundGeocodingSegment(null);
+        }
+      } finally {
+        setIsGeocodingRunning(false);
+      }
+    })();
   };
 
   const handleCloseGeocodeDialog = () => {
+    setShowGeocodeProgress(false);
     if (geocodeCompleted) {
-      setShowGeocodeProgress(false);
       setGeocodingSegment(null);
+    }
+  };
+
+  const handleRunInBackground = () => {
+    // 既に実行中の場合は何もしない
+    if (isGeocodingRunning) {
+      return;
+    }
+    if (geocodingSegment) {
+      executeGeocoding(geocodingSegment, true);
     }
   };
 
@@ -779,31 +1136,7 @@ export function ProjectDetail({
               </div>
               
               <div className="flex items-center gap-3">
-                 {/* 表示切り替えボタン（地点が0件でも表示。地図は空表示で） */}
-                <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                  <button
-                    onClick={() => setPoiViewMode('list')}
-                    className={`px-4 py-2 rounded-md text-sm transition-all flex items-center gap-2 ${
-                      poiViewMode === 'list'
-                        ? 'bg-white text-[#5b5fff] shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <List className="w-4 h-4" />
-                    リスト
-                  </button>
-                  <button
-                    onClick={() => setPoiViewMode('map')}
-                    className={`px-4 py-2 rounded-md text-sm transition-all flex items-center gap-2 ${
-                      poiViewMode === 'map'
-                        ? 'bg-white text-[#5b5fff] shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Map className="w-4 h-4" />
-                    地図
-                  </button>
-                </div>
+                 {/* 表示切り替えボタンは各タブ内に移動 */}
               </div>
             </div>
           </div>
@@ -821,103 +1154,163 @@ export function ProjectDetail({
                    セグメントを作成する
                  </Button>
                </div>
-            ) : poiViewMode === 'map' ? (
-              <PoiMapViewer 
-                pois={pois} 
-                segments={segments} 
-                onPoiUpdate={async (poiId: string, updates: Partial<PoiInfo>) => {
-                  await onPoiUpdate(poiId, updates);
-                }}
-              />
             ) : (
-              <Accordion type="single" collapsible className="space-y-4" value={expandedSegmentId} onValueChange={setExpandedSegmentId}>
-                {segments.map((segment) => {
-                  const segmentPois = pois.filter(poi => poi.segment_id === segment.segment_id);
-                  const poiCount = segmentPois.length;
-                  const poisWithCoords = segmentPois.filter(p => p.latitude && p.longitude).length;
-                  const statusInfo = getStatusInfo(segment.location_request_status);
-                  
-                  return (
-                    <AccordionItem 
-                      key={segment.segment_id} 
-                      value={segment.segment_id}
-                      className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm data-[state=open]:ring-2 data-[state=open]:ring-[#5b5fff]/20 transition-all"
+              <Tabs value={selectedPoiCategory} onValueChange={(value) => {
+                setSelectedPoiCategory(value as 'tg' | 'visit_measurement');
+                // タブ切り替え時に編集モードをリセット
+                setEditingPoi(null);
+                setSelectedSegmentForPoi(null);
+              }} className="w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <TabsList className="justify-start rounded-lg border border-gray-200 bg-white shadow-sm h-auto p-1 gap-1">
+                    <TabsTrigger 
+                      value="tg" 
+                      className="px-6 py-3 rounded-md border-2 border-transparent data-[state=active]:border-[#5b5fff] data-[state=active]:bg-[#5b5fff]/10 data-[state=active]:text-[#5b5fff] data-[state=active]:shadow-md font-medium transition-all hover:bg-gray-50"
                     >
-                      <AccordionTrigger className="px-6 py-4 hover:bg-gray-50 hover:no-underline border-b border-transparent data-[state=open]:border-gray-100">
-                        <div className="flex items-center justify-between w-full pr-4">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              segment.location_request_status === 'completed' ? 'bg-green-100' : 'bg-[#5b5fff]/10'
-                            }`}>
-                              {segment.location_request_status === 'completed' ? (
-                                <CheckCircle className="w-5 h-5 text-green-600" />
-                              ) : (
-                                <Package className="w-5 h-5 text-[#5b5fff]" />
-                              )}
-                            </div>
-                            <div className="text-left">
-                              <div className="flex items-center gap-3">
-                                <h4 className="text-base font-medium text-gray-900">
-                                  {segment.segment_name || '名称未設定'}
-                                </h4>
-                                <Badge variant="outline" className="text-xs text-gray-500 font-normal">
-                                  ID: {segment.segment_id}
-                                </Badge>
-                                <Badge className={`text-xs border-0 ${statusInfo.color}`}>
-                                  {statusInfo.icon} {statusInfo.label}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-3 mt-1">
-                                <p className="text-xs text-muted-foreground">
-                                  媒体: {getMediaLabels(segment.media_id).join('、')}
-                                </p>
-                                <div className="w-px h-3 bg-gray-300"></div>
-                                <p className="text-xs text-muted-foreground">
-                                  登録地点: <span className="font-medium text-gray-900">{poiCount}件</span>
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </AccordionTrigger>
-                      
-                      <AccordionContent className="px-6 py-6 bg-gray-50/50">
-                        {/* コンテンツ内部 */}
-                        <div className="space-y-6">
+                      TG地点 ({pois.filter(p => p.poi_category === 'tg' || !p.poi_category).length})
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="visit_measurement" 
+                      className="px-6 py-3 rounded-md border-2 border-transparent data-[state=active]:border-[#5b5fff] data-[state=active]:bg-[#5b5fff]/10 data-[state=active]:text-[#5b5fff] data-[state=active]:shadow-md font-medium transition-all hover:bg-gray-50"
+                    >
+                      来店計測地点 ({pois.filter(p => p.poi_category === 'visit_measurement').length})
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  {/* 表示切り替えボタン（各タブ内で独立） */}
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                    <button
+                      onClick={() => setPoiViewModeByCategory(prev => ({ ...prev, [selectedPoiCategory]: 'list' }))}
+                      className={`px-4 py-2 rounded-md text-sm transition-all flex items-center gap-2 ${
+                        poiViewModeByCategory[selectedPoiCategory] === 'list'
+                          ? 'bg-white text-[#5b5fff] shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <List className="w-4 h-4" />
+                      リスト
+                    </button>
+                    <button
+                      onClick={() => setPoiViewModeByCategory(prev => ({ ...prev, [selectedPoiCategory]: 'map' }))}
+                      className={`px-4 py-2 rounded-md text-sm transition-all flex items-center gap-2 ${
+                        poiViewModeByCategory[selectedPoiCategory] === 'map'
+                          ? 'bg-white text-[#5b5fff] shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Map className="w-4 h-4" />
+                      地図
+                    </button>
+                  </div>
+                </div>
 
-                          {/* 抽出条件設定ボタン（一覧の上に表示） */}
-                          <div className="flex justify-end">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={segment.location_request_status !== 'not_requested'}
-                              onClick={() => {
-                                if (segment.location_request_status !== 'not_requested') {
-                                  toast.warning('格納依頼済みのため抽出条件は変更できません');
-                                  return;
-                                }
-                                setExtractionConditionsSegment(segment);
-                                const firstPoi = segmentPois[0];
-                                setExtractionConditionsFormData({
-                                  designated_radius: (firstPoi?.designated_radius) || segment.designated_radius || '',
-                                  extraction_period: (firstPoi?.extraction_period) || segment.extraction_period || '1month',
-                                  extraction_period_type: (firstPoi?.extraction_period_type) || segment.extraction_period_type || 'preset',
-                                  extraction_start_date: (firstPoi?.extraction_start_date) || segment.extraction_start_date || '',
-                                  extraction_end_date: (firstPoi?.extraction_end_date) || segment.extraction_end_date || '',
-                                  attribute: (firstPoi?.attribute) || segment.attribute || 'detector',
-                                  detection_count: (firstPoi?.detection_count) || segment.detection_count || 1,
-                                  detection_time_start: (firstPoi?.detection_time_start) || segment.detection_time_start || '',
-                                  detection_time_end: (firstPoi?.detection_time_end) || segment.detection_time_end || '',
-                                  stay_time: (firstPoi?.stay_time) || segment.stay_time || '',
-                                });
-                                setShowExtractionConditionsPopup(true);
-                              }}
-                              className="bg-white border border-gray-300 text-[#5b5fff] hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200"
-                            >
-                              <Settings2 className="w-4 h-4 mr-2" />
-                              抽出条件を設定
-                            </Button>
-                          </div>
+                <TabsContent value="tg" className="mt-0">
+                  {poiViewModeByCategory.tg === 'map' ? (
+                    <PoiMapViewer 
+                      // カテゴリ未設定（既存データ）もTGとして扱う
+                      pois={pois.filter(p => p.poi_category === 'tg' || !p.poi_category)} 
+                      segments={segments} 
+                      onPoiUpdate={async (poiId: string, updates: Partial<PoiInfo>) => {
+                        await onPoiUpdate(poiId, updates);
+                      }}
+                    />
+                  ) : segments.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-900 font-medium mb-2">セグメントが作成されていません</p>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        地点を登録するには、まずセグメントを作成する必要があります。
+                      </p>
+                      <Button onClick={() => { setShowSegmentForm(true); setActiveTab("segments"); }}>
+                        セグメントを作成する
+                      </Button>
+                    </div>
+                  ) : (
+                    <Accordion type="single" collapsible className="space-y-4" value={expandedSegmentId} onValueChange={setExpandedSegmentId}>
+                      {segments.map((segment) => {
+                        const segmentPois = pois.filter(poi => poi.segment_id === segment.segment_id && (poi.poi_category === 'tg' || !poi.poi_category));
+                        const poiCount = segmentPois.length;
+                        const poisWithCoords = segmentPois.filter(p => p.latitude && p.longitude).length;
+                        const statusInfo = getStatusInfo(segment.location_request_status);
+                        
+                        return (
+                        <AccordionItem 
+                          key={segment.segment_id} 
+                          value={segment.segment_id}
+                          className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm data-[state=open]:ring-2 data-[state=open]:ring-[#5b5fff]/20 transition-all"
+                        >
+                          <AccordionTrigger className="px-6 py-4 hover:bg-gray-50 hover:no-underline border-b border-transparent data-[state=open]:border-gray-100">
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                  segment.location_request_status === 'completed' ? 'bg-green-100' : 'bg-[#5b5fff]/10'
+                                }`}>
+                                  {segment.location_request_status === 'completed' ? (
+                                    <CheckCircle className="w-5 h-5 text-green-600" />
+                                  ) : (
+                                    <Package className="w-5 h-5 text-[#5b5fff]" />
+                                  )}
+                                </div>
+                                <div className="text-left flex-1 min-w-0">
+                                  <div className="space-y-1">
+                                    <h4 className="text-base font-medium text-gray-900 truncate">
+                                      {segment.segment_name || '名称未設定'}
+                                    </h4>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Badge variant="outline" className="text-[10px] text-gray-500 font-mono font-normal px-1.5 py-0.5 whitespace-nowrap leading-tight">
+                                        {segment.segment_id}
+                                      </Badge>
+                                      <Badge className={`text-[10px] border-0 px-1.5 py-0.5 leading-tight ${statusInfo.color}`}>
+                                        {statusInfo.icon} {statusInfo.label}
+                                      </Badge>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        媒体: {getMediaLabels(segment.media_id).join('、')}
+                                      </span>
+                                      <div className="w-px h-3 bg-gray-300"></div>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        TG地点: <span className="font-medium text-gray-900">{poiCount}件</span>
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          
+                          <AccordionContent className="px-6 py-6 bg-gray-50/50">
+                            {/* コンテンツ内部 */}
+                            <div className="space-y-6">
+
+                          {/* 抽出条件設定ボタン（サマリー上部） */}
+                          {segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
+                            <div className="flex justify-end mb-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setExtractionConditionsSegment(segment);
+                                  const firstPoi = segmentPois[0];
+                                  setExtractionConditionsFormData({
+                                    designated_radius: (firstPoi?.designated_radius) || segment.designated_radius || '',
+                                    extraction_period: (firstPoi?.extraction_period) || segment.extraction_period || '1month',
+                                    extraction_period_type: (firstPoi?.extraction_period_type) || segment.extraction_period_type || 'preset',
+                                    extraction_start_date: (firstPoi?.extraction_start_date) || segment.extraction_start_date || '',
+                                    extraction_end_date: (firstPoi?.extraction_end_date) || segment.extraction_end_date || '',
+                                    attribute: (firstPoi?.attribute) || segment.attribute || 'detector',
+                                    detection_count: (firstPoi?.detection_count) || segment.detection_count || 1,
+                                    detection_time_start: (firstPoi?.detection_time_start) || segment.detection_time_start || '',
+                                    detection_time_end: (firstPoi?.detection_time_end) || segment.detection_time_end || '',
+                                    stay_time: (firstPoi?.stay_time) || segment.stay_time || '',
+                                  });
+                                  setShowExtractionConditionsPopup(true);
+                                }}
+                                className="bg-white border border-gray-300 hover:bg-gray-50 text-[#5b5fff]"
+                              >
+                                <Settings2 className="w-3.5 h-3.5 mr-2" />
+                                抽出条件を設定
+                              </Button>
+                            </div>
+                          )}
 
                           {/* 0. 抽出条件サマリー */}
                           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
@@ -1042,37 +1435,24 @@ export function ProjectDetail({
                             </div>
                           )}
 
-                          {/* 2. ツールバー (CSVアップロードなど) */}
-                          <div className="flex items-center justify-between">
+                          {/* 2. ツールバー (抽出条件/CSVアップロードなど) */}
+                          <div className="flex items-center justify-between gap-3 flex-nowrap">
                             <h5 className="text-sm font-medium text-gray-700">地点リスト</h5>
-                            <div className="flex gap-2">
-                              <>
-                                {segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleOpenBulkUpload(segment)}
-                                      className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700"
-                                    >
-                                      <Upload className="w-3.5 h-3.5 mr-2" />
-                                      CSV一括登録
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleAddPoi(segment.segment_id)}
-                                      className="bg-[#5b5fff] text-white hover:bg-[#4949dd]"
-                                    >
-                                      <Plus className="w-3.5 h-3.5 mr-2" />
-                                      地点を追加
-                                    </Button>
-                                  </>
-                                )}
-                              </>
+                            <div className="flex gap-2 flex-nowrap">
+                              {segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleAddPoi(segment.segment_id)}
+                                  className="bg-[#5b5fff] text-white hover:bg-[#4949dd]"
+                                >
+                                  <Plus className="w-3.5 h-3.5 mr-2" />
+                                  地点を追加
+                                </Button>
+                              )}
                             </div>
                           </div>
 
-                          {/* 3. テーブル */}
+                          {/* 地点リスト */}
                           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
                             <PoiTable
                               pois={segmentPois}
@@ -1085,9 +1465,142 @@ export function ProjectDetail({
                         </div>
                       </AccordionContent>
                     </AccordionItem>
-                  );
-                })}
-              </Accordion>
+                        );
+                      })}
+                    </Accordion>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="visit_measurement" className="mt-0">
+                  {poiViewModeByCategory.visit_measurement === 'map' ? (
+                    <PoiMapViewer 
+                      pois={pois.filter(p => p.poi_category === 'visit_measurement')} 
+                      segments={segments} 
+                      onPoiUpdate={async (poiId: string, updates: Partial<PoiInfo>) => {
+                        await onPoiUpdate(poiId, updates);
+                      }}
+                    />
+                  ) : segments.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-900 font-medium mb-2">セグメントが作成されていません</p>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        地点を登録するには、まずセグメントを作成する必要があります。
+                      </p>
+                      <Button onClick={() => { setShowSegmentForm(true); setActiveTab("segments"); }}>
+                        セグメントを作成する
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* グループ選択とツールバー */}
+                      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <Label className="text-sm font-medium text-gray-700">計測地点グループ</Label>
+                            <select
+                              value={selectedGroupId || ''}
+                              onChange={(e) => setSelectedGroupId(e.target.value || null)}
+                              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
+                            >
+                              <option value="">すべての地点</option>
+                              {visitMeasurementGroups.map(group => (
+                                <option key={group.group_id} value={group.group_id}>
+                                  {group.group_name}
+                                </option>
+                              ))}
+                            </select>
+                            {canEditProject(user, project) && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingGroup(null);
+                                    setGroupFormData({ group_name: '' });
+                                    setShowGroupForm(true);
+                                  }}
+                                  className="border-gray-300 hover:bg-gray-50"
+                                >
+                                  <Plus className="w-3.5 h-3.5 mr-2" />
+                                  グループ作成
+                                </Button>
+                                {selectedGroupId && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const group = visitMeasurementGroups.find(g => g.group_id === selectedGroupId);
+                                      if (group) {
+                                        setEditingGroup(group);
+                                        setGroupFormData({ group_name: group.group_name });
+                                        setShowGroupForm(true);
+                                      }
+                                    }}
+                                    className="border-gray-300 hover:bg-gray-50"
+                                  >
+                                    <Edit className="w-3.5 h-3.5 mr-2" />
+                                    編集
+                                  </Button>
+                                )}
+                                {selectedGroupId && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleGroupDelete(selectedGroupId)}
+                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                  >
+                                    <X className="w-3.5 h-3.5 mr-2" />
+                                    削除
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            {canEditProject(user, project) && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  if (selectedPoiCategory !== 'visit_measurement') {
+                                    setSelectedPoiCategory('visit_measurement');
+                                  }
+                                  const availableSegment = segments.find(s => s.location_request_status === 'not_requested') || segments[0];
+                                  if (availableSegment) {
+                                    handleAddPoi(availableSegment.segment_id);
+                                  } else {
+                                    toast.warning('地点を追加するには、先にセグメントを作成してください。');
+                                  }
+                                }}
+                                disabled={segments.length === 0}
+                                className="bg-[#5b5fff] text-white hover:bg-[#4949dd] disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Plus className="w-3.5 h-3.5 mr-2" />
+                                地点を追加
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 地点リスト（選択されたグループの地点を表示） */}
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                        <PoiTable
+                          pois={pois.filter(poi => {
+                            if (poi.poi_category !== 'visit_measurement') return false;
+                            if (!selectedGroupId) return true;
+                            return poi.visit_measurement_group_id === selectedGroupId;
+                          })}
+                          onEdit={handleEditPoi}
+                          onUpdate={onPoiUpdate}
+                          onDelete={onPoiDelete}
+                          readOnly={!canEditProject(user, project)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             )}
           </div>
         </TabsContent>
@@ -1161,12 +1674,22 @@ export function ProjectDetail({
             segmentName={segment?.segment_name}
             segment={segment}
             pois={pois}
-            poi={editingPoi}
+            poi={editingPoi ? { ...editingPoi, poi_category: editingPoi.poi_category || selectedPoiCategory } : null}
+            defaultCategory={selectedPoiCategory}
+            defaultGroupId={selectedPoiCategory === 'visit_measurement' ? selectedGroupId : undefined}
+            visitMeasurementGroups={visitMeasurementGroups}
             onSubmit={(poiData) => {
               if (editingPoi && editingPoi.poi_id) {
                 onPoiUpdate(editingPoi.poi_id, poiData);
               } else {
-                onPoiCreate(selectedSegmentForPoi, poiData);
+                // 新規登録時は、現在選択されているタブに応じてカテゴリを自動設定
+                // 来店計測地点でグループが選択されている場合は、グループIDも自動設定
+                const poiDataWithCategory = {
+                  ...poiData,
+                  poi_category: poiData.poi_category || selectedPoiCategory,
+                  visit_measurement_group_id: poiData.visit_measurement_group_id || (selectedPoiCategory === 'visit_measurement' && selectedGroupId ? selectedGroupId : undefined),
+                };
+                onPoiCreate(selectedSegmentForPoi, poiDataWithCategory);
               }
               setShowPoiForm(false);
               setEditingPoi(null);
@@ -1181,16 +1704,6 @@ export function ProjectDetail({
           />
         );
       })()}
-
-      {/* 一括アップロードモーダル */}
-      {showBulkUpload && managingSegment && (
-        <PoiBulkUpload
-          projectId={project.project_id}
-          segmentId={managingSegment.segment_id}
-          onUploadComplete={handleBulkUploadComplete}
-          onCancel={() => setShowBulkUpload(false)}
-        />
-      )}
 
       {/* セグメントフォームモーダル */}
       {showSegmentForm && (
@@ -1245,6 +1758,7 @@ export function ProjectDetail({
         errors={geocodeErrors}
         completed={geocodeCompleted}
         onClose={handleCloseGeocodeDialog}
+        onRunInBackground={handleRunInBackground}
       />
 
       {/* 抽出条件設定ポップアップ */}
@@ -1469,22 +1983,26 @@ export function ProjectDetail({
                   </div>
                 )}
 
-                {/* 滞在時間 */}
+                {/* 滞在時間（検知者のみ指定可） */}
                 <div>
                   <Label className="block mb-2 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-[#5b5fff]" />
                     滞在時間
                   </Label>
                   <select
-                    value={extractionConditionsFormData.stay_time || ''}
+                    value={extractionConditionsFormData.attribute === 'detector' ? (extractionConditionsFormData.stay_time || '') : ''}
                     onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, stay_time: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
+                    disabled={extractionConditionsFormData.attribute !== 'detector'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
                   >
                     <option value="">指定なし</option>
                     {STAY_TIME_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
+                  {extractionConditionsFormData.attribute !== 'detector' && (
+                    <p className="text-xs text-gray-500 mt-1">滞在時間は検知者の場合のみ指定できます</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1544,6 +2062,84 @@ export function ProjectDetail({
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 計測地点グループ作成・編集ダイアログ */}
+      <Dialog open={showGroupForm} onOpenChange={setShowGroupForm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingGroup ? 'グループを編集' : 'グループを作成'}</DialogTitle>
+            <DialogDescription>
+              計測地点グループの名前を入力してください
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="group_name">グループ名</Label>
+              <Input
+                id="group_name"
+                value={groupFormData.group_name}
+                onChange={(e) => setGroupFormData({ group_name: e.target.value })}
+                placeholder="例：店舗A、エリア1"
+                className="mt-2"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowGroupForm(false);
+                  setEditingGroup(null);
+                  setGroupFormData({ group_name: '' });
+                }}
+                className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                キャンセル
+              </Button>
+              <Button onClick={handleGroupSubmit}>
+                {editingGroup ? '更新' : '作成'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* バックグラウンドジオコーディングステータス */}
+      {backgroundGeocodingSegment && (
+        <div className="fixed bottom-6 right-6 z-40 animate-in slide-in-from-bottom-4">
+          <Card className="bg-white border-2 border-[#5b5fff] shadow-lg max-w-sm">
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-[#5b5fff]/10 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 text-[#5b5fff] animate-spin" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                    ジオコーディング実行中
+                  </h4>
+                  <p className="text-xs text-gray-600 mb-2">
+                    セグメント: {backgroundGeocodingSegment}
+                  </p>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>進行中...</span>
+                      <span>{geocodeProgress} / {geocodeTotal}</span>
+                    </div>
+                    <Progress 
+                      value={geocodeTotal > 0 ? (geocodeProgress / geocodeTotal) * 100 : 0} 
+                      className="h-1.5"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    完了時に通知でお知らせします
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
       )}
     </div>

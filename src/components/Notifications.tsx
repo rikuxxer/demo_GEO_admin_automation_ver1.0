@@ -7,9 +7,10 @@ import { useAuth } from '../contexts/AuthContext';
 interface NotificationsProps {
   projects: Project[];
   onProjectClick: (project: Project) => void;
+  onUnreadCountUpdate?: () => void;
 }
 
-export function Notifications({ projects, onProjectClick }: NotificationsProps) {
+export function Notifications({ projects, onProjectClick, onUnreadCountUpdate }: NotificationsProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [sortMode, setSortMode] = useState<'unreadFirst' | 'latest' | 'oldest'>('unreadFirst');
@@ -50,7 +51,23 @@ export function Notifications({ projects, onProjectClick }: NotificationsProps) 
     }
   };
 
-  const handleNotificationClick = (message: ProjectMessage) => {
+  const handleNotificationClick = async (message: ProjectMessage) => {
+    // 既読処理を実行
+    if (user && !message.is_read) {
+      const userRole = user.role === 'admin' ? 'admin' : 'sales';
+      try {
+        await bigQueryService.markMessagesAsRead(message.project_id, userRole);
+        // メッセージリストを更新
+        await loadMessages();
+        // サイドバーの通知数を更新
+        if (onUnreadCountUpdate) {
+          onUnreadCountUpdate();
+        }
+      } catch (error) {
+        console.error('Failed to mark message as read:', error);
+      }
+    }
+    
     const project = projects.find(p => p.project_id === message.project_id);
     if (project) {
       onProjectClick(project);

@@ -20,6 +20,8 @@ export interface GeocodeResult {
   latitude: number;
   longitude: number;
   formattedAddress?: string;
+  countryCode?: string; // 国コード（例: 'JP'）
+  isJapan?: boolean; // 日本国内かどうか
 }
 
 export interface GeocodeError {
@@ -156,26 +158,36 @@ const MOCK_GEOCODE_DATA: { [key: string]: GeocodeResult } = {
     latitude: 35.690921,
     longitude: 139.700258,
     formattedAddress: '日本、〒160-0022 東京都新宿区新宿３丁目３８−１',
+    countryCode: 'JP',
+    isJapan: true,
   },
   '東京都渋谷区道玄坂2-1': {
     latitude: 35.659517,
     longitude: 139.700572,
     formattedAddress: '日本、〒150-0043 東京都渋谷区道玄坂２丁目１',
+    countryCode: 'JP',
+    isJapan: true,
   },
   '東京都千代田区丸の内1-9-1': {
     latitude: 35.681236,
     longitude: 139.767125,
     formattedAddress: '日本、〒100-0005 東京都千代田区丸の内１丁目９−１',
+    countryCode: 'JP',
+    isJapan: true,
   },
   '東京都港区六本木6-10-1': {
     latitude: 35.664706,
     longitude: 139.729493,
     formattedAddress: '日本、〒106-0032 東京都港区六本木６丁目１０−１',
+    countryCode: 'JP',
+    isJapan: true,
   },
   '東京都豊島区南池袋1-28-1': {
     latitude: 35.728926,
     longitude: 139.710388,
     formattedAddress: '日本、〒171-0022 東京都豊島区南池袋１丁目２８−１',
+    countryCode: 'JP',
+    isJapan: true,
   },
 };
 
@@ -192,6 +204,14 @@ const geocodeCache = new Map<string, GeocodeResult>();
 // キャッシュの統計情報（デバッグ用）
 let cacheHits = 0;
 let cacheMisses = 0;
+
+/**
+ * 緯度経度が日本国内かどうかを判定
+ */
+function isInJapan(latitude: number, longitude: number): boolean {
+  // 日本の範囲: 緯度 24-46度、経度 123-146度
+  return latitude >= 24 && latitude <= 46 && longitude >= 123 && longitude <= 146;
+}
 
 /**
  * 住所から緯度経度を取得（単一）
@@ -231,15 +251,27 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
 
     if (data.status === 'OK' && data.results && data.results.length > 0) {
       const result = data.results[0];
+      const latitude = result.geometry.location.lat;
+      const longitude = result.geometry.location.lng;
+      
+      // 国コードを取得
+      const countryComponent = result.address_components?.find((component: any) => 
+        component.types.includes('country')
+      );
+      const countryCode = countryComponent?.short_name || '';
+      const isJapan = countryCode === 'JP' || isInJapan(latitude, longitude);
+      
       const geocodeResult = {
-        latitude: result.geometry.location.lat,
-        longitude: result.geometry.location.lng,
+        latitude,
+        longitude,
         formattedAddress: result.formatted_address,
+        countryCode,
+        isJapan,
       };
       
       // 成功した結果をキャッシュに保存
       geocodeCache.set(normalizedAddress, geocodeResult);
-      console.log(`✅ Geocoding success: "${normalizedAddress}" -> (${geocodeResult.latitude}, ${geocodeResult.longitude})`);
+      console.log(`✅ Geocoding success: "${normalizedAddress}" -> (${latitude}, ${longitude}), Country: ${countryCode}, IsJapan: ${isJapan}`);
       
       return geocodeResult;
     } else if (data.status === 'ZERO_RESULTS') {
@@ -280,11 +312,15 @@ async function geocodeAddressMock(address: string): Promise<GeocodeResult> {
       // 市区町村内でランダムな座標を生成（中心から±0.02度の範囲）
       const latOffset = (Math.random() - 0.5) * 0.04;
       const lngOffset = (Math.random() - 0.5) * 0.04;
+      const latitude = parseFloat((coords.lat + latOffset).toFixed(6));
+      const longitude = parseFloat((coords.lng + lngOffset).toFixed(6));
       
       return {
-        latitude: parseFloat((coords.lat + latOffset).toFixed(6)),
-        longitude: parseFloat((coords.lng + lngOffset).toFixed(6)),
+        latitude,
+        longitude,
         formattedAddress: address,
+        countryCode: 'JP',
+        isJapan: isInJapan(latitude, longitude),
       };
     }
   }
@@ -295,11 +331,15 @@ async function geocodeAddressMock(address: string): Promise<GeocodeResult> {
       // 都道府県内でランダムな座標を生成（中心から±0.1度の範囲）
       const latOffset = (Math.random() - 0.5) * 0.2;
       const lngOffset = (Math.random() - 0.5) * 0.2;
+      const latitude = parseFloat((coords.lat + latOffset).toFixed(6));
+      const longitude = parseFloat((coords.lng + lngOffset).toFixed(6));
       
       return {
-        latitude: parseFloat((coords.lat + latOffset).toFixed(6)),
-        longitude: parseFloat((coords.lng + lngOffset).toFixed(6)),
+        latitude,
+        longitude,
         formattedAddress: address,
+        countryCode: 'JP',
+        isJapan: isInJapan(latitude, longitude),
       };
     }
   }
@@ -310,11 +350,15 @@ async function geocodeAddressMock(address: string): Promise<GeocodeResult> {
   const tokyoCoords = PREFECTURE_COORDINATES['東京都'];
   const latOffset = (Math.random() - 0.5) * 0.2;
   const lngOffset = (Math.random() - 0.5) * 0.2;
+  const latitude = parseFloat((tokyoCoords.lat + latOffset).toFixed(6));
+  const longitude = parseFloat((tokyoCoords.lng + lngOffset).toFixed(6));
   
   return {
-    latitude: parseFloat((tokyoCoords.lat + latOffset).toFixed(6)),
-    longitude: parseFloat((tokyoCoords.lng + lngOffset).toFixed(6)),
+    latitude,
+    longitude,
     formattedAddress: address,
+    countryCode: 'JP',
+    isJapan: isInJapan(latitude, longitude),
   };
 }
 
@@ -359,39 +403,76 @@ export async function geocodeAddressesBatch(
 /**
  * POIデータに緯度経度を追加
  */
-export async function enrichPOIsWithGeocode<T extends { address?: string; latitude?: number; longitude?: number }>(
+export async function enrichPOIsWithGeocode<T extends { address?: string; latitude?: number; longitude?: number; prefectures?: string[]; cities?: string[] }>(
   pois: T[],
   onProgress?: (current: number, total: number) => void
 ): Promise<{ enriched: T[]; errors: GeocodeError[] }> {
   const enriched: T[] = [];
   const errors: GeocodeError[] = [];
 
-  // 緯度経度が必要なPOIをフィルタリング
-  const needsGeocoding = pois.filter(poi => 
-    (poi.latitude === undefined || poi.latitude === null || 
-     poi.longitude === undefined || poi.longitude === null) && 
-    poi.address && poi.address.trim() !== ''
-  );
-
-  let processedCount = 0;
+  // 既に緯度経度があるPOIを先に追加
+  const poisWithCoords: T[] = [];
+  const poisNeedingGeocode: T[] = [];
 
   for (const poi of pois) {
-    // 既に緯度経度がある場合はそのまま
-    if (poi.latitude !== undefined && poi.latitude !== null && 
-        poi.longitude !== undefined && poi.longitude !== null) {
-      enriched.push(poi);
-      continue;
+    const hasCoords = poi.latitude !== undefined && poi.latitude !== null && 
+                      poi.longitude !== undefined && poi.longitude !== null &&
+                      poi.latitude !== 0 && poi.longitude !== 0;
+    
+    if (hasCoords) {
+      poisWithCoords.push(poi);
+    } else {
+      // 住所がある場合、または都道府県・市区町村がある場合（都道府県指定の地点）
+      const hasAddress = poi.address && poi.address.trim() !== '';
+      const hasPrefecture = poi.prefectures && poi.prefectures.length > 0;
+      
+      if (hasAddress || hasPrefecture) {
+        poisNeedingGeocode.push(poi);
+      } else {
+        // 住所も都道府県もない場合はそのまま追加
+        poisWithCoords.push(poi);
+      }
     }
+  }
 
-    // 住所が無い場合もそのまま
-    if (!poi.address || poi.address.trim() === '') {
-      enriched.push(poi);
-      continue;
-    }
+  let processedCount = 0;
+  const totalToProcess = poisNeedingGeocode.length;
 
-    // Geocoding実行
+  console.log(`🗺️ enrichPOIsWithGeocode: 総地点数=${pois.length}, 既に緯度経度あり=${poisWithCoords.length}, ジオコーディング必要=${totalToProcess}`);
+
+  // ジオコーディングが必要なPOIを処理
+  for (const poi of poisNeedingGeocode) {
     try {
-      const result = await geocodeAddress(poi.address);
+      let addressToGeocode: string;
+      
+      // 住所がある場合はそれを使用、ない場合は都道府県・市区町村から推測
+      const hasAddress = poi.address && poi.address.trim() !== '';
+      if (hasAddress) {
+        addressToGeocode = poi.address!;
+      } else {
+        // 都道府県・市区町村から住所を推測
+        const prefecture = poi.prefectures?.[0] || '';
+        const city = poi.cities?.[0] || '';
+        addressToGeocode = `${prefecture}${city}`;
+      }
+      
+      console.log(`🌐 Geocoding ${processedCount + 1}/${totalToProcess}: "${addressToGeocode}"`);
+      const result = await geocodeAddress(addressToGeocode);
+      
+      // 海外の地点が検出された場合はエラーとして扱う
+      if (result.isJapan === false) {
+        errors.push({
+          address: addressToGeocode,
+          error: '海外の地点が検出されました。日本国内の住所を入力してください。',
+        });
+      enriched.push(poi);
+        processedCount++;
+        if (onProgress) {
+          onProgress(processedCount, totalToProcess);
+        }
+      continue;
+    }
+
       enriched.push({
         ...poi,
         latitude: result.latitude,
@@ -399,17 +480,20 @@ export async function enrichPOIsWithGeocode<T extends { address?: string; latitu
       });
       
       processedCount++;
+      console.log(`✅ Geocoded ${processedCount}/${totalToProcess}: "${addressToGeocode}" -> (${result.latitude}, ${result.longitude})`);
+      
       if (onProgress) {
-        onProgress(processedCount, needsGeocoding.length);
+        onProgress(processedCount, totalToProcess);
       }
 
       // レート制限対策
-      if (!USE_MOCK_DATA && processedCount < needsGeocoding.length) {
+      if (!USE_MOCK_DATA && processedCount < totalToProcess) {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
     } catch (error) {
+      const addressToGeocode = poi.address || (poi.prefectures?.[0] + poi.cities?.[0]) || '不明';
       errors.push({
-        address: poi.address,
+        address: addressToGeocode,
         error: error instanceof Error ? error.message : 'ジオコーディングに失敗しました',
       });
       
@@ -417,13 +501,20 @@ export async function enrichPOIsWithGeocode<T extends { address?: string; latitu
       enriched.push(poi);
       
       processedCount++;
+      console.error(`❌ Geocoding failed ${processedCount}/${totalToProcess}: "${addressToGeocode}"`, error);
+      
       if (onProgress) {
-        onProgress(processedCount, needsGeocoding.length);
+        onProgress(processedCount, totalToProcess);
       }
     }
   }
 
-  return { enriched, errors };
+  // 既に緯度経度があるPOIとジオコーディング済みのPOIを結合
+  const allEnriched = [...poisWithCoords, ...enriched];
+  
+  console.log(`✅ enrichPOIsWithGeocode完了: 処理済み=${processedCount}, エラー=${errors.length}, 総結果=${allEnriched.length}`);
+
+  return { enriched: allEnriched, errors };
 }
 
 /**

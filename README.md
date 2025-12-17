@@ -1,9 +1,179 @@
-# UNIVERSEGEO案件管理ツール (コピー)
+# UNIVERSEGEO 案件管理システム
 
-This is a code bundle for UNIVERSEGEO案件管理ツール (コピー). The original project is available at https://www.figma.com/design/XOfty1EThZvsw3PsuBMZVE/UNIVERSEGEO%E6%A1%88%E4%BB%B6%E7%AE%A1%E7%90%86%E3%83%84%E3%83%BC%E3%83%AB--%E3%82%B3%E3%83%94%E3%83%BC-.
+UNIVERSEGEO案件管理ツールは、位置情報データ（POI）と広告配信案件を管理するためのWebアプリケーションです。
 
-## Running the code
+## 📋 目次
 
-Run `npm i` to install the dependencies.
+- [機能](#機能)
+- [技術スタック](#技術スタック)
+- [ローカル開発](#ローカル開発)
+- [デプロイ](#デプロイ)
+- [ドキュメント](#ドキュメント)
 
-Run `npm run dev` to start the development server.
+---
+
+## ✨ 機能
+
+### 営業機能
+- 📊 案件・セグメント・地点の登録・管理
+- 🗺️ 地図表示による地点の可視化
+- 📤 Excel一括登録（案件・セグメント・地点）
+- 📋 Google Sheetsへの自動出力
+- 💬 チャットボットによる操作サポート
+- 💡 機能リクエストの送信
+
+### 管理部門機能
+- ✅ 編集リクエストの承認・却下
+- 📈 案件ステータスの管理
+- 👥 ユーザー管理
+- 🔐 ユーザー登録申請の承認
+- 📋 地点データのエクスポート
+
+---
+
+## 🛠️ 技術スタック
+
+- **フロントエンド**: React 18 + TypeScript + Vite
+- **UIライブラリ**: Radix UI + Tailwind CSS
+- **地図**: Leaflet.js
+- **Excel処理**: ExcelJS, XLSX
+- **外部API**: Google Sheets API
+- **デプロイ**: Cloud Run (推奨), Netlify, Vercel
+
+---
+
+## 💻 ローカル開発
+
+### 前提条件
+
+- Node.js 18以上
+- npm または yarn
+
+### セットアップ
+
+```bash
+# 依存関係をインストール
+npm install
+
+# 環境変数を設定
+cp env.example .env
+# .envファイルを編集してAPIキーを設定
+
+# 開発サーバーを起動
+npm run dev
+```
+
+開発サーバーが起動すると、 http://localhost:5173 でアクセスできます。
+
+### デモアカウント
+
+```
+管理者:
+Email: admin@example.com
+Password: demo123
+
+営業A:
+Email: salesA@example.com
+Password: demo123
+
+営業B:
+Email: salesB@example.com
+Password: demo123
+```
+
+---
+
+## 🚀 デプロイ
+
+### クイックスタート
+
+```powershell
+# Windows
+.\deploy.ps1
+
+# Mac/Linux
+chmod +x deploy.sh
+./deploy.sh
+```
+
+### 詳細な手順
+
+- **5分でデプロイ**: [QUICKSTART.md](./QUICKSTART.md)
+- **詳細なガイド**: [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
+- **Google Sheets設定**: [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)
+
+### 対応プラットフォーム
+
+- ✅ **Cloud Run**（推奨） - 自動スケーリング、従量課金
+- ✅ **Netlify** - 無料枠あり、簡単デプロイ
+- ✅ **Vercel** - 無料枠あり、高速
+- ✅ **Firebase Hosting** - Firebaseエコシステム
+
+---
+
+## 📚 ドキュメント
+
+| ドキュメント | 説明 |
+|------------|------|
+| [QUICKSTART.md](./QUICKSTART.md) | 5ステップでデプロイ |
+| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | 詳細なデプロイ手順 |
+| [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md) | Google Sheets API設定 |
+| [QUICK_TEST.md](./QUICK_TEST.md) | Sheets出力テスト（3分） |
+| [TEST_SHEETS_OUTPUT.md](./TEST_SHEETS_OUTPUT.md) | Sheets出力テスト詳細 |
+| [BIGQUERY_SETUP.md](./BIGQUERY_SETUP.md) | BigQuery接続設定 |
+| [DATA_MANAGEMENT.md](./DATA_MANAGEMENT.md) | データ管理・削除方法 |
+| [env.example](./env.example) | 環境変数テンプレート |
+
+---
+
+## 🔒 セキュリティ
+
+### 重要事項
+
+⚠️ **`.env`ファイルをGitHubにpushしないでください**
+
+- `.env`は`.gitignore`で除外されています
+- 環境変数はデプロイ先のプラットフォームで設定します
+- `env.example`がテンプレートとして提供されています
+
+### APIキーの管理
+
+1. Google Cloud ConsoleでAPIキーを制限
+2. 許可するリファラーを設定
+3. 定期的にキーをローテーション
+
+---
+
+## 🤝 貢献
+
+プロジェクトへの貢献を歓迎します！
+
+1. このリポジトリをフォーク
+2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
+
+---
+
+## 📝 ライセンス
+
+このプロジェクトはプライベートリポジトリです。
+
+---
+
+## 📞 サポート
+
+- **バグ報告**: GitHub Issues
+- **機能リクエスト**: アプリ内の機能リクエスト機能を使用
+- **その他**: プロジェクト管理者にお問い合わせください
+
+---
+
+## 🎨 デザイン
+
+オリジナルデザイン: [Figma](https://www.figma.com/design/XOfty1EThZvsw3PsuBMZVE/)
+
+---
+
+**Made with ❤️ for UNIVERSEGEO**

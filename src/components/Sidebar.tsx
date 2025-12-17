@@ -10,7 +10,10 @@ import {
   Settings,
   ListChecks,
   Database,
-  FileEdit
+  FileEdit,
+  Lightbulb,
+  UserCog,
+  UserCheck
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
@@ -32,6 +35,7 @@ export function Sidebar({ isCollapsed, onToggle, currentPage = 'projects', onPag
     { icon: Presentation, label: '提案', count: 3, page: 'proposals', disabled: true },
     { icon: FileBarChart, label: 'レポート作成', count: null, page: 'report', disabled: true },
     { icon: Bell, label: 'お知らせ', count: unreadCount > 0 ? unreadCount : null, page: 'notifications', disabled: false },
+    { icon: Lightbulb, label: '機能リクエスト', count: null, page: 'feature-requests', disabled: false },
   ];
 
   const adminMenuItems = [
@@ -54,6 +58,27 @@ export function Sidebar({ isCollapsed, onToggle, currentPage = 'projects', onPag
       label: '修正依頼管理', 
       count: null, 
       page: 'admin-edit-requests',
+      permission: 'canViewAdminDashboard' as const
+    },
+    { 
+      icon: UserCog, 
+      label: 'ユーザー管理', 
+      count: null, 
+      page: 'user-management',
+      permission: 'canViewAdminDashboard' as const
+    },
+    { 
+      icon: UserCheck, 
+      label: 'ユーザー登録申請', 
+      count: null, 
+      page: 'user-approval',
+      permission: 'canViewAdminDashboard' as const
+    },
+    { 
+      icon: Database, 
+      label: 'データ管理', 
+      count: null, 
+      page: 'data-management',
       permission: 'canViewAdminDashboard' as const
     },
   ];

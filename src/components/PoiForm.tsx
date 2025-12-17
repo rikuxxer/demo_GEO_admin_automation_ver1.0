@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { X, MapPin, Building2, Package, Calendar, Clock, Users, Target, Check, ChevronDown, Settings, Settings2, AlertCircle, Loader2, Upload, Download, FileText, CheckCircle, PenLine, Table } from 'lucide-react';
+import { X, MapPin, Building2, Package, Calendar, Clock, Users, Target, Check, ChevronDown, Settings, Settings2, AlertCircle, Loader2, Upload, Download, FileText, CheckCircle, PenLine, Table, Database } from 'lucide-react';
 import { PoiInfo, Segment, POI_TYPE_OPTIONS, ATTRIBUTE_OPTIONS, RADIUS_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { Badge } from './ui/badge';
 import { getPrefectures, getCitiesByPrefecture } from '../utils/prefectureData';
@@ -17,12 +17,15 @@ interface PoiFormProps {
   segment?: Segment;
   pois?: PoiInfo[];
   poi?: PoiInfo | null;
+  defaultCategory?: 'tg' | 'visit_measurement';
+  defaultGroupId?: string | null;
+  visitMeasurementGroups?: Array<{ group_id: string; group_name: string }>;
   onSubmit: (poi: Partial<PoiInfo>) => void;
   onBulkSubmit?: (pois: Partial<PoiInfo>[]) => void;
   onCancel: () => void;
 }
 
-export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [], poi, onSubmit, onBulkSubmit, onCancel }: PoiFormProps) {
+export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [], poi, defaultCategory, defaultGroupId, visitMeasurementGroups = [], onSubmit, onBulkSubmit, onCancel }: PoiFormProps) {
   // このセグメントに属する地点数を確認
   const segmentPoiCount = pois.filter(p => p.segment_id === segmentId).length;
   const isFirstPoi = segmentPoiCount === 0 && !poi;
@@ -30,10 +33,13 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   // セグメントに共通条件が設定されているかチェック
   const hasSegmentCommonConditions = segment && segment.designated_radius;
   
-  // 格納依頼済みの場合は編集不可
-  const isLocationLocked = segment && segment.location_request_status !== 'not_requested';
+  // 来店計測地点はセグメントに従属しないため、セグメントの状態に関係なく編集可能
+  const isVisitMeasurement = poi?.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement';
   
-  // 格納依頼済みの場合はフォームを表示しない
+  // 格納依頼済みの場合は編集不可（来店計測地点を除く）
+  const isLocationLocked = !isVisitMeasurement && segment && segment.location_request_status !== 'not_requested';
+  
+  // 格納依頼済みの場合はフォームを表示しない（来店計測地点を除く）
   if (isLocationLocked) {
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -62,9 +68,12 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     project_id: projectId,
     segment_id: segmentId,
     poi_type: poi?.poi_type || 'manual',
+    poi_category: poi?.poi_category || defaultCategory || undefined,
+    visit_measurement_group_id: poi?.visit_measurement_group_id || defaultGroupId || undefined,
     poi_name: poi?.poi_name || '',
     address: poi?.address || '',
-    location_id: poi?.location_id || '', // 地点IDを追加
+    // 地点IDは自動採番のため入力不可
+    location_id: poi?.location_id || undefined,
     prefectures: poi?.prefectures || [],
     cities: poi?.cities || [],
     latitude: poi?.latitude,
@@ -75,7 +84,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     extraction_period_type: poi?.extraction_period_type || (segment?.extraction_period_type ? segment.extraction_period_type : 'preset'),
     extraction_start_date: poi?.extraction_start_date || (segment?.extraction_start_date ? segment.extraction_start_date : ''),
     extraction_end_date: poi?.extraction_end_date || (segment?.extraction_end_date ? segment.extraction_end_date : ''),
-    attribute: poi?.attribute || (segment?.attribute ? segment.attribute : ''),
+    attribute: poi?.attribute || segment?.attribute || undefined,
     detection_count: poi?.detection_count || (segment?.detection_count ? segment.detection_count : undefined),
     detection_time_start: poi?.detection_time_start || (segment?.detection_time_start ? segment.detection_time_start : ''),
     detection_time_end: poi?.detection_time_end || (segment?.detection_time_end ? segment.detection_time_end : ''),
@@ -90,15 +99,22 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   const [autoSelectAllCities, setAutoSelectAllCities] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [showExtractionConditionsPopup, setShowExtractionConditionsPopup] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // CSV関連のState
-  const [entryMethod, setEntryMethod] = useState<string>(poi?.poi_type || 'manual');
+  // 新規登録時は表形式コピペをデフォルトに、編集時は既存のpoi_typeを使用
+  const [entryMethod, setEntryMethod] = useState<string>(poi ? (poi.poi_type || 'manual') : 'paste');
   const [csvStep, setCsvStep] = useState<'upload' | 'preview'>('upload');
   const [parsedPois, setParsedPois] = useState<Partial<PoiInfo>[]>([]);
   const [csvErrors, setCsvErrors] = useState<CSVValidationError[]>([]);
   const [csvTotalRows, setCsvTotalRows] = useState(0);
   const [isCsvProcessing, setIsCsvProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // バッチ処理用の状態
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+  const [batchTotal, setBatchTotal] = useState(0);
 
   // 表形式コピペ関連のState
   const [pasteStep, setPasteStep] = useState<'paste' | 'preview'>('paste');
@@ -108,11 +124,14 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   const [pasteErrors, setPasteErrors] = useState<CSVValidationError[]>([]);
   const [isPasteProcessing, setIsPasteProcessing] = useState(false);
   const [isGeocodingPaste, setIsGeocodingPaste] = useState(false);
+  // 一括登録用のグループ選択
+  const [bulkGroupId, setBulkGroupId] = useState<string | null>(defaultGroupId || null);
   // 表形式コピペ用の抽出条件
   const [pasteExtractionConditions, setPasteExtractionConditions] = useState<{
     designated_radius: string;
     extraction_period: string;
-    attribute: string;
+    extraction_period_type: 'preset' | 'custom';
+    attribute: 'detector' | 'resident' | 'worker' | 'resident_and_worker';
     detection_count: number | undefined;
     detection_time_start: string;
     detection_time_end: string;
@@ -120,17 +139,23 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   }>({
     designated_radius: segment?.designated_radius || '',
     extraction_period: segment?.extraction_period || '1month',
-    attribute: segment?.attribute || 'detector',
+    extraction_period_type: segment?.extraction_period_type || 'preset',
+    attribute: (segment?.attribute || 'detector') as 'detector' | 'resident' | 'worker' | 'resident_and_worker',
     detection_count: segment?.detection_count || 1,
     detection_time_start: segment?.detection_time_start || '',
     detection_time_end: segment?.detection_time_end || '',
     stay_time: segment?.stay_time || '',
   });
   const pasteTableRef = useRef<HTMLDivElement>(null);
+  
+  // 一括登録時の地点カテゴリ選択
+  const [bulkPoiCategory, setBulkPoiCategory] = useState<'tg' | 'visit_measurement'>(defaultCategory || 'tg');
 
   const handleEntryMethodChange = (value: string) => {
     setEntryMethod(value);
-    if (value !== 'csv' && value !== 'paste') {
+    if (value === 'prefecture') {
+      handleChange('poi_type', 'prefecture');
+    } else if (value !== 'csv' && value !== 'paste') {
       handleChange('poi_type', value);
     }
   };
@@ -145,6 +170,26 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       // Excelファイルとして処理
       const result = await parseAndValidateExcel(selectedFile, projectId, segmentId, false);
       
+      // 処理上限チェック（最大5000件）
+      if (result.success.length > 5000) {
+        toast.error('一度に登録できる地点数は最大5000件です。データを分割して登録してください。', {
+          duration: 5000,
+        });
+        handleResetCsv();
+        return;
+      }
+
+      // 大量登録の警告
+      if (result.success.length > 1000) {
+        toast.warning(`${result.success.length}件の大量登録です。バックグラウンドで分割処理を行います。`, {
+          duration: 5000,
+        });
+      } else if (result.success.length > 100) {
+        toast.warning(`${result.success.length}件の地点を登録します。ジオコーディングに時間がかかる場合があります。`, {
+          duration: 5000,
+        });
+      }
+      
       setParsedPois(result.success);
       setCsvErrors(result.errors);
       setCsvTotalRows(result.total);
@@ -156,6 +201,73 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       }
       
       setCsvStep('preview');
+      
+      // 自動的にジオコーディングを実行
+      const needsGeocoding = result.success.filter(poi => 
+        (poi.latitude === undefined || poi.latitude === null || 
+         poi.longitude === undefined || poi.longitude === null) && 
+        poi.address && poi.address.trim() !== ''
+      );
+      
+      if (needsGeocoding.length > 0) {
+        // バックグラウンドで自動ジオコーディングを実行
+        setTimeout(async () => {
+          const updatedPois = [...result.success];
+          let successCount = 0;
+          let errorCount = 0;
+
+          for (let i = 0; i < updatedPois.length; i++) {
+            const poi = updatedPois[i];
+            
+            // 既に緯度経度がある場合はスキップ
+            if (poi.latitude !== undefined && poi.latitude !== null && 
+                poi.longitude !== undefined && poi.longitude !== null) {
+              continue;
+            }
+
+            // 住所がない場合はスキップ
+            if (!poi.address || poi.address.trim() === '') {
+              continue;
+            }
+
+            try {
+              const geocodeResult = await geocodeAddress(poi.address);
+              // 海外の地点が検出された場合はエラーとして扱う
+              if (geocodeResult.isJapan === false) {
+                errorCount++;
+                console.error(`海外の地点が検出されました: "${poi.address}"`);
+                // エラーとして扱うが、緯度経度は設定しない
+                continue;
+              }
+              updatedPois[i] = {
+                ...poi,
+                latitude: geocodeResult.latitude,
+                longitude: geocodeResult.longitude,
+              };
+              successCount++;
+            } catch (error) {
+              errorCount++;
+              console.error(`Geocoding error for "${poi.address}":`, error);
+            }
+
+            // レート制限対策
+            if (i < updatedPois.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 50));
+            }
+          }
+
+          setParsedPois(updatedPois);
+          
+          if (successCount > 0) {
+            toast.success(`${successCount}件の地点の緯度経度を自動取得しました`);
+          }
+          if (errorCount > 0) {
+            toast.error(`${errorCount}件の地点で緯度経度の取得に失敗しました（海外の地点が含まれている可能性があります）`, {
+              duration: 5000,
+            });
+          }
+        }, 500);
+      }
     } catch (error) {
       console.error('File parse error:', error);
       toast.error('ファイルの読み込みに失敗しました');
@@ -175,9 +287,77 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     }
   };
 
-  const handleCsvSubmit = () => {
+  // 重複地点を削除する関数（TG地点の場合のみ）
+  const removeDuplicatePois = (pois: Partial<PoiInfo>[]): { filtered: Partial<PoiInfo>[]; removedCount: number } => {
+    // TG地点の場合のみ重複チェック
+    const tgPois = pois.filter(poi => (poi.poi_category || defaultCategory) === 'tg');
+    const nonTgPois = pois.filter(poi => (poi.poi_category || defaultCategory) !== 'tg');
+    
+    if (tgPois.length === 0) {
+      return { filtered: pois, removedCount: 0 };
+    }
+
+    const seen = new Map<string, number>();
+    const filtered: Partial<PoiInfo>[] = [];
+    let removedCount = 0;
+
+    // TG地点の重複チェック
+    for (const poi of tgPois) {
+      const poiName = (poi.poi_name || '').trim();
+      const address = (poi.address || '').trim();
+      
+      // 地点名と住所の両方が存在する場合のみ重複チェック
+      if (poiName && address) {
+        const key = `${poiName}|${address}`;
+        if (seen.has(key)) {
+          removedCount++;
+          continue;
+        }
+        seen.set(key, 1);
+      }
+      filtered.push(poi);
+    }
+
+    // 非TG地点はそのまま追加
+    filtered.push(...nonTgPois);
+
+    return { filtered, removedCount };
+  };
+
+  const handleCsvSubmit = async () => {
     if (onBulkSubmit) {
-      onBulkSubmit(parsedPois);
+      setErrorMessage(null); // エラーメッセージをクリア
+      // 都道府県指定の地点が存在する場合はエラー
+      const existingPrefecturePois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type === 'prefecture'
+      );
+      if (existingPrefecturePois.length > 0) {
+        const errorMsg = '都道府県指定と緯度経度・住所指定での登録は同一セグメントでは併用できません';
+        setErrorMessage(errorMsg);
+        return;
+      }
+
+      // カテゴリが未設定の場合はデフォルトカテゴリまたは選択されたカテゴリを設定
+      const poisWithCategory = parsedPois.map(poi => ({
+        ...poi,
+        poi_category: poi.poi_category || defaultCategory || bulkPoiCategory,
+        location_id: undefined, // 地点IDは自動採番
+      }));
+      
+      // TG地点の場合、重複を削除
+      const { filtered, removedCount } = removeDuplicatePois(poisWithCategory);
+      
+      if (removedCount > 0) {
+        toast.info(`${removedCount}件の重複地点を削除しました`);
+      }
+      
+      // 1000件以上の場合はバッチ処理
+      if (filtered.length >= 1000) {
+        await processBatchSubmit(filtered);
+      } else {
+        onBulkSubmit(filtered);
+      }
     }
   };
 
@@ -235,7 +415,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       startIndex = 1;
     }
 
-    // 列のインデックスを推測（地点名、住所、緯度、経度、地点ID）
+    // 列のインデックスを推測（地点名、住所、緯度、経度）
     const headerColumns = hasHeader ? lines[0].split(delimiter).map(col => col.trim().toLowerCase()) : [];
     const getColumnIndex = (keywords: string[]): number => {
       for (let i = 0; i < headerColumns.length; i++) {
@@ -251,7 +431,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     const addressIndex = hasHeader ? getColumnIndex(['住所', 'address', 'アドレス']) : 1;
     const latIndex = hasHeader ? getColumnIndex(['緯度', 'latitude', 'lat']) : 2;
     const lngIndex = hasHeader ? getColumnIndex(['経度', 'longitude', 'lng', 'lon']) : 3;
-    const locationIdIndex = hasHeader ? getColumnIndex(['地点id', 'location_id', 'id']) : 4;
+    // 地点IDは自動採番のためCSVでは使用しない
 
     // データ行を処理
     for (let i = startIndex; i < lines.length; i++) {
@@ -262,8 +442,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       const address = addressIndex >= 0 && addressIndex < columns.length ? columns[addressIndex] : '';
       const latStr = latIndex >= 0 && latIndex < columns.length ? columns[latIndex] : '';
       const lngStr = lngIndex >= 0 && lngIndex < columns.length ? columns[lngIndex] : '';
-      const locationId = locationIdIndex >= 0 && locationIdIndex < columns.length ? columns[locationIdIndex] : '';
-
       // 必須チェック：地点名と住所
       if (!poiName || poiName.trim() === '') {
         errors.push({
@@ -304,7 +482,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         poi_type: 'manual',
         poi_name: poiName.trim(),
         address: address.trim(),
-        location_id: locationId.trim() || undefined,
         latitude,
         longitude,
       };
@@ -366,12 +543,46 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return;
       }
 
+      // 処理上限チェック（最大5000件）
+      if (result.pois.length > 5000) {
+        toast.error('一度に登録できる地点数は最大5000件です。データを分割して登録してください。', {
+          duration: 5000,
+        });
+        setIsPasteProcessing(false);
+        return;
+      }
+
+      // 大量登録の警告
+      if (result.pois.length > 1000) {
+        toast.warning(`${result.pois.length}件の大量登録です。バックグラウンドで分割処理を行います。`, {
+          duration: 5000,
+        });
+      } else if (result.pois.length > 100) {
+        toast.warning(`${result.pois.length}件の地点を登録します。ジオコーディングに時間がかかる場合があります。`, {
+          duration: 5000,
+        });
+      }
+
       setParsedPastePois(result.pois);
       setPasteErrors(result.errors);
       
       if (result.pois.length > 0) {
         setPasteStep('preview');
         toast.success(`${result.pois.length}件の地点データを読み込みました`);
+        
+        // 自動的にジオコーディングを実行
+        const needsGeocoding = result.pois.filter(poi => 
+          (poi.latitude === undefined || poi.latitude === null || 
+           poi.longitude === undefined || poi.longitude === null) && 
+          poi.address && poi.address.trim() !== ''
+        );
+        
+        if (needsGeocoding.length > 0) {
+          // バックグラウンドで自動ジオコーディングを実行
+          setTimeout(() => {
+            handlePasteGeocode();
+          }, 500);
+        }
       } else {
         toast.error('有効なデータが見つかりませんでした');
       }
@@ -419,6 +630,13 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
 
         try {
           const result = await geocodeAddress(poi.address);
+          // 海外の地点が検出された場合はエラーとして扱う
+          if (result.isJapan === false) {
+            errorCount++;
+            console.error(`海外の地点が検出されました: "${poi.address}"`);
+            // エラーとして扱うが、緯度経度は設定しない
+            continue;
+          }
           updatedPois[i] = {
             ...poi,
             latitude: result.latitude,
@@ -442,7 +660,9 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         toast.success(`${successCount}件の地点の緯度経度を取得しました`);
       }
       if (errorCount > 0) {
-        toast.warning(`${errorCount}件の地点で緯度経度の取得に失敗しました`);
+        toast.error(`${errorCount}件の地点で緯度経度の取得に失敗しました（海外の地点が含まれている可能性があります）`, {
+          duration: 5000,
+        });
       }
     } catch (error) {
       console.error('Geocoding error:', error);
@@ -464,15 +684,92 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     }
   };
 
+  // バッチ処理用関数（1000件以上の場合に分割処理）
+  const processBatchSubmit = async (pois: Partial<PoiInfo>[]) => {
+    if (!onBulkSubmit) return;
+    
+    const BATCH_SIZE = 100; // 1バッチあたりの件数
+    const batches = [];
+    
+    // バッチに分割
+    for (let i = 0; i < pois.length; i += BATCH_SIZE) {
+      batches.push(pois.slice(i, i + BATCH_SIZE));
+    }
+    
+    setIsBatchProcessing(true);
+    setBatchTotal(batches.length);
+    setBatchProgress(0);
+    
+    try {
+      for (let i = 0; i < batches.length; i++) {
+        await onBulkSubmit(batches[i]);
+        setBatchProgress(i + 1);
+        
+        // レート制限対策（各バッチ間で少し待機）
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      toast.success(`${pois.length}件の地点を登録しました`);
+      onCancel(); // フォームを閉じる
+    } catch (error) {
+      console.error('Batch submit error:', error);
+      toast.error('一括登録中にエラーが発生しました');
+    } finally {
+      setIsBatchProcessing(false);
+      setBatchProgress(0);
+      setBatchTotal(0);
+    }
+  };
+
   // 表形式コピペの登録
-  const handlePasteSubmit = () => {
+  const handlePasteSubmit = async () => {
     if (onBulkSubmit && parsedPastePois.length > 0) {
-      // 抽出条件をすべてのPOIに適用
+      setErrorMessage(null); // エラーメッセージをクリア
+      // 都道府県指定の地点が存在する場合はエラー
+      const existingPrefecturePois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type === 'prefecture'
+      );
+      if (existingPrefecturePois.length > 0) {
+        const errorMsg = '都道府県指定と緯度経度・住所指定での登録は同一セグメントでは併用できません';
+        setErrorMessage(errorMsg);
+        return;
+      }
+
+      console.log(`📋 表形式コピペ - 一括登録: ${parsedPastePois.length}件`);
+
+      // 抽出条件とカテゴリをすべてのPOIに適用
+      // 来店計測地点でグループが選択されている場合は、グループIDも設定
       const poisWithConditions = parsedPastePois.map(poi => ({
         ...poi,
-        ...pasteExtractionConditions,
+        designated_radius: pasteExtractionConditions.designated_radius,
+        extraction_period: pasteExtractionConditions.extraction_period,
+        extraction_period_type: pasteExtractionConditions.extraction_period_type,
+        attribute: pasteExtractionConditions.attribute,
+        detection_count: pasteExtractionConditions.attribute === 'detector' ? pasteExtractionConditions.detection_count : undefined,
+        detection_time_start: pasteExtractionConditions.attribute === 'detector' ? pasteExtractionConditions.detection_time_start : undefined,
+        detection_time_end: pasteExtractionConditions.attribute === 'detector' ? pasteExtractionConditions.detection_time_end : undefined,
+        stay_time: pasteExtractionConditions.attribute === 'detector' ? pasteExtractionConditions.stay_time : undefined,
+        poi_category: poi.poi_category || defaultCategory || bulkPoiCategory,
+        visit_measurement_group_id: poi.visit_measurement_group_id || ((defaultCategory === 'visit_measurement' || bulkPoiCategory === 'visit_measurement') && bulkGroupId ? bulkGroupId : undefined),
+        location_id: undefined, // 地点IDは自動採番
       }));
-      onBulkSubmit(poisWithConditions);
+      
+      // TG地点の場合、重複を削除
+      const { filtered, removedCount } = removeDuplicatePois(poisWithConditions);
+      
+      if (removedCount > 0) {
+        toast.info(`${removedCount}件の重複地点を削除しました`);
+      }
+      
+      // 1000件以上の場合はバッチ処理
+      if (filtered.length >= 1000) {
+        await processBatchSubmit(filtered);
+      } else {
+        onBulkSubmit(filtered);
+      }
     }
   };
 
@@ -494,47 +791,127 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     }
   }, [formData.attribute]);
 
+  // 住所入力時に自動的に緯度経度を取得（debounce付き）
+  useEffect(() => {
+    // 手動登録モードで、住所があり、緯度経度がない場合のみ自動実行
+    if (entryMethod !== 'paste' && entryMethod !== 'csv' && entryMethod !== 'prefecture') {
+      if (formData.address && formData.address.trim() !== '' && 
+          (formData.latitude === undefined || formData.latitude === null || 
+           formData.longitude === undefined || formData.longitude === null)) {
+        // 編集時は既存の住所が設定されている場合をスキップ（初回のみ）
+        if (poi && poi.address === formData.address) {
+          return;
+        }
+        
+        const timeoutId = setTimeout(async () => {
+          try {
+            const result = await geocodeAddress(formData.address!);
+            // 海外の地点が検出された場合はエラーを通知
+            if (result.isJapan === false) {
+              toast.error('海外の地点が検出されました', {
+                description: `住所「${formData.address}」は日本国外の地点です。日本国内の住所を入力してください。`,
+                duration: 5000,
+              });
+              return; // 緯度経度は設定しない
+            }
+            setFormData(prev => ({
+              ...prev,
+              latitude: result.latitude,
+              longitude: result.longitude,
+            }));
+            console.log('自動ジオコーディング成功:', result);
+          } catch (error) {
+            console.error('自動ジオコーディングエラー:', error);
+            // エラー時は静かに失敗（ユーザーに通知しない）
+          }
+        }, 1000); // 1秒後に実行
+
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [formData.address, entryMethod, poi]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null); // エラーメッセージをクリア
     
     // バリデーション
-    if (formData.poi_type === 'manual' && !formData.poi_name) {
-      alert('地点名は必須項目です');
-      return;
+    // 都道府県指定の場合
+    if (entryMethod === 'prefecture' || formData.poi_type === 'prefecture') {
+      if (!formData.cities || formData.cities.length === 0) {
+        setErrorMessage('市区町村を少なくとも1つ選択してください');
+        return;
+      }
+    } else {
+      // 手動登録やその他の場合、地点名が必須
+      if (!formData.poi_name || formData.poi_name.trim() === '') {
+        setErrorMessage('地点名は必須項目です');
+        return;
+      }
     }
-    if (formData.poi_type === 'prefecture' && (!formData.cities || formData.cities.length === 0)) {
-      alert('市区町村を少なくとも1つ選択してください');
-      return;
+    // 都道府県指定の場合、1セグメント5つまで、かつ緯度経度・住所指定での登録とは併用不可
+    if (formData.poi_type === 'prefecture') {
+      const existingPrefecturePois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type === 'prefecture' &&
+        (!poi || p.poi_id !== poi.poi_id) // 編集時は現在編集中の地点を除外
+      );
+      if (existingPrefecturePois.length >= 5) {
+        const errorMsg = '都道府県指定の地点は1セグメントにつき5つまで登録できます';
+        setErrorMessage(errorMsg);
+        return;
+      }
+      // 都道府県指定以外の地点（緯度経度・住所指定など）が存在する場合はエラー
+      const existingNonPrefecturePois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type !== 'prefecture' &&
+        (!poi || p.poi_id !== poi.poi_id) // 編集時は現在編集中の地点を除外
+      );
+      if (existingNonPrefecturePois.length > 0) {
+        const errorMsg = '都道府県指定と緯度経度・住所指定での登録は同一セグメントでは併用できません';
+        setErrorMessage(errorMsg);
+        return;
+      }
     }
     // 都道府県指定以外の場合のみ半径が必須
     if (formData.poi_type !== 'prefecture' && !formData.designated_radius) {
-      alert('指定半径は必須項目です');
+      setErrorMessage('指定半径は必須項目です');
       return;
     }
     if (!formData.extraction_period && formData.extraction_period_type === 'preset') {
-      alert('抽出期間は必須項目です');
+      setErrorMessage('抽出期間は必須項目です');
       return;
     }
     if (formData.extraction_period_type === 'custom' && (!formData.extraction_start_date || !formData.extraction_end_date)) {
-      alert('抽出期間の開始日と終了日を指定してください');
+      setErrorMessage('抽出期間の開始日と終了日を指定してください');
       return;
     }
 
     // 緯度経度を数値に変換
     const submitData = {
       ...formData,
-      latitude: formData.latitude !== undefined && formData.latitude !== null && formData.latitude !== '' 
-        ? (typeof formData.latitude === 'string' ? parseFloat(formData.latitude) : formData.latitude)
-        : undefined,
-      longitude: formData.longitude !== undefined && formData.longitude !== null && formData.longitude !== ''
-        ? (typeof formData.longitude === 'string' ? parseFloat(formData.longitude) : formData.longitude)
-        : undefined,
+      latitude: (() => {
+        const lat = formData.latitude;
+        if (lat === undefined || lat === null) return undefined;
+        if (typeof lat === 'string') {
+          return lat === '' ? undefined : parseFloat(lat);
+        }
+        return typeof lat === 'number' ? lat : undefined;
+      })(),
+      longitude: (() => {
+        const lng = formData.longitude;
+        if (lng === undefined || lng === null) return undefined;
+        if (typeof lng === 'string') {
+          return lng === '' ? undefined : parseFloat(lng);
+        }
+        return typeof lng === 'number' ? lng : undefined;
+      })(),
     };
 
     onSubmit(submitData);
   };
 
-  const handleChange = (field: keyof PoiInfo, value: string | number) => {
+  const handleChange = (field: keyof PoiInfo, value: string | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -548,6 +925,17 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     setIsGeocoding(true);
     try {
       const result = await geocodeAddress(formData.address);
+      
+      // 海外の地点が検出された場合はエラーを通知
+      if (result.isJapan === false) {
+        toast.error('海外の地点が検出されました', {
+          description: `住所「${formData.address}」は日本国外の地点です。日本国内の住所を入力してください。`,
+          duration: 5000,
+        });
+        setIsGeocoding(false);
+        return; // 緯度経度は設定しない
+      }
+      
       setFormData(prev => ({
         ...prev,
         latitude: result.latitude,
@@ -692,13 +1080,39 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               size="sm"
               onClick={onCancel}
               className="text-white hover:bg-white/20 -mt-2 -mr-2"
+              disabled={isBatchProcessing}
             >
               <X className="w-5 h-5" />
             </Button>
           </div>
 
+          {/* バッチ処理プログレス */}
+          {isBatchProcessing && (
+            <div className="mt-4 bg-white/20 rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm font-medium">大量登録処理中...</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-white/90">
+                  <span>バッチ {batchProgress} / {batchTotal} 完了</span>
+                  <span>{Math.round((batchProgress / batchTotal) * 100)}%</span>
+                </div>
+                <div className="w-full bg-white/30 rounded-full h-2">
+                  <div 
+                    className="bg-white rounded-full h-2 transition-all duration-300"
+                    style={{ width: `${(batchProgress / batchTotal) * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-white/80">
+                  100件ずつ分割処理しています。しばらくお待ちください...
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* ステップインジケーター */}
-          {entryMethod !== 'csv' && (
+          {entryMethod !== 'csv' && !isBatchProcessing && (
             <div className="flex items-center gap-4 mt-6">
               <button
                 type="button"
@@ -742,24 +1156,33 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
 
         {/* コンテンツエリア */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          {/* エラーメッセージ表示（都道府県指定と手動登録の場合のみ） */}
+          {errorMessage && (entryMethod === 'prefecture' || entryMethod === 'manual') && (
+            <div className="mx-6 mt-6 bg-red-50 border-2 border-red-300 rounded-lg p-4 shadow-md">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-900 mb-1">エラー</p>
+                  <p className="text-sm text-red-800">{errorMessage}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setErrorMessage(null)}
+                  className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
           {currentStep === 'info' && (
             <div className="p-6 space-y-6">
               {/* 地点タイプ選択 */}
               {/* 登録モード切替タ��（新規登録時のみ） */}
               {!poi && (
                 <div className="flex p-1 bg-gray-100 rounded-lg mb-6">
-                  <button
-                    type="button"
-                    onClick={() => handleEntryMethodChange(formData.poi_type || 'manual')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
-                      entryMethod !== 'csv' && entryMethod !== 'paste'
-                        ? 'bg-white text-[#5b5fff] shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    <PenLine className="w-4 h-4" />
-                    手動で登録
-                  </button>
                   <button
                     type="button"
                     onClick={() => handleEntryMethodChange('paste')}
@@ -771,6 +1194,18 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                   >
                     <FileText className="w-4 h-4" />
                     表形式コピペ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEntryMethodChange('prefecture')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                      entryMethod === 'prefecture'
+                        ? 'bg-white text-[#5b5fff] shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    都道府県指定
                   </button>
                   <button
                     type="button"
@@ -788,43 +1223,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               )}
 
               {/* ���動登録の場合の地点タイプ選択 */}
-              {entryMethod !== 'csv' && entryMethod !== 'paste' && (
-                <div>
-                  <Label className="block mb-3 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-[#5b5fff]" />
-                    地点タイプ
-                  </Label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {POI_TYPE_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => handleEntryMethodChange(option.value)}
-                        className={`p-4 rounded-lg border-2 transition-all ${
-                          entryMethod === option.value
-                            ? 'border-[#5b5fff] bg-[#5b5fff]/5 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            entryMethod === option.value
-                              ? 'bg-[#5b5fff] text-white'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {getPoiTypeIcon(option.value)}
-                          </div>
-                          <span className={`text-sm text-center ${
-                            entryMethod === option.value ? 'text-[#5b5fff]' : 'text-gray-700'
-                          }`}>
-                            {option.label}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* CSV一括登録 */}
               {entryMethod === 'csv' && (
@@ -836,10 +1234,29 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         <div className="flex items-start gap-3">
                           <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
                           <div className="flex-1">
-                            <h3 className="text-sm text-blue-900 mb-2">Excelテンプレート</h3>
-                            <p className="text-sm text-blue-700 mb-3">
-                              テンプレートをダウンロードし、地点情報（地点名、住所、緯度、経度、地点ID）を入力してください
+                            <h3 className="text-sm font-semibold text-blue-900 mb-2">Excel一括登録</h3>
+                            <p className="text-sm text-blue-700 mb-2">
+                              Excelテンプレートをダウンロードし、地点情報を入力してアップロードしてください。<br />
+                              <strong>TG地点・来店計測地点の両方に対応しています。</strong>
                             </p>
+                            <div className="bg-white/50 rounded p-2 mb-2">
+                              <p className="text-xs font-semibold text-blue-900 mb-1">📋 入力項目</p>
+                              <p className="text-xs text-blue-700">
+                                • <strong>地点名</strong>: 必須<br />
+                                • <strong>住所</strong>: 必須<br />
+                                • <strong>緯度・経度</strong>: 任意（未入力の場合、住所から自動変換されます）<br />
+                                • <strong>地点ID</strong>: 自動採番（入力不要）
+                              </p>
+                            </div>
+                            <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-3">
+                              <p className="text-xs font-semibold text-yellow-900 mb-1">⚠️ 処理上限</p>
+                              <p className="text-xs text-yellow-800">
+                                • <strong>推奨: 100件以下</strong> / 1回の登録<br />
+                                • <strong>最大: 5,000件</strong> / 1回の登録<br />
+                                • <strong>1,000件以上</strong>: 100件ずつバッチ処理で自動分割登録されます<br />
+                                • 大量登録時は自動ジオコーディングに時間がかかる場合があります
+                              </p>
+                            </div>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -878,6 +1295,27 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                   {/* Step 2: Preview */}
                   {csvStep === 'preview' && (
                     <div className="space-y-6">
+                      {/* エラーメッセージ表示 */}
+                      {errorMessage && (
+                        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 shadow-md">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-red-900 mb-1">エラー</p>
+                              <p className="text-sm text-red-800">{errorMessage}</p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setErrorMessage(null)}
+                              className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-3 gap-4">
                         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                           <span className="text-xs text-gray-500 block mb-1">総データ数</span>
@@ -904,7 +1342,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                   <th className="px-4 py-2 text-left text-xs text-gray-500">住所</th>
                                   <th className="px-4 py-2 text-left text-xs text-gray-500">緯度</th>
                                   <th className="px-4 py-2 text-left text-xs text-gray-500">経度</th>
-                                  <th className="px-4 py-2 text-left text-xs text-gray-500">地点ID</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-200">
@@ -940,16 +1377,45 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         </div>
                       )}
 
+                      {/* 計測地点グループ選択（来店計測地点の場合のみ） */}
+                      {(defaultCategory === 'visit_measurement' || bulkPoiCategory === 'visit_measurement' || parsedPois.some(p => p.poi_category === 'visit_measurement')) && (
+                        <div>
+                          <Label htmlFor="bulk_group_id" className="block mb-2">
+                            計測地点グループ
+                          </Label>
+                          <select
+                            id="bulk_group_id"
+                            value={bulkGroupId || ''}
+                            onChange={(e) => setBulkGroupId(e.target.value || null)}
+                            className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
+                          >
+                            <option value="">グループなし</option>
+                            {visitMeasurementGroups.map(group => (
+                              <option key={group.group_id} value={group.group_id}>
+                                {group.group_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       <div className="flex justify-between pt-4 border-t border-gray-100">
-                        <Button variant="outline" onClick={handleResetCsv} className="border-gray-200">
+                        <Button variant="outline" onClick={handleResetCsv} className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50">
                           クリア
                         </Button>
                         <Button
                           onClick={handleCsvSubmit}
-                          disabled={parsedPois.length === 0}
+                          disabled={parsedPois.length === 0 || isBatchProcessing}
                           className="bg-primary text-primary-foreground"
                         >
-                          この内容で登録する ({parsedPois.length}件)
+                          {isBatchProcessing ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              処理中...
+                            </>
+                          ) : (
+                            `この内容で登録する (${parsedPois.length}件)`
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -960,6 +1426,45 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               {/* 表形式コピペ */}
               {entryMethod === 'paste' && (
                 <div className="space-y-6">
+                  {/* 地点カテゴリ選択タブ */}
+                  {!defaultCategory && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <Label className="block mb-3 text-sm font-medium text-gray-700">登録する地点カテゴリ</Label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setBulkPoiCategory('tg')}
+                          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                            bulkPoiCategory === 'tg'
+                              ? 'border-[#5b5fff] bg-[#5b5fff]/10 text-[#5b5fff]'
+                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          <MapPin className="w-5 h-5" />
+                          <div className="text-left">
+                            <div className="font-semibold">TG地点</div>
+                            <div className="text-xs opacity-80">ターゲティング用の地点</div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBulkPoiCategory('visit_measurement')}
+                          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                            bulkPoiCategory === 'visit_measurement'
+                              ? 'border-[#5b5fff] bg-[#5b5fff]/10 text-[#5b5fff]'
+                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          <Database className="w-5 h-5" />
+                          <div className="text-left">
+                            <div className="font-semibold">来店計測地点</div>
+                            <div className="text-xs opacity-80">来店計測用の地点</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Step 1: Paste */}
                   {pasteStep === 'paste' && (
                     <div className="space-y-6">
@@ -967,15 +1472,32 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         <div className="flex items-start gap-3">
                           <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
                           <div className="flex-1">
-                            <h3 className="text-sm text-blue-900 mb-2">表形式データの貼り付け</h3>
+                            <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                              表形式データの貼り付け
+                              {bulkPoiCategory === 'tg' && <span className="ml-2 text-xs bg-[#5b5fff]/20 text-[#5b5fff] px-2 py-1 rounded">TG地点</span>}
+                              {bulkPoiCategory === 'visit_measurement' && <span className="ml-2 text-xs bg-[#5b5fff]/20 text-[#5b5fff] px-2 py-1 rounded">来店計測地点</span>}
+                            </h3>
                             <p className="text-sm text-blue-700 mb-2">
-                              ExcelやGoogleスプレッドシートからコピーした表形式データを貼り付けてください
+                              ExcelやGoogleスプレッドシートからコピーした表形式データを貼り付けてください。
                             </p>
-                            <p className="text-xs text-blue-600">
-                              • 地点名と住所は必須です<br />
-                              • タブ区切りまたはカンマ区切りのデータに対応<br />
-                              • ヘッダー行がある場合は自動検出されます（地点名、住所、緯度、経度、地点ID）
-                            </p>
+                            <div className="bg-white/50 rounded p-2 mb-2">
+                              <p className="text-xs font-semibold text-blue-900 mb-1">📋 入力形式</p>
+                              <p className="text-xs text-blue-700">
+                                • <strong>地点名</strong>と<strong>住所</strong>は必須です<br />
+                                • <strong>緯度・経度</strong>は任意（未入力の場合、住所から自動変換されます）<br />
+                                • タブ区切りまたはカンマ区切りのデータに対応<br />
+                                • ヘッダー行は自動検出されます（地点名、住所、緯度、経度）
+                              </p>
+                            </div>
+                            <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                              <p className="text-xs font-semibold text-yellow-900 mb-1">⚠️ 処理上限</p>
+                              <p className="text-xs text-yellow-800">
+                                • <strong>推奨: 100件以下</strong> / 1回の登録<br />
+                                • <strong>最大: 5,000件</strong> / 1回の登録<br />
+                                • <strong>1,000件以上</strong>: 100件ずつバッチ処理で自動分割登録されます<br />
+                                • 大量登録時は自動ジオコーディングに時間がかかる場合があります
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1078,7 +1600,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 relative z-10">
                         <Button
                           variant="outline"
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
                             handleResetPaste();
@@ -1089,7 +1611,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           クリア
                         </Button>
                         <Button
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
                             handlePasteProcess();
@@ -1113,6 +1635,27 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                   {/* Step 2: Preview */}
                   {pasteStep === 'preview' && (
                     <div className="space-y-6">
+                      {/* エラーメッセージ表示 */}
+                      {errorMessage && (
+                        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 shadow-md">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-red-900 mb-1">エラー</p>
+                              <p className="text-sm text-red-800">{errorMessage}</p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setErrorMessage(null)}
+                              className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-3 gap-4">
                         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                           <span className="text-xs text-gray-500 block mb-1">総データ数</span>
@@ -1142,7 +1685,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                 variant="outline"
                                 onClick={handlePasteGeocode}
                                 disabled={isGeocodingPaste}
-                                className="text-xs"
+                                className="text-xs border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
                               >
                                 {isGeocodingPaste ? (
                                   <>
@@ -1166,7 +1709,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                   <th className="px-4 py-2 text-left text-xs text-gray-500">住所</th>
                                   <th className="px-4 py-2 text-left text-xs text-gray-500">緯度</th>
                                   <th className="px-4 py-2 text-left text-xs text-gray-500">経度</th>
-                                  <th className="px-4 py-2 text-left text-xs text-gray-500">地点ID</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-200">
@@ -1248,12 +1790,16 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             <select
                               value={pasteExtractionConditions.extraction_period}
                               onChange={(e) => setPasteExtractionConditions(prev => ({ ...prev, extraction_period: e.target.value }))}
-                              className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              disabled={pasteExtractionConditions.attribute !== 'detector'}
+                              className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
                             >
                               {EXTRACTION_PERIOD_PRESET_OPTIONS.map(option => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
                               ))}
                             </select>
+                            {pasteExtractionConditions.attribute !== 'detector' && (
+                              <p className="text-xs text-orange-600 mt-1">※検知者以外は3ヶ月固定です</p>
+                            )}
                           </div>
 
                           {/* 属性 */}
@@ -1265,12 +1811,18 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             <select
                               value={pasteExtractionConditions.attribute}
                               onChange={(e) => {
-                                const newAttribute = e.target.value as 'detector' | 'resident' | 'worker';
+                                const newAttribute = e.target.value as 'detector' | 'resident' | 'worker' | 'resident_and_worker';
+                                const isNonDetector = newAttribute !== 'detector';
                                 setPasteExtractionConditions(prev => ({
                                   ...prev,
                                   attribute: newAttribute,
-                                  extraction_period: (newAttribute === 'resident' || newAttribute === 'worker') ? '3month' : prev.extraction_period,
-                                  extraction_period_type: (newAttribute === 'resident' || newAttribute === 'worker') ? 'preset' : prev.extraction_period_type
+                                  extraction_period: isNonDetector ? '3month' : prev.extraction_period,
+                                  extraction_period_type: isNonDetector ? 'preset' : prev.extraction_period_type,
+                                  // 検知者以外の場合は滞在時間、検知時間、検知回数をクリア
+                                  stay_time: isNonDetector ? '' : prev.stay_time,
+                                  detection_time_start: isNonDetector ? '' : prev.detection_time_start,
+                                  detection_time_end: isNonDetector ? '' : prev.detection_time_end,
+                                  detection_count: isNonDetector ? undefined : prev.detection_count,
                                 }));
                               }}
                               className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -1281,44 +1833,27 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             </select>
                           </div>
 
-                          {/* 滞在時間 */}
-                          <div className="space-y-1">
-                            <p className="text-xs text-gray-500 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              滞在時間
-                            </p>
-                            <select
-                              value={pasteExtractionConditions.stay_time}
-                              onChange={(e) => setPasteExtractionConditions(prev => ({ ...prev, stay_time: e.target.value }))}
-                              className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                            >
-                              <option value="">指定なし</option>
-                              {STAY_TIME_OPTIONS.map(option => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* 検知回数（検知者の場合のみ） */}
+                          {/* 滞在時間（検知者の場合のみ） */}
                           {pasteExtractionConditions.attribute === 'detector' && (
                             <div className="space-y-1">
                               <p className="text-xs text-gray-500 flex items-center gap-1">
-                                <Target className="w-3 h-3" />
-                                検知回数
+                                <Clock className="w-3 h-3" />
+                                滞在時間
                               </p>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={pasteExtractionConditions.detection_count || ''}
-                                onChange={(e) => setPasteExtractionConditions(prev => ({ ...prev, detection_count: e.target.value ? parseInt(e.target.value) : 1 }))}
-                                placeholder="1"
-                                className="w-full text-sm h-8 px-2"
-                              />
-                              {pasteExtractionConditions.detection_count && (
-                                <p className="text-xs text-gray-400">{pasteExtractionConditions.detection_count}回以上</p>
-                              )}
+                              <select
+                                value={pasteExtractionConditions.stay_time}
+                                onChange={(e) => setPasteExtractionConditions(prev => ({ ...prev, stay_time: e.target.value }))}
+                                className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              >
+                                <option value="">指定なし</option>
+                                {STAY_TIME_OPTIONS.map(option => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
                             </div>
                           )}
+
+                          {/* 検知回数（UI非表示） */}
 
                           {/* 検知時間帯（検知者の場合のみ） */}
                           {pasteExtractionConditions.attribute === 'detector' && (
@@ -1347,16 +1882,45 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         </div>
                       </div>
 
+                      {/* 計測地点グループ選択（来店計測地点の場合のみ） */}
+                      {(defaultCategory === 'visit_measurement' || bulkPoiCategory === 'visit_measurement' || parsedPastePois.some(p => p.poi_category === 'visit_measurement')) && (
+                        <div>
+                          <Label htmlFor="paste_bulk_group_id" className="block mb-2">
+                            計測地点グループ
+                          </Label>
+                          <select
+                            id="paste_bulk_group_id"
+                            value={bulkGroupId || ''}
+                            onChange={(e) => setBulkGroupId(e.target.value || null)}
+                            className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
+                          >
+                            <option value="">グループなし</option>
+                            {visitMeasurementGroups.map(group => (
+                              <option key={group.group_id} value={group.group_id}>
+                                {group.group_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       <div className="flex justify-between pt-4 border-t border-gray-100">
-                        <Button variant="outline" onClick={handleResetPaste} className="border-gray-200">
+                        <Button variant="outline" onClick={handleResetPaste} className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50">
                           クリア
                         </Button>
                         <Button
                           onClick={handlePasteSubmit}
-                          disabled={parsedPastePois.length === 0}
+                          disabled={parsedPastePois.length === 0 || isBatchProcessing}
                           className="bg-primary text-primary-foreground"
                         >
-                          この内容で登録する ({parsedPastePois.length}件)
+                          {isBatchProcessing ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              処理中...
+                            </>
+                          ) : (
+                            `この内容で登録する (${parsedPastePois.length}件)`
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -1405,27 +1969,55 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         onClick={handleGeocodeAddress}
                         disabled={isGeocoding || !formData.address}
                         variant="outline"
-                        className="border-gray-200"
+                        className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : '緯度経度取得'}
                       </Button>
                     </div>
                   </div>
 
-                  {/* 地点ID入力 */}
-                  <div>
-                    <Label htmlFor="location_id" className="block mb-2">
-                      地点ID
-                    </Label>
-                    <Input
-                      id="location_id"
-                      type="text"
-                      value={formData.location_id || ''}
-                      onChange={(e) => handleChange('location_id', e.target.value)}
-                      placeholder="例：LOC-001"
-                      className="w-full bg-white"
-                    />
-                  </div>
+                  {/* 地点IDは自動採番のため表示・入力不可 */}
+
+                  {/* 地点カテゴリ選択（defaultCategoryが設定されていない場合、または編集時のみ表示） */}
+                  {(!defaultCategory || poi) && (
+                    <div>
+                      <Label htmlFor="poi_category" className="block mb-2">
+                        地点カテゴリ
+                      </Label>
+                      <select
+                        id="poi_category"
+                        value={formData.poi_category || ''}
+                        onChange={(e) => handleChange('poi_category', e.target.value || undefined)}
+                        className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
+                      >
+                        <option value="">選択してください</option>
+                        <option value="tg">TG地点</option>
+                        <option value="visit_measurement">来店計測地点</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 計測地点グループ選択（来店計測地点の場合のみ） */}
+                  {(formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') && (
+                    <div>
+                      <Label htmlFor="visit_measurement_group_id" className="block mb-2">
+                        計測地点グループ
+                      </Label>
+                      <select
+                        id="visit_measurement_group_id"
+                        value={formData.visit_measurement_group_id || ''}
+                        onChange={(e) => handleChange('visit_measurement_group_id', e.target.value || undefined)}
+                        className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
+                      >
+                        <option value="">グループなし</option>
+                        {visitMeasurementGroups.map(group => (
+                          <option key={group.group_id} value={group.group_id}>
+                            {group.group_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1642,41 +2234,43 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               )}
 
               <div className="space-y-6">
-                {/* 指定半径 */}
-                <div>
-                  <Label className="block mb-3 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-[#5b5fff]" />
-                    指定半径
-                  </Label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {RADIUS_OPTIONS.slice(0, 12).map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => handleChange('designated_radius', option.value)}
-                        className={`px-3 py-2 text-sm rounded-md border transition-all ${
-                          formData.designated_radius === option.value
-                            ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-2">
-                    <select
-                      value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? '' : formData.designated_radius}
-                      onChange={(e) => e.target.value && handleChange('designated_radius', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">その他の半径を選択...</option>
-                      {RADIUS_OPTIONS.slice(12).map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
+                {/* 指定半径（都道府県指定の場合は非表示） */}
+                {formData.poi_type !== 'prefecture' && (
+                  <div>
+                    <Label className="block mb-3 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-[#5b5fff]" />
+                      指定半径
+                    </Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {RADIUS_OPTIONS.slice(0, 12).map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => handleChange('designated_radius', option.value)}
+                          className={`px-3 py-2 text-sm rounded-md border transition-all ${
+                            formData.designated_radius === option.value
+                              ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
+                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
                       ))}
-                    </select>
+                    </div>
+                    <div className="mt-2">
+                      <select
+                        value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? '' : formData.designated_radius}
+                        onChange={(e) => e.target.value && handleChange('designated_radius', e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value="">その他の半径を選択...</option>
+                        {RADIUS_OPTIONS.slice(12).map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* 抽出期間 */}
                 <div>
@@ -1777,24 +2371,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                 </div>
 
                 {/* 検知回数（検知者の場合のみ） */}
-                {formData.attribute === 'detector' && (
-                  <div>
-                    <Label className="block mb-2 flex items-center gap-2">
-                      <Target className="w-4 h-4 text-[#5b5fff]" />
-                      検知回数（〇回以上）
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={formData.detection_count || 1}
-                        onChange={(e) => handleChange('detection_count', parseInt(e.target.value) || 1)}
-                        className="bg-white"
-                      />
-                      <span className="text-sm text-gray-500 whitespace-nowrap">回以上</span>
-                    </div>
-                  </div>
-                )}
+                {/* 検知回数（UI非表示） */}
 
                 {/* 検知時間帯（検知者の場合のみ） */}
                 {formData.attribute === 'detector' && (
@@ -1878,17 +2455,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                 <></>
               ) : (
                 <>
-                  {currentStep === 'info' && entryMethod === 'manual' ? (
-                    // 手動登録の場合は抽出条件が同じ画面にあるので、直接登録
-                    <Button
-                      type="submit"
-                      disabled={!formData.poi_name}
-                      className="bg-[#5b5fff] hover:bg-[#5b5fff]/90"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {poi ? '更新する' : '登録する'}
-                    </Button>
-                  ) : currentStep === 'info' ? (
+                  {currentStep === 'info' ? (
                     <Button
                       type="button"
                       onClick={() => setCurrentStep('conditions')}

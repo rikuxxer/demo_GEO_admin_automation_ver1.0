@@ -28,16 +28,20 @@ export function ProjectMessages({ project, onMessageSent, onUnreadCountUpdate }:
   useEffect(() => {
     loadMessages();
     
-    // 既読処理
+    // 既読処理（コンポーネントがマウントされたとき、またはproject_id/userが変更されたとき）
     if (user) {
       const userRole = user.role === 'admin' ? 'admin' : 'sales';
       bigQueryService.markMessagesAsRead(project.project_id, userRole)
         .then(() => {
           // 既読状態を更新するために再ロード
+          loadMessages();
           // お知らせ数を更新
           if (onUnreadCountUpdate) {
             onUnreadCountUpdate();
           }
+        })
+        .catch((error) => {
+          console.error('Failed to mark messages as read:', error);
         });
     }
   }, [project.project_id, user]);

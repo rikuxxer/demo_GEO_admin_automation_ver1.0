@@ -260,7 +260,7 @@ export function ProjectForm({ isOpen, onClose, onSubmit }: ProjectFormProps) {
           
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <Button type="button" variant="outline" onClick={onClose} className="min-w-[100px]">
+            <Button type="button" variant="outline" onClick={onClose} className="min-w-[100px] border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50">
               キャンセル
             </Button>
             <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[120px]">

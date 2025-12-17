@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole, ROLE_PERMISSIONS } from '../types/auth';
 import { isFirstLogin, markManualAsSeen } from '../utils/firstLogin';
+import { bigQueryService } from '../utils/bigquery';
 
 interface AuthContextType {
   user: User | null;
@@ -67,19 +68,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     ];
 
-    const foundUser = demoUsers.find(u => u.email === email);
-    
-    if (foundUser && password === 'demo123') {
-      setUser(foundUser);
+    // 1. デモユーザーでのログイン試行
+    const demoUser = demoUsers.find(u => u.email === email);
+    if (demoUser && password === 'demo123') {
+      setUser(demoUser);
       setIsAuthenticated(true);
-      localStorage.setItem('currentUser', JSON.stringify(foundUser));
+      localStorage.setItem('currentUser', JSON.stringify(demoUser));
       
       // 初回ログイン判定（営業のみ）
-      if (foundUser.role === 'sales' && isFirstLogin(foundUser.id)) {
+      if (demoUser.role === 'sales' && isFirstLogin(demoUser.id)) {
         setFirstLogin(true);
       }
       
       return true;
+    }
+
+    // 2. 登録済みユーザーでのログイン試行
+    try {
+      const registeredUsers = await bigQueryService.getUsers();
+      const registeredUser = registeredUsers.find(u => u.email === email);
+      
+      if (registeredUser) {
+        // パスワードの検証（簡易エンコード）
+        const passwordHash = btoa(password);
+        
+        // デバッグ用ログ（開発環境のみ）
+        if (import.meta.env.MODE === 'development') {
+          console.log('🔐 ログイン試行:', {
+            email: registeredUser.email,
+            inputPasswordHash: passwordHash,
+            storedPasswordHash: registeredUser.password_hash,
+            match: registeredUser.password_hash === passwordHash,
+            isActive: registeredUser.is_active
+          });
+        }
+        
+        if (registeredUser.password_hash === passwordHash) {
+          // アクティブなユーザーのみログイン可能
+          if (!registeredUser.is_active) {
+            console.warn('このアカウントは無効化されています');
+            return false;
+          }
+
+          // Userオブジェクトに変換
+          const user: User = {
+            id: registeredUser.user_id,
+            name: registeredUser.name,
+            email: registeredUser.email,
+            role: registeredUser.role as UserRole,
+            department: registeredUser.department,
+          };
+
+          setUser(user);
+          setIsAuthenticated(true);
+          localStorage.setItem('currentUser', JSON.stringify(user));
+
+          // 最終ログイン時刻を更新
+          await bigQueryService.updateUser(registeredUser.user_id, {
+            last_login: new Date().toISOString()
+          });
+
+          // 初回ログイン判定（営業のみ）
+          if (user.role === 'sales' && isFirstLogin(user.id)) {
+            setFirstLogin(true);
+          }
+
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error('登録済みユーザーのログイン処理エラー:', error);
     }
     
     return false;

@@ -56,6 +56,12 @@ export interface PoiInfo {
   // 地点情報登録タイプ
   poi_type?: 'manual' | 'prefecture'; // 任意地点 | 都道府県・市区町村
   
+  // 地点カテゴリ
+  poi_category?: 'tg' | 'visit_measurement'; // TG地点 | 来店計測地点
+  
+  // 来店計測地点グループID（来店計測地点の場合のみ）
+  visit_measurement_group_id?: string; // 計測地点グループID
+  
   // 任意地点指定
   poi_name: string; // 地点名
   address?: string; // 住所
@@ -76,7 +82,7 @@ export interface PoiInfo {
   extraction_period_type?: 'preset' | 'custom'; // プリセット or 期間指定（セグメント共通条件から継承）
   extraction_start_date?: string; // 抽出開始日（セグメント共通条件から継承）
   extraction_end_date?: string; // 抽出終了日（セグメント共通条件から継承）
-  attribute?: 'detector' | 'resident' | 'worker'; // 検知者 | 居住者 | 勤務者（セグメント共通条件から継承）
+  attribute?: 'detector' | 'resident' | 'worker' | 'resident_and_worker'; // 検知者 | 居住者 | 勤務者 | 居住者&勤務者（セグメント共通条件から継承）
   detection_time_start?: string; // 検知時間開始（セグメント共通条件から継承）
   detection_time_end?: string; // 検知時間終了（セグメント共通条件から継承）
   detection_count?: number; // 検知回数（〇回以上）（セグメント共通条件から継承）
@@ -88,6 +94,14 @@ export interface PoiInfo {
   created?: string; // 地点登録日
   detail_specification_flag?: string; // 詳細指定フラグ
   location_id?: string; // 地点ID
+}
+
+// 計測地点グループDB
+export interface VisitMeasurementGroup {
+  project_id: string; // 案件ID
+  group_id: string; // グループID（自動採番）
+  group_name: string; // グループ名
+  created?: string; // 作成日時
 }
 
 // 地点依頼ステータスの選択肢
@@ -131,6 +145,7 @@ export const ATTRIBUTE_OPTIONS = [
   { value: 'detector', label: '検知者' },
   { value: 'resident', label: '居住者' },
   { value: 'worker', label: '勤務者' },
+  { value: 'resident_and_worker', label: '居住者&勤務者' },
 ] as const;
 
 // 指定半径の選択肢
@@ -233,6 +248,47 @@ export const EDIT_REQUEST_TYPE_OPTIONS = [
   { value: 'project', label: '案件' },
   { value: 'segment', label: 'セグメント' },
   { value: 'poi', label: '地点' },
+] as const;
+
+// 機能リクエスト（Feature Request）
+export interface FeatureRequest {
+  request_id: string; // リクエストID（自動採番）FRQ-YYYYMMDD-XXXXX
+  requested_by: string; // 依頼者（営業のuser_id）
+  requested_by_name: string; // 依頼者名
+  requested_at: string; // 依頼日時（ISO 8601形式）
+  title: string; // リクエストタイトル
+  description: string; // リクエスト詳細説明
+  category: 'new_feature' | 'improvement' | 'bug_fix' | 'other'; // カテゴリ
+  priority: 'low' | 'medium' | 'high'; // 優先度
+  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'implemented'; // ステータス
+  reviewed_by?: string; // レビューした管理者のuser_id
+  reviewed_at?: string; // レビュー日時（ISO 8601形式）
+  review_comment?: string; // レビューコメント
+  implemented_at?: string; // 実装日時（ISO 8601形式）
+}
+
+// 機能リクエストカテゴリの選択肢
+export const FEATURE_REQUEST_CATEGORY_OPTIONS = [
+  { value: 'new_feature', label: '新機能' },
+  { value: 'improvement', label: '改善' },
+  { value: 'bug_fix', label: 'バグ修正' },
+  { value: 'other', label: 'その他' },
+] as const;
+
+// 機能リクエスト優先度の選択肢
+export const FEATURE_REQUEST_PRIORITY_OPTIONS = [
+  { value: 'low', label: '低' },
+  { value: 'medium', label: '中' },
+  { value: 'high', label: '高' },
+] as const;
+
+// 機能リクエストステータスの選択肢
+export const FEATURE_REQUEST_STATUS_OPTIONS = [
+  { value: 'pending', label: '未確認', color: 'gray' },
+  { value: 'under_review', label: '検討中', color: 'blue' },
+  { value: 'approved', label: '承認', color: 'green' },
+  { value: 'rejected', label: '却下', color: 'red' },
+  { value: 'implemented', label: '実装済み', color: 'purple' },
 ] as const;
 
 // プロジェクト内メッセージ（管理部⇔営業の連絡）

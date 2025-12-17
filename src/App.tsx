@@ -15,6 +15,11 @@ import { Notifications } from "./components/Notifications";
 import { EditRequestList } from "./components/EditRequestList";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UserGuideTour } from "./components/UserGuideTour";
+import { ChatBot } from "./components/ChatBot";
+import { FeatureRequestList } from "./components/FeatureRequestList";
+import { UserManagement } from "./components/UserManagement";
+import { UserApprovalManagement } from "./components/UserApprovalManagement";
+import { DataManagement } from "./components/DataManagement";
 import { Button } from "./components/ui/button";
 import {
   DropdownMenu,
@@ -27,6 +32,12 @@ import { Toaster } from "./components/ui/sonner";
 import type { Project, PoiInfo, Segment, EditRequest } from "./types/schema";
 import { AutoProjectStatus } from "./utils/projectStatus";
 import { useProjectSystem } from "./hooks/useProjectSystem";
+import { bigQueryService } from "./utils/bigquery";
+
+// 開発環境でのみGoogle Sheetsテストユーティリティを読み込む
+if (import.meta.env.DEV) {
+  import("./utils/testSheets");
+}
 
 function AppContent() {
   const { isAuthenticated, hasPermission, user, isFirstLogin, markManualAsSeen } = useAuth();
@@ -88,6 +99,7 @@ function AppContent() {
     updateSegmentStatus,
     confirmSegmentLink,
     createPoi,
+    createPoisBulk,
     updatePoi,
     deletePoi,
     createEditRequest,
@@ -119,6 +131,90 @@ function AppContent() {
     
     return total;
   }, [unreadNotificationsCount, pendingEditRequestsCount, hasPermission]);
+
+  // ユーザー管理
+  const [users, setUsers] = useState<any[]>([]);
+  const [userRequests, setUserRequests] = useState<any[]>([]);
+
+  const loadUsers = async () => {
+    try {
+      const userData = await bigQueryService.getUsers();
+      setUsers(userData);
+    } catch (error) {
+      console.error('ユーザー読み込みエラー:', error);
+    }
+  };
+
+  const loadUserRequests = async () => {
+    try {
+      const requestData = await bigQueryService.getUserRequests();
+      setUserRequests(requestData);
+    } catch (error) {
+      console.error('ユーザー申請読み込みエラー:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (hasPermission('canViewAdminDashboard')) {
+      loadUsers();
+      loadUserRequests();
+    }
+  }, [hasPermission]);
+
+  const handleUserCreate = async (userData: any) => {
+    try {
+      await bigQueryService.createUser(userData);
+      await loadUsers();
+      alert('ユーザーを登録しました');
+    } catch (error: any) {
+      alert(error.message || 'ユーザー登録に失敗しました');
+      throw error;
+    }
+  };
+
+  const handleUserUpdate = async (userId: string, updates: any) => {
+    try {
+      await bigQueryService.updateUser(userId, updates);
+      await loadUsers();
+    } catch (error: any) {
+      alert(error.message || 'ユーザー更新に失敗しました');
+      throw error;
+    }
+  };
+
+  const handleUserDelete = async (userId: string) => {
+    try {
+      await bigQueryService.deleteUser(userId);
+      await loadUsers();
+      alert('ユーザーを削除しました');
+    } catch (error: any) {
+      alert(error.message || 'ユーザー削除に失敗しました');
+      throw error;
+    }
+  };
+
+  const handleUserRequestApprove = async (requestId: string, comment?: string) => {
+    try {
+      await bigQueryService.approveUserRequest(requestId, user?.id || 'admin', comment);
+      await loadUsers();
+      await loadUserRequests();
+      alert('ユーザー登録申請を承認しました');
+    } catch (error: any) {
+      alert(error.message || '承認処理に失敗しました');
+      throw error;
+    }
+  };
+
+  const handleUserRequestReject = async (requestId: string, comment: string) => {
+    try {
+      await bigQueryService.rejectUserRequest(requestId, user?.id || 'admin', comment);
+      await loadUserRequests();
+      alert('ユーザー登録申請を却下しました');
+    } catch (error: any) {
+      alert(error.message || '却下処理に失敗しました');
+      throw error;
+    }
+  };
 
   // UI Event Handlers (Wrapping hook actions)
 
@@ -185,6 +281,7 @@ function AppContent() {
                   onSegmentUpdate={updateSegment}
                   onSegmentDelete={deleteSegment}
                   onPoiCreate={createPoi}
+                  onPoiCreateBulk={createPoisBulk}
                   onPoiUpdate={updatePoi}
                   onPoiDelete={deletePoi}
                   editRequests={editRequests}
@@ -316,8 +413,40 @@ function AppContent() {
                   handleProjectClick(project);
                   setCurrentPage("projects");
                 }}
+                onUnreadCountUpdate={loadUnreadNotifications}
               />
             </div>
+          )}
+
+          {currentPage === "feature-requests" && (
+            <div className="space-y-6">
+              {hasPermission('canViewAdminDashboard') ? (
+                <FeatureRequestList isAdmin={true} />
+              ) : (
+                <FeatureRequestList isAdmin={false} showFormOnly={true} />
+              )}
+            </div>
+          )}
+
+          {currentPage === "user-management" && hasPermission('canViewAdminDashboard') && (
+            <UserManagement
+              users={users}
+              onUserCreate={handleUserCreate}
+              onUserUpdate={handleUserUpdate}
+              onUserDelete={handleUserDelete}
+            />
+          )}
+
+          {currentPage === "user-approval" && hasPermission('canViewAdminDashboard') && (
+            <UserApprovalManagement
+              requests={userRequests}
+              onApprove={handleUserRequestApprove}
+              onReject={handleUserRequestReject}
+            />
+          )}
+
+          {currentPage === "data-management" && hasPermission('canViewAdminDashboard') && (
+            <DataManagement />
           )}
 
           {currentPage === "data-sync" && (
@@ -365,6 +494,7 @@ function AppContent() {
               <StatusManager
                 projects={projects}
                 segments={allSegments}
+                pois={allPois}
                 onProjectClick={async (projectId) => {
                   const project = projects.find(p => p.project_id === projectId);
                   if (project) {
@@ -469,7 +599,7 @@ function AppContent() {
       )}
 
       {/* Toast Notifications */}
-      <Toaster />
+      <Toaster position="top-right" richColors />
 
       {/* User Guide Tour (営業のみ) */}
       {user?.role === 'sales' && (
@@ -477,6 +607,29 @@ function AppContent() {
           isOpen={isTourOpen}
           onClose={() => setIsTourOpen(false)}
           onComplete={handleTourComplete}
+        />
+      )}
+
+      {/* ChatBot (全ユーザー) */}
+      {isAuthenticated && (
+        <ChatBot
+          currentPage={currentPage}
+          currentContext={{
+            userRole: user?.role,
+            hasPermission: hasPermission,
+          }}
+          onNavigate={(action, params) => {
+            if (action === 'page' && params?.page) {
+              setCurrentPage(params.page);
+            }
+          }}
+          onOpenForm={(formType) => {
+            if (formType === 'project-form') {
+              setIsProjectFormOpen(true);
+            } else if (formType === 'bulk-import') {
+              setIsBulkImportOpen(true);
+            }
+          }}
         />
       )}
     </div>

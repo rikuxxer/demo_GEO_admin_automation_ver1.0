@@ -144,7 +144,7 @@ export function SegmentStatusManager({ segments, projects, onStatusChange }: Seg
                 filteredSegments.map((segment) => (
                   <tr key={segment.segment_id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
-                      <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-700 font-mono px-2.5 py-1 whitespace-nowrap">
                         {segment.segment_id}
                       </Badge>
                     </td>

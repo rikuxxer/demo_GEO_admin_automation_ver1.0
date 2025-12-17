@@ -87,6 +87,7 @@ export interface ExcelLocationData {
   latitude?: number;
   longitude?: number;
   location_id?: string;
+  poi_category?: 'tg' | 'visit_measurement';
   _rowNum?: number;
 }
 
@@ -120,46 +121,82 @@ export async function parseExcelFile(file: File): Promise<ExcelParseResult> {
     const wb = XLSX.read(buffer, { type: 'array' });
     console.log('利用可能なシート:', wb.SheetNames);
 
-    // 新形式と旧形式の判定
-    const isNewFormat = wb.SheetNames.includes('2.案件・セグメント設定');
+    // v4.0形式（TG地点と来店計測地点が分離）の判定
+    const isV4Format = wb.SheetNames.includes('3.セグメント・TG地点設定') || wb.SheetNames.includes('4.来店計測地点リスト');
     
-    if (isNewFormat) {
-      // 新形式 (v2.0)
-      console.log('新形式(v2.0)としてパースします');
-      const mergedSheet = wb.Sheets['2.案件・セグメント設定'];
-      const locationSheet = wb.Sheets['3.地点リスト'] || wb.Sheets['4.地点リスト']; // 念のため4も探す
-
-      if (!mergedSheet) {
-        result.errors.push({ section: 'FILE', message: '必須シート「2.案件・セグメント設定」が見つかりません' });
-        return result;
-      }
-
-      // 統合シートから案件とセグメントを抽出
-      const mergedData = parseMergedSheet(mergedSheet, result.errors);
-      result.project = mergedData.project;
-      result.segments = mergedData.segments;
-
-      if (locationSheet) {
-        result.locations = parseLocationSheet(locationSheet, result.segments, result.errors);
-      } else {
-        result.errors.push({ section: 'FILE', message: '必須シート「3.地点リスト」が見つかりません' });
-      }
-
-    } else {
-      // 旧形式 (v1.x)
-      console.log('旧形式(v1.x)としてパースします');
+    if (isV4Format) {
+      // v4.0形式
+      console.log('v4.0形式（TG地点・来店計測地点分離）としてパースします');
       const projectSheet = wb.Sheets['2.案件情報'];
-      const segmentSheet = wb.Sheets['3.セグメント設定'];
-      const locationSheet = wb.Sheets['4.地点リスト'];
+      const tgSheet = wb.Sheets['3.セグメント・TG地点設定'];
+      const visitSheet = wb.Sheets['4.来店計測地点リスト'];
 
-      if (!projectSheet || !segmentSheet || !locationSheet) {
-        result.errors.push({ section: 'FILE', message: '必須シートが見つかりません（2.案件情報, 3.セグメント設定, 4.地点リスト）' });
+      if (!projectSheet) {
+        result.errors.push({ section: 'FILE', message: '必須シート「2.案件情報」が見つかりません' });
         return result;
       }
 
+      // 案件情報をパース
       result.project = parseProjectSheet(projectSheet, result.errors);
-      result.segments = parseSegmentSheet(segmentSheet, result.errors);
-      result.locations = parseLocationSheet(locationSheet, result.segments, result.errors);
+
+      // TG地点シートをパース（セグメント＋地点）
+      if (tgSheet) {
+        const tgData = parseSegmentAndLocationSheet(tgSheet, result.errors, '3.セグメント・TG地点設定', 'tg');
+        result.segments.push(...tgData.segments);
+        result.locations.push(...tgData.locations);
+      }
+
+      // 来店計測地点シートをパース（地点のみ、セグメント不要）
+      if (visitSheet) {
+        const visitLocations = parseVisitMeasurementLocationSheet(visitSheet, result.errors);
+        result.locations.push(...visitLocations);
+      }
+
+      if (!tgSheet && !visitSheet) {
+        result.errors.push({ section: 'FILE', message: 'TG地点または来店計測地点のシートが見つかりません' });
+      }
+    } else {
+      // 新形式と旧形式の判定
+      const isNewFormat = wb.SheetNames.includes('2.案件・セグメント設定');
+      
+      if (isNewFormat) {
+        // 新形式 (v2.0)
+        console.log('新形式(v2.0)としてパースします');
+        const mergedSheet = wb.Sheets['2.案件・セグメント設定'];
+        const locationSheet = wb.Sheets['3.地点リスト'] || wb.Sheets['4.地点リスト']; // 念のため4も探す
+
+        if (!mergedSheet) {
+          result.errors.push({ section: 'FILE', message: '必須シート「2.案件・セグメント設定」が見つかりません' });
+          return result;
+        }
+
+        // 統合シートから案件とセグメントを抽出
+        const mergedData = parseMergedSheet(mergedSheet, result.errors);
+        result.project = mergedData.project;
+        result.segments = mergedData.segments;
+
+        if (locationSheet) {
+          result.locations = parseLocationSheet(locationSheet, result.segments, result.errors);
+        } else {
+          result.errors.push({ section: 'FILE', message: '必須シート「3.地点リスト」が見つかりません' });
+        }
+
+      } else {
+        // 旧形式 (v1.x)
+        console.log('旧形式(v1.x)としてパースします');
+        const projectSheet = wb.Sheets['2.案件情報'];
+        const segmentSheet = wb.Sheets['3.セグメント設定'];
+        const locationSheet = wb.Sheets['4.地点リスト'];
+
+        if (!projectSheet || !segmentSheet || !locationSheet) {
+          result.errors.push({ section: 'FILE', message: '必須シートが見つかりません（2.案件情報, 3.セグメント設定, 4.地点リスト）' });
+          return result;
+        }
+
+        result.project = parseProjectSheet(projectSheet, result.errors);
+        result.segments = parseSegmentSheet(segmentSheet, result.errors);
+        result.locations = parseLocationSheet(locationSheet, result.segments, result.errors);
+      }
     }
 
     validateBusinessRules(result);
@@ -247,20 +284,37 @@ function parseMergedSheet(ws: XLSX.WorkSheet, errors: ExcelParseError[]): { proj
   return { project, segments };
 }
 
-// 旧形式: 案件情報パース
+// 旧形式: 案件情報パース（1案件のみ）
 function parseProjectSheet(ws: XLSX.WorkSheet, errors: ExcelParseError[]): ExcelProjectData | null {
   const data = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
+  
+  let project: ExcelProjectData | null = null;
+  let foundCount = 0;
   
   // ヘッダー行の次から、有効な行を探す
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (!isSampleRow(row)) {
-      return parseProjectRow(row, i + 1, errors, '2.案件情報');
+    if (!isSampleRow(row) && row && row.length > 0 && (row[0] || row[1])) {
+      foundCount++;
+      if (foundCount === 1) {
+        // 最初の有効な案件情報をパース
+        project = parseProjectRow(row, i + 1, errors, '2.案件情報');
+      } else {
+        // 2つ目以降の案件情報が見つかった場合は警告
+        errors.push({ 
+          section: '2.案件情報', 
+          row: i + 1, 
+          message: `⚠️ 複数の案件情報が入力されています。このテンプレートでは1案件のみ登録可能です。${i + 1}行目以降は無視されます。` 
+        });
+      }
     }
   }
   
-  errors.push({ section: '2.案件情報', message: '有効な案件情報が入力されていません' });
-  return null;
+  if (!project) {
+    errors.push({ section: '2.案件情報', message: '有効な案件情報が入力されていません' });
+  }
+  
+  return project;
 }
 
 // 共通: 案件行パース
@@ -389,32 +443,55 @@ function parseSegmentRow(row: any[], rowNum: number, errors: ExcelParseError[], 
     errors.push({ section: sectionName, row: rowNum, field: '対象者', message: '対象者は必須です' });
   } else if (attributeMapping[attr]) {
     segment.attribute = attributeMapping[attr];
+    
+    // 対象者が「居住者」「勤務者」「居住者&勤務者」の場合、抽出期間を強制的に「直近3ヶ月」に設定
+    if (segment.attribute !== 'detector') {
+      segment.extraction_period = '3month';
+      // 開始日・終了日もクリア（直近3ヶ月の場合は不要）
+      segment.extraction_start_date = '';
+      segment.extraction_end_date = '';
+    }
   } else {
     errors.push({ section: sectionName, row: rowNum, field: '対象者', message: '無効な対象者です' });
   }
 
   // H: 検知回数
   const count = row[7];
-  if (!count) {
-    errors.push({ section: sectionName, row: rowNum, field: '検知回数', message: '検知回数は必須です' });
-  } else if (detectionCountMapping[count]) {
-    segment.detection_count = detectionCountMapping[count];
+  if (segment.attribute === 'detector') {
+    // 対象者が「検知者」の場合のみ、入力値を使用
+    if (!count) {
+      errors.push({ section: sectionName, row: rowNum, field: '検知回数', message: '検知回数は必須です' });
+    } else if (detectionCountMapping[count]) {
+      segment.detection_count = detectionCountMapping[count];
+    } else {
+      errors.push({ section: sectionName, row: rowNum, field: '検知回数', message: '無効な検知回数です' });
+    }
   } else {
-    errors.push({ section: sectionName, row: rowNum, field: '検知回数', message: '無効な検知回数です' });
+    // 対象者が「居住者」「勤務者」「居住者&勤務者」の場合は「3回以上」固定
+    segment.detection_count = '3_or_more';
   }
 
-  // I, J: 検知時間
-  if (row[8]) segment.detection_time_start = String(row[8]).trim();
-  if (row[9]) segment.detection_time_end = String(row[9]).trim();
+  // I, J: 検知時間（対象者が「検知者」の場合のみ有効）
+  if (segment.attribute === 'detector') {
+    if (row[8]) segment.detection_time_start = String(row[8]).trim();
+    if (row[9]) segment.detection_time_end = String(row[9]).trim();
 
-  if ((segment.detection_time_start && !segment.detection_time_end) || (!segment.detection_time_start && segment.detection_time_end)) {
-    errors.push({ section: sectionName, row: rowNum, field: '検知時間', message: '検知時間は開始と終了をセットで指定してください' });
+    if ((segment.detection_time_start && !segment.detection_time_end) || (!segment.detection_time_start && segment.detection_time_end)) {
+      errors.push({ section: sectionName, row: rowNum, field: '検知時間', message: '検知時間は開始と終了をセットで指定してください' });
+    }
+  } else {
+    // 対象者が「検知者」以外の場合は検知時間をクリア
+    segment.detection_time_start = '';
+    segment.detection_time_end = '';
   }
 
-  // K: 滞在時間
-  if (row[10]) {
+  // K: 滞在時間（対象者が「検知者」の場合のみ有効）
+  if (segment.attribute === 'detector' && row[10]) {
     if (stayTimeMapping[row[10]]) segment.stay_time = stayTimeMapping[row[10]];
     else errors.push({ section: sectionName, row: rowNum, field: '滞在時間', message: '無効な滞在時間です' });
+  } else {
+    // 対象者が「検知者」以外の場合は滞在時間をクリア
+    segment.stay_time = '';
   }
 
   return segment;
@@ -464,6 +541,121 @@ function parseLocationSheet(ws: XLSX.WorkSheet, segments: ExcelSegmentData[], er
 
     // F: ID
     if (row[5]) loc.location_id = String(row[5]).trim();
+
+    locations.push(loc as ExcelLocationData);
+  }
+
+  return locations;
+}
+
+// v4.0: セグメント・TG地点統合シートパース
+function parseSegmentAndLocationSheet(
+  ws: XLSX.WorkSheet, 
+  errors: ExcelParseError[], 
+  sheetName: string,
+  category: 'tg'
+): { segments: ExcelSegmentData[], locations: ExcelLocationData[] } {
+  const segments: ExcelSegmentData[] = [];
+  const locations: ExcelLocationData[] = [];
+  const data = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
+  
+  // ヘッダーは1行目、サンプルは2-3行目、データは4行目から
+  for (let i = 3; i < data.length; i++) {
+    const row = data[i];
+    const rowNum = i + 1;
+    
+    if (!row || row.length === 0) continue;
+    if (isSampleRow(row)) continue;
+    
+    const segmentName = row[0];
+    if (!segmentName) continue;
+
+    // セグメント情報をパース
+    const segment = parseSegmentRow(row, rowNum, errors, sheetName);
+    if (segment) {
+      // 同じセグメント名が既に登録されているか確認
+      const existingSegment = segments.find(s => s.segment_name === segment.segment_name);
+      if (!existingSegment) {
+        segments.push(segment);
+      }
+    }
+
+    // 地点情報をパース（列12〜）
+    const poiName = row[11]; // L列: 地点の名前
+    if (poiName) {
+      const loc: any = {
+        segment_name_ref: String(segmentName).trim(),
+        poi_name: String(poiName).trim(),
+        poi_category: category,
+        _rowNum: rowNum
+      };
+
+      // M列: 住所
+      if (row[12]) loc.address = String(row[12]).trim();
+
+      // N, O列: 緯度経度
+      if (row[13]) {
+        const lat = Number(row[13]);
+        if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
+        else errors.push({ section: sheetName, row: rowNum, field: '緯度', message: '-90〜90で指定してください' });
+      }
+      if (row[14]) {
+        const lng = Number(row[14]);
+        if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
+        else errors.push({ section: sheetName, row: rowNum, field: '経度', message: '-180〜180で指定してください' });
+      }
+
+      // 地点IDは自動採番のため、Excelからは読み取らない
+
+      locations.push(loc as ExcelLocationData);
+    }
+  }
+
+  return { segments, locations };
+}
+
+// v4.0: 来店計測地点リストパース（セグメント情報なし）
+function parseVisitMeasurementLocationSheet(
+  ws: XLSX.WorkSheet,
+  errors: ExcelParseError[]
+): ExcelLocationData[] {
+  const locations: ExcelLocationData[] = [];
+  const data = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
+  
+  // ヘッダーは1行目、サンプルは2-3行目、データは4行目から
+  for (let i = 3; i < data.length; i++) {
+    const row = data[i];
+    const rowNum = i + 1;
+    
+    if (!row || row.length === 0) continue;
+    if (isSampleRow(row)) continue;
+    
+    const poiName = row[0]; // A列: 地点の名前
+    if (!poiName) continue;
+
+    const loc: any = {
+      segment_name_ref: '', // セグメント不要
+      poi_name: String(poiName).trim(),
+      poi_category: 'visit_measurement',
+      _rowNum: rowNum
+    };
+
+    // B列: 住所
+    if (row[1]) loc.address = String(row[1]).trim();
+
+    // C, D列: 緯度経度
+    if (row[2]) {
+      const lat = Number(row[2]);
+      if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
+      else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '緯度', message: '-90〜90で指定してください' });
+    }
+    if (row[3]) {
+      const lng = Number(row[3]);
+      if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
+      else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '経度', message: '-180〜180で指定してください' });
+    }
+
+    // 地点IDは自動採番のため、Excelからは読み取らない
 
     locations.push(loc as ExcelLocationData);
   }

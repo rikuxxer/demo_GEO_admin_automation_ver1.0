@@ -66,6 +66,11 @@
       },
       "scripts": {
             "dev": "vite",
-            "build": "vite build"
+            "build": "vite build",
+            "preview": "vite preview",
+            "deploy": "node -e \"console.log('Windows: .\\\\deploy.ps1 | Mac/Linux: ./deploy.sh を実行してください')\"",
+            "docker:build": "docker build -t universegeo:latest .",
+            "docker:run": "docker run -p 8080:8080 universegeo:latest",
+            "clear-data": "node scripts/clear-dummy-data.js"
       }
 }

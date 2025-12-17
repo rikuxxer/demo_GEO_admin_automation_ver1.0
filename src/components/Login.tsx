@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { Lock, Mail, AlertCircle } from 'lucide-react';
+import { Lock, Mail, AlertCircle, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Alert } from './ui/alert';
 import { useAuth } from '../contexts/AuthContext';
+import { UserRegistrationRequest } from './UserRegistrationRequest';
+import { bigQueryService } from '../utils/bigquery';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,9 +24,20 @@ export function Login() {
     try {
       const success = await login(email, password);
       if (!success) {
-        setError('メールアドレスまたはパスワードが正しくありません');
+        // デバッグ用：登録済みユーザーを確認
+        const users = await bigQueryService.getUsers();
+        const userExists = users.find(u => u.email === email);
+        
+        if (userExists && !userExists.is_active) {
+          setError('このアカウントは無効化されています。管理者にお問い合わせください。');
+        } else if (userExists) {
+          setError('パスワードが正しくありません');
+        } else {
+          setError('メールアドレスまたはパスワードが正しくありません');
+        }
       }
     } catch (err) {
+      console.error('ログインエラー:', err);
       setError('ログインに失敗しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
@@ -35,6 +49,23 @@ export function Login() {
     { email: 'salesA@example.com', role: '営業A', color: 'text-blue-600' },
     { email: 'salesB@example.com', role: '営業B', color: 'text-green-600' },
   ];
+
+  const handleRegistrationSubmit = async (userData: any) => {
+    try {
+      await bigQueryService.createUserRequest(userData);
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  if (showRegistration) {
+    return (
+      <UserRegistrationRequest
+        onSubmit={handleRegistrationSubmit}
+        onBack={() => setShowRegistration(false)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -103,6 +134,26 @@ export function Login() {
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11"
             >
               {isLoading ? 'ログイン中...' : 'ログイン'}
+            </Button>
+
+            {/* 新規ユーザー登録申請ボタン */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-muted-foreground">または</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowRegistration(true)}
+              className="w-full h-11 border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/5"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              新規ユーザー登録申請
             </Button>
           </form>
         </div>

@@ -65,23 +65,25 @@ export function PoiMapViewer({ pois, segments, onPoiUpdate }: PoiMapViewerProps)
     return Number.isFinite(num) ? num : NaN;
   };
 
-  // セグメントが変更されたら全て選択
+  // セグメントが変更されたら全て選択（初期化時も含む）
   useEffect(() => {
     if (segments.length > 0) {
       const segmentIds = segments.map(s => s.segment_id);
       const segmentIdsSet = new Set(segmentIds);
       
+      // 現在選択されているセグメントと比較
       const currentSelected = Array.from(selectedSegments).sort();
       const newSelected = segmentIds.sort();
       const hasChanged = currentSelected.length !== newSelected.length || 
                         currentSelected.some((id, i) => id !== newSelected[i]);
       
-      if (hasChanged || selectedSegments.size === 0) {
+      // 初期化時（selectedSegmentsが空）またはセグメントが変更された場合は全て選択
+      if (selectedSegments.size === 0 || hasChanged) {
         console.log('🎯 Setting selected segments:', segmentIds);
         setSelectedSegments(segmentIdsSet);
       }
     }
-  }, [segments, selectedSegments]);
+  }, [segments]); // selectedSegmentsを依存配列から削除して無限ループを防ぐ
 
   // 座標を持つ地点のみをフィルタリング（NaNを除外）
   const poisWithCoords = useMemo(
@@ -97,6 +99,20 @@ export function PoiMapViewer({ pois, segments, onPoiUpdate }: PoiMapViewerProps)
       });
       console.log('📍 Total POIs:', pois.length, 'POIs with valid coords:', filtered.length);
       return filtered;
+    },
+    [pois]
+  );
+
+  // ジオコーディングが必要な地点（住所はあるが緯度経度がない）
+  const poisNeedingGeocode = useMemo(
+    () => {
+      return pois.filter(p => {
+        const lat = getLat(p);
+        const lng = getLng(p);
+        const hasCoords = !isNaN(lat) && !isNaN(lng) && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+        const hasAddress = p.address && p.address.trim() !== '';
+        return !hasCoords && hasAddress;
+      });
     },
     [pois]
   );
@@ -172,13 +188,31 @@ export function PoiMapViewer({ pois, segments, onPoiUpdate }: PoiMapViewerProps)
     setSelectedSegments(newSelection);
   };
 
+  // 住所の取得（住所が無ければ都道府県＋市区町村で代替）
+  const getAddressForGeocode = (poi: PoiInfo): string => {
+    if (poi.address && poi.address.trim() !== '') {
+      return poi.address.trim();
+    }
+    const prefecture = Array.isArray(poi.prefectures) && poi.prefectures.length > 0 ? poi.prefectures[0] : '';
+    const city = Array.isArray(poi.cities) && poi.cities.length > 0 ? poi.cities[0] : '';
+    const joined = [prefecture, city].filter(Boolean).join(' ');
+    return joined.trim();
+  };
+
   // 緯度経度が不足している地点を検出
-  const poisNeedingGeocode = useMemo(() => {
-    return pois.filter(poi => 
-      (poi.latitude === undefined || poi.latitude === null || 
-       poi.longitude === undefined || poi.longitude === null) && 
-      poi.address && poi.address.trim() !== ''
-    );
+  const geocodeTargets = useMemo(() => {
+    return pois
+      .filter(poi =>
+        (poi.latitude === undefined || poi.latitude === null ||
+         poi.longitude === undefined || poi.longitude === null))
+      .map(poi => {
+        const fallbackAddress = getAddressForGeocode(poi);
+        return {
+          ...poi,
+          address: fallbackAddress || poi.address || '',
+        };
+      })
+      .filter(poi => poi.address && poi.address.trim() !== '');
   }, [pois]);
 
   // 緯度経度を一括取得
@@ -188,18 +222,18 @@ export function PoiMapViewer({ pois, segments, onPoiUpdate }: PoiMapViewerProps)
       return;
     }
 
-    if (poisNeedingGeocode.length === 0) {
+    if (geocodeTargets.length === 0) {
       toast.info('緯度経度の取得が必要な地点がありません');
       return;
     }
 
     setIsGeocoding(true);
     setGeocodeProgress(0);
-    setGeocodeTotal(poisNeedingGeocode.length);
+    setGeocodeTotal(geocodeTargets.length);
 
     try {
       const { enriched, errors } = await enrichPOIsWithGeocode(
-        poisNeedingGeocode,
+        geocodeTargets,
         (current, total) => {
           setGeocodeProgress(current);
           setGeocodeTotal(total);
@@ -654,20 +688,6 @@ export function PoiMapViewer({ pois, segments, onPoiUpdate }: PoiMapViewerProps)
             </div>
           )}
 
-          {/* 凡例 */}
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <h4 className="text-xs text-gray-600 mb-2">凡例</h4>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#5b5fff]" />
-                <span className="text-gray-700">地点マーカー</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded border-2 border-[#5b5fff]"></div>
-                <span className="text-gray-700">セグメント別色分け</span>
-              </div>
-            </div>
-          </div>
         </>
       )}
     </div>

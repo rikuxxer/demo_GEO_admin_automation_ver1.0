@@ -18,6 +18,7 @@ interface GeocodeProgressDialogProps {
   errors: Array<{ address: string; error: string }>;
   completed: boolean;
   onClose?: () => void;
+  onRunInBackground?: () => void;
 }
 
 export function GeocodeProgressDialog({
@@ -29,23 +30,23 @@ export function GeocodeProgressDialog({
   errors,
   completed,
   onClose,
+  onRunInBackground,
 }: GeocodeProgressDialogProps) {
   const progress = total > 0 ? (current / total) * 100 : 0;
 
   const handleClose = () => {
-    if (completed && onClose) {
+    if (onClose) {
       onClose();
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
-      // 完了時のみ閉じることを許可
-      if (!isOpen && completed && onClose) {
+      if (!isOpen && onClose) {
         onClose();
       }
     }}>
-      <DialogContent className="max-w-lg" hideCloseButton={!completed}>
+      <DialogContent className="max-w-lg" hideCloseButton={false}>
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 bg-gradient-to-br from-[#5b5fff]/20 to-[#7b7bff]/10 rounded-xl flex items-center justify-center">
@@ -149,6 +150,7 @@ export function GeocodeProgressDialog({
 
           {/* 処理中メッセージ */}
           {!completed && (
+            <div className="space-y-3">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-800 flex items-start gap-2">
                 <Loader2 className="w-4 h-4 mt-0.5 flex-shrink-0 animate-spin" />
@@ -156,6 +158,19 @@ export function GeocodeProgressDialog({
                   処理が完了するまでお待ちください。この処理には数分かかる場合があります。
                 </span>
               </p>
+              </div>
+              {onRunInBackground && (
+                <Button
+                  onClick={() => {
+                    onRunInBackground();
+                    handleClose();
+                  }}
+                  variant="outline"
+                  className="w-full border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  バックグラウンドで実行して閉じる
+                </Button>
+              )}
             </div>
           )}
         </div>

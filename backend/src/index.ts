@@ -1,0 +1,346 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { bqService } from './bigquery-client';
+
+// 環境変数を読み込み
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// ミドルウェア
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true,
+}));
+app.use(express.json({ limit: '10mb' }));
+
+// ヘルスチェック
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ==================== プロジェクト ====================
+
+app.get('/api/projects', async (req, res) => {
+  try {
+    const projects = await bqService.getProjects();
+    res.json(projects);
+  } catch (error: any) {
+    console.error('Error fetching projects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/projects/:project_id', async (req, res) => {
+  try {
+    const project = await bqService.getProjectById(req.params.project_id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.json(project);
+  } catch (error: any) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/projects', async (req, res) => {
+  try {
+    await bqService.createProject(req.body);
+    res.status(201).json({ message: 'Project created successfully' });
+  } catch (error: any) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/projects/:project_id', async (req, res) => {
+  try {
+    await bqService.updateProject(req.params.project_id, req.body);
+    res.json({ message: 'Project updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/projects/:project_id', async (req, res) => {
+  try {
+    await bqService.deleteProject(req.params.project_id);
+    res.json({ message: 'Project deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== セグメント ====================
+
+app.get('/api/segments', async (req, res) => {
+  try {
+    const segments = await bqService.getSegments();
+    res.json(segments);
+  } catch (error: any) {
+    console.error('Error fetching segments:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/segments/project/:project_id', async (req, res) => {
+  try {
+    const segments = await bqService.getSegmentsByProject(req.params.project_id);
+    res.json(segments);
+  } catch (error: any) {
+    console.error('Error fetching segments:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/segments', async (req, res) => {
+  try {
+    await bqService.createSegment(req.body);
+    res.status(201).json({ message: 'Segment created successfully' });
+  } catch (error: any) {
+    console.error('Error creating segment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/segments/:segment_id', async (req, res) => {
+  try {
+    await bqService.updateSegment(req.params.segment_id, req.body);
+    res.json({ message: 'Segment updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating segment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== POI ====================
+
+app.get('/api/pois', async (req, res) => {
+  try {
+    const pois = await bqService.getPois();
+    res.json(pois);
+  } catch (error: any) {
+    console.error('Error fetching POIs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/pois/project/:project_id', async (req, res) => {
+  try {
+    const pois = await bqService.getPoisByProject(req.params.project_id);
+    res.json(pois);
+  } catch (error: any) {
+    console.error('Error fetching POIs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/pois', async (req, res) => {
+  try {
+    await bqService.createPoi(req.body);
+    res.status(201).json({ message: 'POI created successfully' });
+  } catch (error: any) {
+    console.error('Error creating POI:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/pois/bulk', async (req, res) => {
+  try {
+    await bqService.createPoisBulk(req.body.pois);
+    res.status(201).json({ message: 'POIs created successfully' });
+  } catch (error: any) {
+    console.error('Error creating POIs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/pois/:poi_id', async (req, res) => {
+  try {
+    await bqService.updatePoi(req.params.poi_id, req.body);
+    res.json({ message: 'POI updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating POI:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/pois/:poi_id', async (req, res) => {
+  try {
+    await bqService.deletePoi(req.params.poi_id);
+    res.json({ message: 'POI deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting POI:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== ユーザー ====================
+
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await bqService.getUsers();
+    res.json(users);
+  } catch (error: any) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/users/email/:email', async (req, res) => {
+  try {
+    const user = await bqService.getUserByEmail(req.params.email);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error: any) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
+  try {
+    await bqService.createUser(req.body);
+    res.status(201).json({ message: 'User created successfully' });
+  } catch (error: any) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/users/:user_id', async (req, res) => {
+  try {
+    await bqService.updateUser(req.params.user_id, req.body);
+    res.json({ message: 'User updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== ユーザー登録申請 ====================
+
+app.get('/api/user-requests', async (req, res) => {
+  try {
+    const requests = await bqService.getUserRequests();
+    res.json(requests);
+  } catch (error: any) {
+    console.error('Error fetching user requests:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/user-requests', async (req, res) => {
+  try {
+    const request = await bqService.createUserRequest(req.body);
+    res.status(201).json(request);
+  } catch (error: any) {
+    console.error('Error creating user request:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post('/api/user-requests/:request_id/approve', async (req, res) => {
+  try {
+    const { request_id } = req.params;
+    const { reviewed_by, comment } = req.body;
+    await bqService.approveUserRequest(request_id, reviewed_by, comment);
+    res.json({ message: 'User request approved successfully' });
+  } catch (error: any) {
+    console.error('Error approving user request:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post('/api/user-requests/:request_id/reject', async (req, res) => {
+  try {
+    const { request_id } = req.params;
+    const { reviewed_by, comment } = req.body;
+    if (!comment) {
+      return res.status(400).json({ error: 'Comment is required for rejection' });
+    }
+    await bqService.rejectUserRequest(request_id, reviewed_by, comment);
+    res.json({ message: 'User request rejected successfully' });
+  } catch (error: any) {
+    console.error('Error rejecting user request:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// ==================== メッセージ ====================
+
+app.get('/api/messages/:project_id', async (req, res) => {
+  try {
+    const messages = await bqService.getMessages(req.params.project_id);
+    res.json(messages);
+  } catch (error: any) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/messages', async (req, res) => {
+  try {
+    const messages = await bqService.getAllMessages();
+    res.json(messages);
+  } catch (error: any) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/messages', async (req, res) => {
+  try {
+    await bqService.createMessage(req.body);
+    res.status(201).json({ message: 'Message created successfully' });
+  } catch (error: any) {
+    console.error('Error creating message:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/messages/mark-read', async (req, res) => {
+  try {
+    await bqService.markMessagesAsRead(req.body.message_ids);
+    res.json({ message: 'Messages marked as read' });
+  } catch (error: any) {
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== Google Sheets ====================
+
+app.post('/api/sheets/export', async (req, res) => {
+  try {
+    const { rows } = req.body;
+    if (!Array.isArray(rows)) {
+      return res.status(400).json({ error: 'rows must be an array' });
+    }
+    const result = await bqService.exportToGoogleSheets(rows);
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error: any) {
+    console.error('Error exporting to Google Sheets:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// サーバー起動
+app.listen(PORT, () => {
+  console.log(`🚀 Backend API server running on port ${PORT}`);
+  console.log(`📊 BigQuery Project: ${process.env.GCP_PROJECT_ID}`);
+  console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
+});
+
