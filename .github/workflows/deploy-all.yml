@@ -414,9 +414,15 @@ jobs:
           if [ -z "$BACKEND_URL" ] || [ "$BACKEND_URL" = "" ]; then
             echo "⚠️ バックエンドURLが空です。直接取得を試みます..."
             
+            # リージョンの値を明示的に設定
+            REGION_VALUE="${{ env.REGION }}"
+            if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+              REGION_VALUE="asia-northeast1"
+            fi
+            
             # 直接バックエンドURLを取得
             BACKEND_URL=$(gcloud run services describe universegeo-backend \
-              --region ${{ env.REGION }} \
+              --region "$REGION_VALUE" \
               --format 'value(status.url)' \
               --project ${{ env.PROJECT_ID }} 2>&1)
             
@@ -427,7 +433,7 @@ jobs:
               echo ""
               echo "📋 デバッグ情報:"
               echo "サービス一覧を確認中..."
-              gcloud run services list --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} 2>&1
+              gcloud run services list --region "$REGION_VALUE" --project ${{ env.PROJECT_ID }} 2>&1
               exit 1
             fi
           fi
@@ -450,11 +456,17 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
-          IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/universegeo/universegeo"
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          IMAGE_NAME="${REGION_VALUE}-docker.pkg.dev/${{ env.PROJECT_ID }}/universegeo/universegeo"
           
           gcloud run deploy universegeo \
             --image ${IMAGE_NAME}:${{ github.sha }} \
-            --region ${{ env.REGION }} \
+            --region "$REGION_VALUE" \
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
@@ -487,10 +499,16 @@ jobs:
 
       - name: Update Backend CORS
         run: |
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
           FRONTEND_URL="${{ steps.frontend-url.outputs.frontend_url }}"
           gcloud run services update universegeo-backend \
             --set-env-vars FRONTEND_URL=$FRONTEND_URL \
-            --region ${{ env.REGION }} \
+            --region "$REGION_VALUE" \
             --project ${{ env.PROJECT_ID }}
 
       - name: Deployment Summary
