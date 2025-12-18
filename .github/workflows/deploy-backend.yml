@@ -192,12 +192,12 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --max-instances 10 \
-            --set-env-vars GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
-            --set-env-vars BQ_DATASET=${{ secrets.BQ_DATASET }} \
-            --set-env-vars GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
-            --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
-            --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
-            --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
+            --set-env-vars GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}" \
+            --set-env-vars BQ_DATASET="${{ secrets.BQ_DATASET }}" \
+            --set-env-vars GOOGLE_SPREADSHEET_ID="${{ secrets.GOOGLE_SPREADSHEET_ID }}" \
+            --set-env-vars GOOGLE_SHEETS_API_KEY="${{ secrets.GOOGLE_SHEETS_API_KEY }}" \
+            --set-env-vars GOOGLE_SHEET_NAME="${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }}" \
+            --set-env-vars FRONTEND_URL="${{ secrets.FRONTEND_URL || 'http://localhost:5173' }}" \
             --project ${{ env.PROJECT_ID }}
           DEPLOY_EXIT_CODE=$?
           set -e

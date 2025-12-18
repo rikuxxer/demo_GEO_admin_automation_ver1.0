@@ -192,11 +192,11 @@ jobs:
             --cpu 1 \
             --max-instances 10 \
             --set-env-vars GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }} \
-            --set-env-vars BQ_DATASET=${{ secrets.BQ_DATASET }} \
-            --set-env-vars GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }} \
-            --set-env-vars GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }} \
-            --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
-            --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
+            --set-env-vars BQ_DATASET="${{ secrets.BQ_DATASET }}" \
+            --set-env-vars GOOGLE_SPREADSHEET_ID="${{ secrets.GOOGLE_SPREADSHEET_ID }}" \
+            --set-env-vars GOOGLE_SHEETS_API_KEY="${{ secrets.GOOGLE_SHEETS_API_KEY }}" \
+            --set-env-vars GOOGLE_SHEET_NAME="${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }}" \
+            --set-env-vars FRONTEND_URL="${{ secrets.FRONTEND_URL || 'http://localhost:5173' }}" \
             --project ${{ env.PROJECT_ID }}
           DEPLOY_EXIT_CODE=$?
           set -e
@@ -415,22 +415,23 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/universegeo/universegeo"
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          IMAGE_NAME="${REGION_VALUE}-docker.pkg.dev/${{ env.PROJECT_ID }}/universegeo/universegeo"
           BACKEND_URL="${{ needs.deploy-backend.outputs.backend_url }}"
           
           echo "🔍 デバッグ情報:"
+          echo "  REGION_VALUE: $REGION_VALUE"
           echo "  BACKEND_URL from outputs: $BACKEND_URL"
           echo "  needs.deploy-backend.outputs.backend_url: ${{ needs.deploy-backend.outputs.backend_url }}"
           echo ""
           
           if [ -z "$BACKEND_URL" ] || [ "$BACKEND_URL" = "" ]; then
             echo "⚠️ バックエンドURLが空です。直接取得を試みます..."
-            
-            # リージョンの値を明示的に設定
-            REGION_VALUE="${{ env.REGION }}"
-            if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
-              REGION_VALUE="asia-northeast1"
-            fi
             
             # 直接バックエンドURLを取得
             BACKEND_URL=$(gcloud run services describe universegeo-backend \
@@ -519,7 +520,7 @@ jobs:
           
           FRONTEND_URL="${{ steps.frontend-url.outputs.frontend_url }}"
           gcloud run services update universegeo-backend \
-            --set-env-vars FRONTEND_URL=$FRONTEND_URL \
+            --set-env-vars FRONTEND_URL="$FRONTEND_URL" \
             --region "$REGION_VALUE" \
             --project ${{ env.PROJECT_ID }}
 

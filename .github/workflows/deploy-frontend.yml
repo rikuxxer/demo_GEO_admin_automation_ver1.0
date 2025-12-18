@@ -233,7 +233,7 @@ jobs:
           
           echo "🔄 Updating backend CORS settings..."
           gcloud run services update universegeo-backend \
-            --set-env-vars FRONTEND_URL=$FRONTEND_URL \
+            --set-env-vars FRONTEND_URL="$FRONTEND_URL" \
             --region "$REGION_VALUE" \
             --project ${{ env.PROJECT_ID }} || echo "⚠️ Backend update skipped (may not exist)"
 
