@@ -365,7 +365,10 @@ app.post('/api/sheets/export', async (req, res) => {
 // サーバー起動
 app.listen(PORT, () => {
   console.log(`🚀 Backend API server running on port ${PORT}`);
-  console.log(`📊 BigQuery Project: ${process.env.GCP_PROJECT_ID}`);
+  console.log(`📊 BigQuery Project: ${process.env.GCP_PROJECT_ID || 'NOT SET'}`);
+  console.log(`📊 BigQuery Dataset: ${process.env.BQ_DATASET || 'NOT SET'}`);
   console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔐 Service Account: ${process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'SET' : 'Using default (Cloud Run)'}`);
 });
 

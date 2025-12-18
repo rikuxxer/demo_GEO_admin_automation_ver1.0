@@ -184,6 +184,7 @@ class BigQueryService {
     // バックエンドAPIを使用する場合
     if (USE_API) {
       try {
+        console.log('🔗 API呼び出し:', `${API_BASE_URL}/api/projects`);
         const response = await fetch(`${API_BASE_URL}/api/projects`, {
           method: 'GET',
           headers: {
@@ -191,22 +192,42 @@ class BigQueryService {
           },
         });
 
+        console.log('📡 レスポンスステータス:', response.status, response.statusText);
+
         if (!response.ok) {
           const contentType = response.headers.get('content-type');
           let errorMessage = 'プロジェクトの取得に失敗しました';
-          if (contentType && contentType.includes('application/json')) {
-            const error = await response.json();
-            errorMessage = error.error || errorMessage;
-          } else {
-            const errorText = await response.text();
-            errorMessage = errorText || errorMessage;
+          let errorDetails: any = null;
+          
+          try {
+            if (contentType && contentType.includes('application/json')) {
+              const error = await response.json();
+              errorMessage = error.error || error.message || errorMessage;
+              errorDetails = error;
+              console.error('❌ APIエラーレスポンス:', error);
+            } else {
+              const errorText = await response.text();
+              errorMessage = errorText || errorMessage;
+              console.error('❌ APIエラーテキスト:', errorText);
+            }
+          } catch (parseError) {
+            console.error('❌ エラーレスポンスのパースに失敗:', parseError);
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
-          throw new Error(errorMessage);
+          
+          // より詳細なエラーメッセージを構築
+          const fullErrorMessage = errorDetails 
+            ? `${errorMessage} (Type: ${errorDetails.type || 'Unknown'})`
+            : errorMessage;
+          
+          throw new Error(fullErrorMessage);
         }
 
-        return await response.json();
+        const data = await response.json();
+        console.log('✅ プロジェクト取得成功:', data.length, '件');
+        return data;
       } catch (error) {
-        console.error('プロジェクト取得APIエラー:', error);
+        console.error('❌ プロジェクト取得APIエラー:', error);
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
         }
