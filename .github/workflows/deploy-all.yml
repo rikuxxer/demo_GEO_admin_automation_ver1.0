@@ -173,6 +173,7 @@ jobs:
           echo ""
           
           # デフォルトのサービスアカウントでデプロイ（権限エラーを回避）
+          set +e
           gcloud run deploy universegeo-backend \
             --source . \
             --region ${{ env.REGION }} \
@@ -187,6 +188,98 @@ jobs:
             --set-env-vars GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }} \
             --set-env-vars FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }} \
             --project ${{ env.PROJECT_ID }}
+          DEPLOY_EXIT_CODE=$?
+          set -e
+          
+          if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "❌ デプロイが失敗しました"
+            echo ""
+            echo "📋 ビルドログを取得中..."
+            echo ""
+            
+            # プロジェクトIDを変数に保存（マスクされないように）
+            PROJECT_ID="${{ env.PROJECT_ID }}"
+            echo "プロジェクトID: $PROJECT_ID"
+            echo ""
+            
+            # 少し待ってからビルドログを取得（ビルドが完了するまで待つ）
+            echo "ビルド完了を待機中（25秒）..."
+            sleep 25
+            
+            # 最新のビルドIDを取得（複数の方法を試す）
+            echo "ビルドIDを取得中..."
+            LATEST_BUILD=$(gcloud builds list --limit=1 --sort-by=~createTime --format='value(id)' --project "$PROJECT_ID" 2>&1 | head -1)
+            
+            # 警告メッセージを除外
+            if echo "$LATEST_BUILD" | grep -q "WARNING"; then
+              LATEST_BUILD=$(echo "$LATEST_BUILD" | grep -v "WARNING" | head -1)
+            fi
+            
+            if [ -z "$LATEST_BUILD" ] || [ "$LATEST_BUILD" = "" ] || [ "${LATEST_BUILD:0:1}" = "W" ]; then
+              echo "別の方法でビルドIDを取得中..."
+              LATEST_BUILD=$(gcloud builds list --limit=1 --format='value(id)' --project "$PROJECT_ID" 2>&1 | grep -v "WARNING" | head -1)
+            fi
+            
+            if [ -n "$LATEST_BUILD" ] && [ "$LATEST_BUILD" != "" ] && [ "${LATEST_BUILD:0:1}" != "W" ] && [ "${#LATEST_BUILD}" -gt 10 ]; then
+              echo "✅ 最新のビルドID: $LATEST_BUILD"
+              echo ""
+              echo "📋 ビルドログ（最後の500行）:"
+              echo "=========================================="
+              gcloud builds log "$LATEST_BUILD" --project "$PROJECT_ID" 2>&1 | tail -500
+              echo "=========================================="
+              echo ""
+              echo "📋 エラー部分のみ抽出:"
+              echo "----------------------------------------"
+              gcloud builds log "$LATEST_BUILD" --project "$PROJECT_ID" 2>&1 | grep -i "error\|failed\|fail\|ERROR\|FAILED" | tail -50
+              echo "----------------------------------------"
+              echo ""
+              echo "📋 ビルドの詳細情報:"
+              gcloud builds describe "$LATEST_BUILD" --project "$PROJECT_ID" --format='yaml(status,logUrl,steps)' 2>&1 | head -100
+            else
+              echo "⚠️ ビルドIDを取得できませんでした"
+              echo "取得結果: $LATEST_BUILD"
+              echo ""
+              echo "最近のビルド一覧（デバッグ情報）:"
+              echo "----------------------------------------"
+              gcloud builds list --limit=5 --project "$PROJECT_ID" 2>&1
+              echo "----------------------------------------"
+              echo ""
+              echo "💡 代替方法: サービス名からビルドを検索..."
+              SERVICE_NAME="universegeo-backend"
+              echo "サービス名: $SERVICE_NAME"
+              gcloud builds list --filter="substitutions.SERVICE_NAME=$SERVICE_NAME" --limit=1 --project "$PROJECT_ID" 2>&1
+            fi
+            
+            echo ""
+            echo "📋 ビルドログを確認する方法:"
+            echo ""
+            echo "方法1: Google Cloud Console（推奨）"
+            echo "   1. https://console.cloud.google.com/cloud-build/builds を開く"
+            echo "   2. プロジェクトセレクタでプロジェクトを選択"
+            echo "      （プロジェクトID: $PROJECT_ID）"
+            echo "   3. 最新のビルドをクリック"
+            echo "   4. ビルドログを確認"
+            echo ""
+            echo "   直接リンク（プロジェクトIDを手動で置き換えてください）:"
+            echo "   https://console.cloud.google.com/cloud-build/builds?project=$PROJECT_ID"
+            echo ""
+            echo "方法2: gcloud CLI（ローカルで実行）"
+            echo "   # 最新のビルドIDを取得"
+            echo "   gcloud builds list --limit=1 --project $PROJECT_ID"
+            echo ""
+            echo "   # ビルドログを表示（BUILD_IDを実際のIDに置き換え）"
+            echo "   gcloud builds log [BUILD_ID] --project $PROJECT_ID"
+            echo ""
+            echo "💡 ヒント: ビルドが失敗している場合、以下の点を確認してください:"
+            echo "   - Dockerfileが正しく配置されているか"
+            echo "   - package.jsonとtsconfig.jsonが存在するか"
+            echo "   - 必要なファイルがすべてコピーされているか"
+            echo "   - TypeScriptのコンパイルエラーがないか"
+            echo "   - npm installが正常に完了しているか"
+            echo ""
+            exit $DEPLOY_EXIT_CODE
+          fi
 
       - name: Get Backend URL
         id: backend-url
