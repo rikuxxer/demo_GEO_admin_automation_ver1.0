@@ -205,8 +205,8 @@ jobs:
             echo ""
             
             # 少し待ってからビルドログを取得（ビルドが完了するまで待つ）
-            echo "ビルド完了を待機中（15秒）..."
-            sleep 15
+            echo "ビルド完了を待機中（20秒）..."
+            sleep 20
             
             # 最新のビルドIDを取得（複数の方法を試す）
             echo "ビルドIDを取得中..."
@@ -225,10 +225,15 @@ jobs:
             if [ -n "$LATEST_BUILD" ] && [ "$LATEST_BUILD" != "" ] && [ "${LATEST_BUILD:0:1}" != "W" ] && [ "${#LATEST_BUILD}" -gt 10 ]; then
               echo "✅ 最新のビルドID: $LATEST_BUILD"
               echo ""
-              echo "📋 ビルドログ（最後の400行）:"
+              echo "📋 ビルドログ（最後の500行）:"
               echo "=========================================="
-              gcloud builds log "$LATEST_BUILD" --project "$PROJECT_ID" 2>&1 | tail -400
+              gcloud builds log "$LATEST_BUILD" --project "$PROJECT_ID" 2>&1 | tail -500
               echo "=========================================="
+              echo ""
+              echo "📋 エラー部分のみ抽出:"
+              echo "----------------------------------------"
+              gcloud builds log "$LATEST_BUILD" --project "$PROJECT_ID" 2>&1 | grep -i "error\|failed\|fail\|ERROR\|FAILED" | tail -50
+              echo "----------------------------------------"
               echo ""
               echo "📋 ビルドの詳細情報:"
               gcloud builds describe "$LATEST_BUILD" --project "$PROJECT_ID" --format='yaml(status,logUrl,steps)' 2>&1 | head -100
