@@ -283,7 +283,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.user_requests\`
       ORDER BY requested_at DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: 'asia-northeast1',
+    });
     return rows;
   }
 
