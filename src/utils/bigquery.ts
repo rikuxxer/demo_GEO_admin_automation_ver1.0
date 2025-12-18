@@ -13,6 +13,13 @@ import type { Project, Segment, PoiInfo, EditRequest, ProjectMessage, ChangeHist
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const USE_API = !!API_BASE_URL;
 
+// デバッグ: API接続設定をログ出力
+if (USE_API) {
+  console.log('🔗 バックエンドAPI接続:', API_BASE_URL);
+} else {
+  console.log('📦 ローカルストレージモード（API未設定）');
+}
+
 // Mock implementation using localStorage
 class BigQueryService {
   private readonly projectStorageKey = 'bq_projects';
@@ -174,6 +181,40 @@ class BigQueryService {
   // ===== 広告主DB (Projects) =====
   
   async getProjects(): Promise<Project[]> {
+    // バックエンドAPIを使用する場合
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/projects`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const contentType = response.headers.get('content-type');
+          let errorMessage = 'プロジェクトの取得に失敗しました';
+          if (contentType && contentType.includes('application/json')) {
+            const error = await response.json();
+            errorMessage = error.error || errorMessage;
+          } else {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error('プロジェクト取得APIエラー:', error);
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
+        }
+        throw error;
+      }
+    }
+
+    // モック実装（localStorage）
     try {
       const data = localStorage.getItem(this.projectStorageKey);
       return data ? JSON.parse(data) : [];
@@ -194,6 +235,48 @@ class BigQueryService {
   }
 
   async createProject(project: Omit<Project, 'project_id' | '_register_datetime' | 'person_in_charge'>, userName?: string): Promise<Project> {
+    // バックエンドAPIを使用する場合
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/projects`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(project),
+        });
+
+        if (!response.ok) {
+          const contentType = response.headers.get('content-type');
+          let errorMessage = 'プロジェクトの作成に失敗しました';
+          if (contentType && contentType.includes('application/json')) {
+            const error = await response.json();
+            errorMessage = error.error || errorMessage;
+          } else {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
+
+        // レスポンスからプロジェクト情報を取得（バックエンドが返す場合）
+        const result = await response.json();
+        // バックエンドがメッセージのみを返す場合、プロジェクト一覧から最新を取得
+        if (result.message && !result.project_id) {
+          const projects = await this.getProjects();
+          return projects[0]; // 最新のプロジェクトを返す
+        }
+        return result;
+      } catch (error) {
+        console.error('プロジェクト作成APIエラー:', error);
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
+        }
+        throw error;
+      }
+    }
+
+    // モック実装（localStorage）
     try {
       const projects = await this.getProjects();
       const newProject: Project = {
