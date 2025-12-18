@@ -1243,6 +1243,59 @@ class BigQueryService {
   }
 
   async approveUserRequest(requestId: string, reviewedBy: string, comment?: string): Promise<void> {
+    // バックエンドAPIを使用する場合
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/user-requests/${requestId}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reviewed_by: reviewedBy, comment }),
+        });
+
+        if (!response.ok) {
+          // エラーレスポンスを安全にパース
+          let errorMessage = 'ユーザー登録申請の承認に失敗しました';
+          try {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const error = await response.json();
+              errorMessage = error.error || errorMessage;
+            } else {
+              const errorText = await response.text();
+              errorMessage = errorText || errorMessage;
+            }
+          } catch (parseError) {
+            console.error('エラーレスポンスのパースに失敗:', parseError);
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        // 成功レスポンスを確認
+        try {
+          await response.json();
+        } catch (parseError) {
+          // レスポンスボディが空の場合も成功とみなす
+          if (response.status === 200 || response.status === 201) {
+            return;
+          }
+          console.error('レスポンスのパースに失敗:', parseError);
+          throw new Error('サーバーからの応答を解析できませんでした');
+        }
+      } catch (error) {
+        console.error('ユーザー登録申請承認APIエラー:', error);
+        // ネットワークエラーの場合、より分かりやすいメッセージを提供
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
+        }
+        throw error;
+      }
+      return;
+    }
+
+    // モック実装（localStorage）
     const requests = await this.getUserRequests();
     const index = requests.findIndex(r => r.user_id === requestId);
     
