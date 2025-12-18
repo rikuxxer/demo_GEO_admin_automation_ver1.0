@@ -47,7 +47,15 @@ app.get('/api/projects', async (req, res) => {
     res.json(projects);
   } catch (error: any) {
     console.error('Error fetching projects:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error stack:', error.stack);
+    // より詳細なエラーメッセージを返す
+    const errorMessage = error.message || 'プロジェクトの取得に失敗しました';
+    const errorDetails = {
+      error: errorMessage,
+      type: error.name || 'UnknownError',
+      ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
+    };
+    res.status(500).json(errorDetails);
   }
 });
 

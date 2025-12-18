@@ -23,16 +23,35 @@ export class BigQueryService {
   // ==================== プロジェクト ====================
   
   async getProjects(): Promise<any[]> {
-    const query = `
-      SELECT *
-      FROM \`${projectId}.${datasetId}.projects\`
-      ORDER BY _register_datetime DESC
-    `;
-    const [rows] = await bigquery.query({
-      query,
-      location: 'asia-northeast1',
-    });
-    return rows;
+    try {
+      const query = `
+        SELECT *
+        FROM \`${projectId}.${datasetId}.projects\`
+        ORDER BY _register_datetime DESC
+      `;
+      console.log('🔍 BigQuery query config:', {
+        projectId,
+        datasetId,
+        location: 'asia-northeast1',
+        query: query.substring(0, 100) + '...',
+      });
+      const [rows] = await bigquery.query({
+        query,
+        location: 'asia-northeast1',
+      });
+      console.log('✅ BigQuery query successful, rows:', rows.length);
+      return rows;
+    } catch (error: any) {
+      console.error('❌ BigQuery getProjects error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        errors: error.errors,
+        projectId,
+        datasetId,
+      });
+      throw new Error(`BigQuery error: ${error.message || 'Unknown error'}`);
+    }
   }
 
   async getProjectById(project_id: string): Promise<any> {
