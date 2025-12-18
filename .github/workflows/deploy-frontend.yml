@@ -109,15 +109,44 @@ jobs:
       - name: Set backend URL
         id: set-backend-url
         run: |
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
           # 入力から取得、またはSecretsから取得
           if [ -n "${{ github.event.inputs.backend_url }}" ]; then
             BACKEND_URL="${{ github.event.inputs.backend_url }}"
           elif [ -n "${{ secrets.BACKEND_URL }}" ]; then
             BACKEND_URL="${{ secrets.BACKEND_URL }}"
           else
-            echo "⚠️ 警告: BACKEND_URLが設定されていません"
-            echo "GitHub Secretsに BACKEND_URL を設定するか、手動入力してください"
-            exit 1
+            echo "⚠️ 警告: BACKEND_URLが設定されていません。Cloud Runから直接取得を試みます..."
+            
+            # Cloud Runから直接バックエンドURLを取得
+            BACKEND_URL=$(gcloud run services describe universegeo-backend \
+              --region "$REGION_VALUE" \
+              --format 'value(status.url)' \
+              --project ${{ env.PROJECT_ID }} 2>&1)
+            
+            # エラーメッセージを除外
+            if echo "$BACKEND_URL" | grep -q "ERROR\|error\|not found"; then
+              BACKEND_URL=""
+            fi
+            
+            if [ -z "$BACKEND_URL" ] || [ "$BACKEND_URL" = "" ]; then
+              echo "❌ エラー: バックエンドURLを取得できませんでした"
+              echo ""
+              echo "📋 デバッグ情報:"
+              echo "サービス一覧を確認中..."
+              gcloud run services list --region "$REGION_VALUE" --project ${{ env.PROJECT_ID }} 2>&1
+              echo ""
+              echo "💡 解決方法:"
+              echo "1. GitHub Secrets（Environment secrets）に BACKEND_URL を設定する"
+              echo "2. または、ワークフロー実行時に backend_url を手動入力する"
+              echo "3. または、バックエンドサービスが正しくデプロイされているか確認する"
+              exit 1
+            fi
           fi
           
           echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
