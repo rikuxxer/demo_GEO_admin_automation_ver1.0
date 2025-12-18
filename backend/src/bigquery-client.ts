@@ -15,6 +15,14 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.NODE_ENV !== 'prod
   bigqueryConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 }
 
+console.log('🔧 BigQuery client config:', {
+  projectId,
+  datasetId,
+  location: bigqueryConfig.location,
+  hasKeyFilename: !!bigqueryConfig.keyFilename,
+  nodeEnv: process.env.NODE_ENV,
+});
+
 const bigquery = new BigQuery(bigqueryConfig);
 
 const dataset = bigquery.dataset(datasetId);
