@@ -413,6 +413,7 @@ export class BigQueryService {
         reviewed_by: reviewedBy,
         review_comment: comment
       },
+      location: 'asia-northeast1',
     });
   }
 
