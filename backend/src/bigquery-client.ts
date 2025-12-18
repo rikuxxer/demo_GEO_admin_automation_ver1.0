@@ -40,13 +40,11 @@ export class BigQueryService {
       console.log('🔍 BigQuery query config:', {
         projectId,
         datasetId,
-        location: 'asia-northeast1',
+        location: bigqueryConfig.location,
         query: query.substring(0, 100) + '...',
       });
-      const [rows] = await bigquery.query({
-        query,
-        location: 'asia-northeast1',
-      });
+      // locationはクライアント初期化時に設定されているため、クエリ実行時には不要
+      const [rows] = await bigquery.query(query);
       console.log('✅ BigQuery query successful, rows:', rows.length);
       return rows;
     } catch (error: any) {
@@ -71,7 +69,6 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
-      location: 'asia-northeast1',
     });
     return rows[0] || null;
   }
@@ -98,7 +95,6 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { project_id, ...updates },
-      location: 'asia-northeast1',
     });
   }
 
@@ -110,7 +106,6 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { project_id },
-      location: 'asia-northeast1',
     });
   }
 
@@ -122,10 +117,7 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.segments\`
       ORDER BY segment_registered_at DESC
     `;
-    const [rows] = await bigquery.query({
-      query,
-      location: 'asia-northeast1',
-    });
+    const [rows] = await bigquery.query(query);
     return rows;
   }
 
@@ -139,7 +131,6 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
-      location: 'asia-northeast1',
     });
     return rows;
   }
@@ -166,7 +157,6 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { segment_id, ...updates },
-      location: 'asia-northeast1',
     });
   }
 
@@ -178,10 +168,7 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.pois\`
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query({
-      query,
-      location: 'asia-northeast1',
-    });
+    const [rows] = await bigquery.query(query);
     return rows;
   }
 
@@ -195,7 +182,6 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
-      location: 'asia-northeast1',
     });
     return rows;
   }
@@ -231,7 +217,6 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { poi_id, ...updates },
-      location: 'asia-northeast1',
     });
   }
 
@@ -243,7 +228,6 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { poi_id },
-      location: 'asia-northeast1',
     });
   }
 
@@ -255,10 +239,7 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.users\`
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query({
-      query,
-      location: 'asia-northeast1',
-    });
+    const [rows] = await bigquery.query(query);
     return rows;
   }
 
@@ -271,7 +252,6 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { email },
-      location: 'asia-northeast1',
     });
     return rows[0] || null;
   }
@@ -298,7 +278,6 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { user_id, ...updates },
-      location: 'asia-northeast1',
     });
   }
 
@@ -310,10 +289,7 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.user_requests\`
       ORDER BY requested_at DESC
     `;
-    const [rows] = await bigquery.query({
-      query,
-      location: 'asia-northeast1',
-    });
+    const [rows] = await bigquery.query(query);
     return rows;
   }
 
@@ -410,7 +386,6 @@ export class BigQueryService {
         reviewed_by: reviewedBy,
         review_comment: comment || null
       },
-      location: 'asia-northeast1',
     });
   }
 
@@ -443,7 +418,6 @@ export class BigQueryService {
         reviewed_by: reviewedBy,
         review_comment: comment
       },
-      location: 'asia-northeast1',
     });
   }
 
@@ -459,7 +433,6 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
-      location: 'asia-northeast1',
     });
     return rows;
   }
@@ -470,10 +443,7 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.messages\`
       ORDER BY timestamp DESC
     `;
-    const [rows] = await bigquery.query({
-      query,
-      location: 'asia-northeast1',
-    });
+    const [rows] = await bigquery.query(query);
     return rows;
   }
 
@@ -499,7 +469,6 @@ export class BigQueryService {
     await bigquery.query({ 
       query, 
       params,
-      location: 'asia-northeast1',
     });
   }
 
