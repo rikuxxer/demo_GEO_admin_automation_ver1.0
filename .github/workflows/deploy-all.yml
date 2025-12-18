@@ -384,9 +384,30 @@ jobs:
           IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/universegeo/universegeo"
           BACKEND_URL="${{ needs.deploy-backend.outputs.backend_url }}"
           
-          if [ -z "$BACKEND_URL" ]; then
-            echo "❌ エラー: バックエンドURLが取得できませんでした"
-            exit 1
+          echo "🔍 デバッグ情報:"
+          echo "  BACKEND_URL from outputs: $BACKEND_URL"
+          echo "  needs.deploy-backend.outputs.backend_url: ${{ needs.deploy-backend.outputs.backend_url }}"
+          echo ""
+          
+          if [ -z "$BACKEND_URL" ] || [ "$BACKEND_URL" = "" ]; then
+            echo "⚠️ バックエンドURLが空です。直接取得を試みます..."
+            
+            # 直接バックエンドURLを取得
+            BACKEND_URL=$(gcloud run services describe universegeo-backend \
+              --region ${{ env.REGION }} \
+              --format 'value(status.url)' \
+              --project ${{ env.PROJECT_ID }} 2>&1)
+            
+            echo "  直接取得したBACKEND_URL: $BACKEND_URL"
+            
+            if [ -z "$BACKEND_URL" ] || [ "$BACKEND_URL" = "" ]; then
+              echo "❌ エラー: バックエンドURLが取得できませんでした"
+              echo ""
+              echo "📋 デバッグ情報:"
+              echo "サービス一覧を確認中..."
+              gcloud run services list --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} 2>&1
+              exit 1
+            fi
           fi
           
           echo "🏗️ Dockerイメージをビルド中..."
