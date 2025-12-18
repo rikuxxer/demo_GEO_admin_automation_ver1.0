@@ -411,7 +411,7 @@ jobs:
             REGION_VALUE="asia-northeast1"
           fi
           
-          gcloud auth configure-docker ${REGION_VALUE}-docker.pkg.dev
+          gcloud auth configure-docker "${REGION_VALUE}-docker.pkg.dev"
 
       - name: Build and push Docker image
         run: |
@@ -454,16 +454,16 @@ jobs:
           echo "Backend URL: $BACKEND_URL"
           
           docker build \
-            --build-arg VITE_API_BASE_URL=$BACKEND_URL \
-            --build-arg VITE_GOOGLE_SPREADSHEET_ID=${{ secrets.VITE_GOOGLE_SPREADSHEET_ID || '' }} \
-            --build-arg VITE_GOOGLE_SHEETS_API_KEY=${{ secrets.VITE_GOOGLE_SHEETS_API_KEY || '' }} \
-            -t ${IMAGE_NAME}:${{ github.sha }} \
-            -t ${IMAGE_NAME}:latest \
+            --build-arg VITE_API_BASE_URL="$BACKEND_URL" \
+            --build-arg VITE_GOOGLE_SPREADSHEET_ID="${{ secrets.VITE_GOOGLE_SPREADSHEET_ID || '' }}" \
+            --build-arg VITE_GOOGLE_SHEETS_API_KEY="${{ secrets.VITE_GOOGLE_SHEETS_API_KEY || '' }}" \
+            -t "${IMAGE_NAME}:${{ github.sha }}" \
+            -t "${IMAGE_NAME}:latest" \
             .
           
           echo "📤 Dockerイメージをプッシュ中..."
-          docker push ${IMAGE_NAME}:${{ github.sha }}
-          docker push ${IMAGE_NAME}:latest
+          docker push "${IMAGE_NAME}:${{ github.sha }}"
+          docker push "${IMAGE_NAME}:latest"
           echo "✅ Dockerイメージのビルドとプッシュが完了しました"
 
       - name: Deploy to Cloud Run
@@ -477,7 +477,7 @@ jobs:
           IMAGE_NAME="${REGION_VALUE}-docker.pkg.dev/${{ env.PROJECT_ID }}/universegeo/universegeo"
           
           gcloud run deploy universegeo \
-            --image ${IMAGE_NAME}:${{ github.sha }} \
+            --image "${IMAGE_NAME}:${{ github.sha }}" \
             --region "$REGION_VALUE" \
             --platform managed \
             --allow-unauthenticated \

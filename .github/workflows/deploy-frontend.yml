@@ -91,7 +91,7 @@ jobs:
             REGION_VALUE="asia-northeast1"
           fi
           
-          gcloud auth configure-docker ${REGION_VALUE}-docker.pkg.dev
+          gcloud auth configure-docker "${REGION_VALUE}-docker.pkg.dev"
 
       - name: Create Artifact Registry repository (if not exists)
         run: |
@@ -103,7 +103,7 @@ jobs:
           
           gcloud artifacts repositories create ${{ env.REPOSITORY }} \
             --repository-format=docker \
-            --location=$REGION_VALUE \
+            --location="$REGION_VALUE" \
             --description="UNIVERSEGEO Docker repository" || echo "Repository already exists"
 
       - name: Set backend URL
@@ -168,16 +168,16 @@ jobs:
           echo "Region: $REGION_VALUE"
           
           docker build \
-            --build-arg VITE_API_BASE_URL=$BACKEND_URL \
-            --build-arg VITE_GOOGLE_SPREADSHEET_ID=${{ secrets.VITE_GOOGLE_SPREADSHEET_ID }} \
-            --build-arg VITE_GOOGLE_SHEETS_API_KEY=${{ secrets.VITE_GOOGLE_SHEETS_API_KEY }} \
-            -t ${IMAGE_NAME}:${{ github.sha }} \
-            -t ${IMAGE_NAME}:latest \
+            --build-arg VITE_API_BASE_URL="$BACKEND_URL" \
+            --build-arg VITE_GOOGLE_SPREADSHEET_ID="${{ secrets.VITE_GOOGLE_SPREADSHEET_ID }}" \
+            --build-arg VITE_GOOGLE_SHEETS_API_KEY="${{ secrets.VITE_GOOGLE_SHEETS_API_KEY }}" \
+            -t "${IMAGE_NAME}:${{ github.sha }}" \
+            -t "${IMAGE_NAME}:latest" \
             .
           
           echo "📤 Pushing Docker image..."
-          docker push ${IMAGE_NAME}:${{ github.sha }}
-          docker push ${IMAGE_NAME}:latest
+          docker push "${IMAGE_NAME}:${{ github.sha }}"
+          docker push "${IMAGE_NAME}:latest"
           echo "✅ Image pushed successfully"
 
       - name: Deploy to Cloud Run
@@ -194,7 +194,7 @@ jobs:
           echo "Region: $REGION_VALUE"
           
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image ${IMAGE_NAME}:${{ github.sha }} \
+            --image "${IMAGE_NAME}:${{ github.sha }}" \
             --region "$REGION_VALUE" \
             --platform managed \
             --allow-unauthenticated \

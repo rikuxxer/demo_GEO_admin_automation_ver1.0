@@ -299,8 +299,14 @@ jobs:
       - name: Get backend URL
         id: get-backend-url
         run: |
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
           BACKEND_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region ${{ env.REGION }} \
+            --region "$REGION_VALUE" \
             --format 'value(status.url)')
           
           echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
