@@ -173,11 +173,21 @@ jobs:
           echo "   必要に応じて、後でCloud Runサービスの設定から変更できます。"
           echo ""
           
+          # リージョンの値を明示的に設定（デバッグ用）
+          REGION_VALUE="${{ env.REGION }}"
+          echo "🔍 デバッグ: REGION_VALUE = '$REGION_VALUE'"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            echo "⚠️ 警告: リージョン値が予期しない値です。'asia-northeast1' に設定します。"
+            REGION_VALUE="asia-northeast1"
+          fi
+          echo "✅ 使用するリージョン: $REGION_VALUE"
+          echo ""
+          
           # デフォルトのサービスアカウントでデプロイ（権限エラーを回避）
           set +e
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
-            --region ${{ env.REGION }} \
+            --region "$REGION_VALUE" \
             --allow-unauthenticated \
             --memory 512Mi \
             --cpu 1 \

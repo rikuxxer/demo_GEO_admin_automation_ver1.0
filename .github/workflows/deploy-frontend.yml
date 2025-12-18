@@ -85,13 +85,25 @@ jobs:
 
       - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          gcloud auth configure-docker ${REGION_VALUE}-docker.pkg.dev
 
       - name: Create Artifact Registry repository (if not exists)
         run: |
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
           gcloud artifacts repositories create ${{ env.REPOSITORY }} \
             --repository-format=docker \
-            --location=${{ env.REGION }} \
+            --location=$REGION_VALUE \
             --description="UNIVERSEGEO Docker repository" || echo "Repository already exists"
 
       - name: Set backend URL
@@ -114,10 +126,17 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}"
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          IMAGE_NAME="${REGION_VALUE}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}"
           
           echo "🐳 Building Docker image..."
           echo "Backend URL: $BACKEND_URL"
+          echo "Region: $REGION_VALUE"
           
           docker build \
             --build-arg VITE_API_BASE_URL=$BACKEND_URL \
@@ -134,13 +153,20 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
-          IMAGE_NAME="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}"
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          IMAGE_NAME="${REGION_VALUE}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}"
           
           echo "🚀 Deploying to Cloud Run..."
+          echo "Region: $REGION_VALUE"
           
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image ${IMAGE_NAME}:${{ github.sha }} \
-            --region ${{ env.REGION }} \
+            --region "$REGION_VALUE" \
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
@@ -154,8 +180,14 @@ jobs:
       - name: Get service URL
         id: get-url
         run: |
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
           FRONTEND_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region ${{ env.REGION }} \
+            --region "$REGION_VALUE" \
             --format 'value(status.url)')
           
           echo "url=$FRONTEND_URL" >> $GITHUB_OUTPUT
@@ -164,10 +196,16 @@ jobs:
 
       - name: Update Backend CORS
         run: |
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
           echo "🔄 Updating backend CORS settings..."
           gcloud run services update universegeo-backend \
             --set-env-vars FRONTEND_URL=$FRONTEND_URL \
-            --region ${{ env.REGION }} \
+            --region "$REGION_VALUE" \
             --project ${{ env.PROJECT_ID }} || echo "⚠️ Backend update skipped (may not exist)"
 
       - name: Deployment Summary
