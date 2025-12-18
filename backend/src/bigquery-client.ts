@@ -28,7 +28,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.projects\`
       ORDER BY _register_datetime DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: 'asia-northeast1',
+    });
     return rows;
   }
 
@@ -41,6 +44,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
+      location: 'asia-northeast1',
     });
     return rows[0] || null;
   }
@@ -67,6 +71,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { project_id, ...updates },
+      location: 'asia-northeast1',
     });
   }
 
@@ -78,6 +83,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { project_id },
+      location: 'asia-northeast1',
     });
   }
 
@@ -89,7 +95,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.segments\`
       ORDER BY segment_registered_at DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: 'asia-northeast1',
+    });
     return rows;
   }
 
@@ -103,6 +112,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
+      location: 'asia-northeast1',
     });
     return rows;
   }
@@ -129,6 +139,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { segment_id, ...updates },
+      location: 'asia-northeast1',
     });
   }
 
@@ -140,7 +151,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.pois\`
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: 'asia-northeast1',
+    });
     return rows;
   }
 
@@ -154,6 +168,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
+      location: 'asia-northeast1',
     });
     return rows;
   }
@@ -189,6 +204,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { poi_id, ...updates },
+      location: 'asia-northeast1',
     });
   }
 
@@ -200,6 +216,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { poi_id },
+      location: 'asia-northeast1',
     });
   }
 
@@ -211,7 +228,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.users\`
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: 'asia-northeast1',
+    });
     return rows;
   }
 
@@ -224,6 +244,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { email },
+      location: 'asia-northeast1',
     });
     return rows[0] || null;
   }
@@ -250,6 +271,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { user_id, ...updates },
+      location: 'asia-northeast1',
     });
   }
 
@@ -358,6 +380,7 @@ export class BigQueryService {
         reviewed_by: reviewedBy,
         review_comment: comment || null
       },
+      location: 'asia-northeast1',
     });
   }
 
@@ -405,6 +428,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
+      location: 'asia-northeast1',
     });
     return rows;
   }
@@ -415,7 +439,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.messages\`
       ORDER BY timestamp DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: 'asia-northeast1',
+    });
     return rows;
   }
 
@@ -438,7 +465,11 @@ export class BigQueryService {
       params[`message_id_${i}`] = id;
     });
     
-    await bigquery.query({ query, params });
+    await bigquery.query({ 
+      query, 
+      params,
+      location: 'asia-northeast1',
+    });
   }
 
   // ==================== Google Sheets ====================
