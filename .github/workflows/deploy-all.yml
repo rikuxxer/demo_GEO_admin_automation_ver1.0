@@ -405,7 +405,13 @@ jobs:
 
       - name: Configure Docker
         run: |
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          gcloud auth configure-docker ${REGION_VALUE}-docker.pkg.dev
 
       - name: Build and push Docker image
         run: |
