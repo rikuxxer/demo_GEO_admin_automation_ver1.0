@@ -492,7 +492,11 @@ export class BigQueryService {
         throw new Error(`Google Sheets API error: ${response.status} - ${errorText}`);
       }
 
-      const result = await response.json();
+      const result = await response.json() as {
+        updates?: {
+          updatedRows?: number;
+        };
+      };
       const rowsAdded = result.updates?.updatedRows || rows.length;
 
       return {
