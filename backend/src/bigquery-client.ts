@@ -46,9 +46,10 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.NODE_ENV !== 'prod
   bigqueryConfig.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 }
 
-console.log('🔧 BigQuery client config:', {
-  projectId,
-  datasetId,
+// ログ出力（projectIdは使用時に取得）
+console.log('🔧 BigQuery client initialization:', {
+  GCP_PROJECT_ID: process.env.GCP_PROJECT_ID ? `${process.env.GCP_PROJECT_ID.substring(0, 10)}...` : 'NOT SET (will be validated on first use)',
+  BQ_DATASET: datasetId,
   location: BQ_LOCATION,
   hasKeyFilename: !!bigqueryConfig.keyFilename,
   nodeEnv: process.env.NODE_ENV,
