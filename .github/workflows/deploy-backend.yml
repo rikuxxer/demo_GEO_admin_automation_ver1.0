@@ -183,7 +183,28 @@ jobs:
           echo "✅ 使用するリージョン: $REGION_VALUE"
           echo ""
           
+          # 環境変数の値を確認（デバッグ用）
+          echo "🔍 環境変数の確認（デバッグ）:"
+          echo "  GCP_PROJECT_ID: $([ -n "${{ secrets.GCP_PROJECT_ID }}" ] && echo 'SET (length: '$(echo -n "${{ secrets.GCP_PROJECT_ID }}" | wc -c)')' || echo 'NOT SET')"
+          echo "  BQ_DATASET: $([ -n "${{ secrets.BQ_DATASET }}" ] && echo 'SET' || echo 'NOT SET')"
+          echo ""
+          
+          # 環境変数が設定されていない場合はエラー
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "❌ エラー: GCP_PROJECT_IDがGitHub Secretsに設定されていません"
+            echo "   Environment secretsにGCP_PROJECT_IDを設定してください"
+            echo "   https://github.com/${{ github.repository }}/settings/environments/Environment%20secrets"
+            exit 1
+          fi
+          
           # デフォルトのサービスアカウントでデプロイ（権限エラーを回避）
+          # 環境変数はカンマ区切りで一度に設定（より確実な方法）
+          ENV_VARS="GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},BQ_DATASET=${{ secrets.BQ_DATASET }},GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }},GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }},GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }},FRONTEND_URL=${{ secrets.FRONTEND_URL || 'http://localhost:5173' }}"
+          
+          echo "📋 設定する環境変数:"
+          echo "$ENV_VARS" | tr ',' '\n' | sed 's/^/  /'
+          echo ""
+          
           set +e
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
@@ -192,12 +213,7 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --max-instances 10 \
-            --set-env-vars GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}" \
-            --set-env-vars BQ_DATASET="${{ secrets.BQ_DATASET }}" \
-            --set-env-vars GOOGLE_SPREADSHEET_ID="${{ secrets.GOOGLE_SPREADSHEET_ID }}" \
-            --set-env-vars GOOGLE_SHEETS_API_KEY="${{ secrets.GOOGLE_SHEETS_API_KEY }}" \
-            --set-env-vars GOOGLE_SHEET_NAME="${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }}" \
-            --set-env-vars FRONTEND_URL="${{ secrets.FRONTEND_URL || 'http://localhost:5173' }}" \
+            --set-env-vars "$ENV_VARS" \
             --project ${{ env.PROJECT_ID }}
           DEPLOY_EXIT_CODE=$?
           set -e
