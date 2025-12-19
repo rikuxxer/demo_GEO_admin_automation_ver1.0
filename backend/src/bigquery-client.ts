@@ -39,15 +39,29 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.NODE_ENV !== 'prod
 }
 
 // ログ出力（projectIdは使用時に取得）
+// 安全にログ出力（GCP_PROJECT_IDが空文字列の場合も考慮）
+const projectIdPreview = process.env.GCP_PROJECT_ID && process.env.GCP_PROJECT_ID.trim() 
+  ? `${process.env.GCP_PROJECT_ID.substring(0, Math.min(10, process.env.GCP_PROJECT_ID.length))}...` 
+  : 'NOT SET (will be validated on first use)';
+
 console.log('🔧 BigQuery client initialization:', {
-  GCP_PROJECT_ID: process.env.GCP_PROJECT_ID ? `${process.env.GCP_PROJECT_ID.substring(0, 10)}...` : 'NOT SET (will be validated on first use)',
+  GCP_PROJECT_ID: projectIdPreview,
   BQ_DATASET: datasetId,
   location: BQ_LOCATION,
   hasKeyFilename: !!bigqueryConfig.keyFilename,
   nodeEnv: process.env.NODE_ENV,
 });
 
-const bigquery = new BigQuery(bigqueryConfig);
+// BigQueryクライアントの初期化（エラーハンドリング付き）
+let bigquery: BigQuery;
+try {
+  bigquery = new BigQuery(bigqueryConfig);
+  console.log('✅ BigQuery client created successfully');
+} catch (error: any) {
+  console.error('❌ BigQuery client initialization failed:', error);
+  // エラーが発生してもアプリケーションは起動を続ける（実際の使用時にエラーが発生する）
+  throw new Error(`BigQuery client initialization failed: ${error.message}`);
+}
 
 // datasetは使用時に取得（projectIdが設定されている必要がある）
 function getDataset() {

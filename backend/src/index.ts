@@ -1,10 +1,22 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { bqService } from './bigquery-client';
 
 // 環境変数を読み込み
 dotenv.config();
+
+// BigQueryサービスのインポート（エラーハンドリング付き）
+let bqService: any;
+try {
+  const bigqueryClient = require('./bigquery-client');
+  bqService = bigqueryClient.bqService;
+  console.log('✅ BigQuery service imported successfully');
+} catch (error: any) {
+  console.error('❌ Failed to import BigQuery service:', error);
+  console.error('Error stack:', error.stack);
+  // エラーが発生してもアプリケーションは起動を続ける（実際の使用時にエラーが発生する）
+  throw error;
+}
 
 const app = express();
 const PORT = process.env.PORT || 8080;
