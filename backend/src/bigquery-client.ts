@@ -8,9 +8,10 @@ const BQ_LOCATION = 'asia-northeast1'; // 東京リージョン
 
 // BigQueryクライアントの初期化
 // Cloud Runではサービスアカウントが自動的に認証されるため、keyFilenameは不要
+// 注意: BigQueryクライアントの初期化時にlocationを設定することはできません
+// locationはクエリ実行時にのみ指定できます
 const bigqueryConfig: any = {
   projectId,
-  location: BQ_LOCATION, // クライアント初期化時にlocationを設定
 };
 
 // ローカル開発環境でのみkeyFilenameを使用
