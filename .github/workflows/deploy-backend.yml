@@ -313,6 +313,31 @@ jobs:
           echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
           echo "🚀 Backend deployed to: $BACKEND_URL"
 
+      - name: Verify Environment Variables
+        run: |
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          echo "🔍 Cloud Runの環境変数を確認中..."
+          gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region "$REGION_VALUE" \
+            --format 'value(spec.template.spec.containers[0].env)' \
+            --project ${{ env.PROJECT_ID }} || echo "⚠️ 環境変数の取得に失敗しました"
+          
+          echo ""
+          echo "📋 環境変数の設定を確認してください："
+          echo "  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}"
+          echo "  BQ_DATASET: ${{ secrets.BQ_DATASET }}"
+          
+          # 環境変数が設定されていない場合は警告
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "❌ 警告: GCP_PROJECT_IDが設定されていません！"
+            echo "   GitHub SecretsにGCP_PROJECT_IDを設定してください。"
+          fi
+
       - name: Update GitHub Secret (Backend URL)
         if: github.event_name == 'workflow_dispatch'
         run: |
