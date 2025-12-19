@@ -203,6 +203,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
+      location: BQ_LOCATION,
     });
     return rows;
   }
