@@ -158,10 +158,12 @@ export class BigQueryService {
   }
 
   async createProject(project: any): Promise<void> {
+    const now = new Date();
     await getDataset().table('projects').insert([{
       ...project,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      _register_datetime: now.toISOString(),
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
     }]);
   }
 
