@@ -1,18 +1,24 @@
 import { BigQuery } from '@google-cloud/bigquery';
 
 // 環境変数からプロジェクトIDを取得（必須）
-const projectId = process.env.GCP_PROJECT_ID;
+// 注意: モジュール読み込み時ではなく、実際に使用される時に検証する
+let projectId: string | undefined = process.env.GCP_PROJECT_ID;
 const datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
 
-// プロジェクトIDが設定されていない場合はエラー
-if (!projectId || projectId.trim() === '') {
-  const errorMsg = 'GCP_PROJECT_ID環境変数が設定されていません';
-  console.error('❌', errorMsg);
-  throw new Error(errorMsg);
+// プロジェクトIDの検証関数（遅延評価）
+function validateProjectId(): string {
+  const currentProjectId = process.env.GCP_PROJECT_ID;
+  if (!currentProjectId || currentProjectId.trim() === '') {
+    const errorMsg = 'GCP_PROJECT_ID環境変数が設定されていません。Cloud Runの環境変数設定を確認してください。';
+    console.error('❌', errorMsg);
+    throw new Error(errorMsg);
+  }
+  return currentProjectId;
 }
 
-console.log('✅ 環境変数確認:', {
-  GCP_PROJECT_ID: projectId ? `${projectId.substring(0, 10)}...` : 'NOT SET',
+// 初期化時のログ（エラーはスローしない）
+console.log('🔧 BigQuery client initialization:', {
+  GCP_PROJECT_ID: projectId ? `${projectId.substring(0, 10)}...` : 'NOT SET (will be validated on first use)',
   BQ_DATASET: datasetId,
 });
 
@@ -30,8 +36,9 @@ console.log('✅ BQ_LOCATION initialized:', BQ_LOCATION);
 // Cloud Runではサービスアカウントが自動的に認証されるため、keyFilenameは不要
 // 注意: BigQueryクライアントの初期化時にlocationを設定することはできません
 // locationはクエリ実行時にのみ指定できます
+// projectIdは使用時に動的に取得するため、初期化時には設定しない
 const bigqueryConfig: any = {
-  projectId,
+  // projectIdは使用時に動的に取得
 };
 
 // ローカル開発環境でのみkeyFilenameを使用
@@ -49,7 +56,11 @@ console.log('🔧 BigQuery client config:', {
 
 const bigquery = new BigQuery(bigqueryConfig);
 
-const dataset = bigquery.dataset(datasetId);
+// datasetは使用時に取得（projectIdが設定されている必要がある）
+function getDataset() {
+  const currentProjectId = validateProjectId();
+  return bigquery.dataset(datasetId);
+}
 
 export class BigQueryService {
   // ==================== プロジェクト ====================
@@ -144,7 +155,7 @@ export class BigQueryService {
   }
 
   async createProject(project: any): Promise<void> {
-    await dataset.table('projects').insert([{
+    await getDataset().table('projects').insert([{
       ...project,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -211,7 +222,7 @@ export class BigQueryService {
   }
 
   async createSegment(segment: any): Promise<void> {
-    await dataset.table('segments').insert([{
+    await getDataset().table('segments').insert([{
       ...segment,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -266,7 +277,7 @@ export class BigQueryService {
   }
 
   async createPoi(poi: any): Promise<void> {
-    await dataset.table('pois').insert([{
+    await getDataset().table('pois').insert([{
       ...poi,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -279,7 +290,7 @@ export class BigQueryService {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }));
-    await dataset.table('pois').insert(poisWithTimestamps);
+    await getDataset().table('pois').insert(poisWithTimestamps);
   }
 
   async updatePoi(poi_id: string, updates: any): Promise<void> {
@@ -341,7 +352,7 @@ export class BigQueryService {
   }
 
   async createUser(user: any): Promise<void> {
-    await dataset.table('users').insert([{
+    await getDataset().table('users').insert([{
       ...user,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -423,7 +434,7 @@ export class BigQueryService {
       review_comment: null
     };
 
-    await dataset.table('user_requests').insert([newRequest]);
+    await getDataset().table('user_requests').insert([newRequest]);
     
     const { password_hash: _, ...requestWithoutPassword } = newRequest;
     return requestWithoutPassword;
@@ -541,7 +552,7 @@ export class BigQueryService {
   }
 
   async createMessage(message: any): Promise<void> {
-    await dataset.table('messages').insert([message]);
+    await getDataset().table('messages').insert([message]);
   }
 
   async markMessagesAsRead(message_ids: string[]): Promise<void> {
