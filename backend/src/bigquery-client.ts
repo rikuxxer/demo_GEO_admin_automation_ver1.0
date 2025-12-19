@@ -40,19 +40,36 @@ export class BigQueryService {
         FROM \`${projectId}.${datasetId}.projects\`
         ORDER BY _register_datetime DESC
       `;
+      
       console.log('🔍 BigQuery query config:', {
         projectId,
         datasetId,
         location: BQ_LOCATION,
+        locationType: typeof BQ_LOCATION,
+        locationLength: BQ_LOCATION?.length,
         query: query.substring(0, 100) + '...',
       });
       
-      // locationはクライアント初期化時に設定されているため、クエリ実行時には不要
-      // ただし、明示的に指定することも可能
-      const [rows] = await bigquery.query({
-        query,
-        location: BQ_LOCATION, // 明示的に指定
-      });
+      // クエリオプションを構築（locationを明示的に指定）
+      const queryOptions: any = {
+        query: query,
+      };
+      
+      // locationが正しく設定されているか確認
+      if (BQ_LOCATION && BQ_LOCATION.trim()) {
+        queryOptions.location = BQ_LOCATION.trim();
+        console.log('✅ Location設定:', queryOptions.location);
+      } else {
+        console.error('❌ Locationが空です！');
+        throw new Error('BigQuery location is not set');
+      }
+      
+      console.log('📋 Query options:', JSON.stringify({
+        query: query.substring(0, 50) + '...',
+        location: queryOptions.location,
+      }));
+      
+      const [rows] = await bigquery.query(queryOptions);
       console.log('✅ BigQuery query successful, rows:', rows.length);
       return rows;
     } catch (error: any) {
@@ -63,6 +80,7 @@ export class BigQueryService {
         errors: error.errors,
         projectId,
         datasetId,
+        location: BQ_LOCATION,
       });
       throw new Error(`BigQuery error: ${error.message || 'Unknown error'}`);
     }
