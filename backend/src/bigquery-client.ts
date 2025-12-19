@@ -1,8 +1,6 @@
 import { BigQuery } from '@google-cloud/bigquery';
 
-// 環境変数からプロジェクトIDを取得（必須）
-// 注意: モジュール読み込み時ではなく、実際に使用される時に検証する
-let projectId: string | undefined = process.env.GCP_PROJECT_ID;
+// 環境変数からデータセットIDを取得
 const datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
 
 // プロジェクトIDの検証関数（遅延評価）
@@ -15,12 +13,6 @@ function validateProjectId(): string {
   }
   return currentProjectId;
 }
-
-// 初期化時のログ（エラーはスローしない）
-console.log('🔧 BigQuery client initialization:', {
-  GCP_PROJECT_ID: projectId ? `${projectId.substring(0, 10)}...` : 'NOT SET (will be validated on first use)',
-  BQ_DATASET: datasetId,
-});
 
 // BigQueryのロケーション（固定値）
 // 注意: この値は必ず'asia-northeast1'である必要があります
@@ -68,21 +60,8 @@ export class BigQueryService {
   
   async getProjects(): Promise<any[]> {
     try {
-      // プロジェクトIDが設定されているか再確認
-      const currentProjectId = process.env.GCP_PROJECT_ID;
-      if (!currentProjectId || currentProjectId.trim() === '') {
-        const errorMsg = 'GCP_PROJECT_ID環境変数が設定されていません。Cloud Runの環境変数設定を確認してください。';
-        console.error('❌', errorMsg);
-        throw new Error(errorMsg);
-      }
-      
-      // projectId変数と環境変数が一致しているか確認
-      if (currentProjectId !== projectId) {
-        console.warn('⚠️ projectId変数と環境変数が一致していません:', {
-          projectIdVariable: projectId,
-          envVariable: currentProjectId,
-        });
-      }
+      // プロジェクトIDを検証して取得
+      const currentProjectId = validateProjectId();
       
       const query = `
         SELECT *
@@ -143,9 +122,10 @@ export class BigQueryService {
   }
 
   async getProjectById(project_id: string): Promise<any> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.projects\`
+      FROM \`${currentProjectId}.${datasetId}.projects\`
       WHERE project_id = @project_id
     `;
     const [rows] = await bigquery.query({
@@ -164,12 +144,13 @@ export class BigQueryService {
   }
 
   async updateProject(project_id: string, updates: any): Promise<void> {
+    const currentProjectId = validateProjectId();
     const setClause = Object.keys(updates)
       .map(key => `${key} = @${key}`)
       .join(', ');
     
     const query = `
-      UPDATE \`${projectId}.${datasetId}.projects\`
+      UPDATE \`${currentProjectId}.${datasetId}.projects\`
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
       WHERE project_id = @project_id
     `;
@@ -182,8 +163,9 @@ export class BigQueryService {
   }
 
   async deleteProject(project_id: string): Promise<void> {
+    const currentProjectId = validateProjectId();
     const query = `
-      DELETE FROM \`${projectId}.${datasetId}.projects\`
+      DELETE FROM \`${currentProjectId}.${datasetId}.projects\`
       WHERE project_id = @project_id
     `;
     await bigquery.query({
@@ -196,9 +178,10 @@ export class BigQueryService {
   // ==================== セグメント ====================
   
   async getSegments(): Promise<any[]> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.segments\`
+      FROM \`${currentProjectId}.${datasetId}.segments\`
       ORDER BY segment_registered_at DESC
     `;
     const [rows] = await bigquery.query({
@@ -209,9 +192,10 @@ export class BigQueryService {
   }
 
   async getSegmentsByProject(project_id: string): Promise<any[]> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.segments\`
+      FROM \`${currentProjectId}.${datasetId}.segments\`
       WHERE project_id = @project_id
       ORDER BY segment_registered_at DESC
     `;
@@ -231,12 +215,13 @@ export class BigQueryService {
   }
 
   async updateSegment(segment_id: string, updates: any): Promise<void> {
+    const currentProjectId = validateProjectId();
     const setClause = Object.keys(updates)
       .map(key => `${key} = @${key}`)
       .join(', ');
     
     const query = `
-      UPDATE \`${projectId}.${datasetId}.segments\`
+      UPDATE \`${currentProjectId}.${datasetId}.segments\`
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
       WHERE segment_id = @segment_id
     `;
@@ -251,9 +236,10 @@ export class BigQueryService {
   // ==================== POI（地点） ====================
   
   async getPois(): Promise<any[]> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.pois\`
+      FROM \`${currentProjectId}.${datasetId}.pois\`
       ORDER BY created_at DESC
     `;
     const [rows] = await bigquery.query({
@@ -264,9 +250,10 @@ export class BigQueryService {
   }
 
   async getPoisByProject(project_id: string): Promise<any[]> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.pois\`
+      FROM \`${currentProjectId}.${datasetId}.pois\`
       WHERE project_id = @project_id
       ORDER BY created_at DESC
     `;
@@ -295,12 +282,13 @@ export class BigQueryService {
   }
 
   async updatePoi(poi_id: string, updates: any): Promise<void> {
+    const currentProjectId = validateProjectId();
     const setClause = Object.keys(updates)
       .map(key => `${key} = @${key}`)
       .join(', ');
     
     const query = `
-      UPDATE \`${projectId}.${datasetId}.pois\`
+      UPDATE \`${currentProjectId}.${datasetId}.pois\`
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
       WHERE poi_id = @poi_id
     `;
@@ -313,8 +301,9 @@ export class BigQueryService {
   }
 
   async deletePoi(poi_id: string): Promise<void> {
+    const currentProjectId = validateProjectId();
     const query = `
-      DELETE FROM \`${projectId}.${datasetId}.pois\`
+      DELETE FROM \`${currentProjectId}.${datasetId}.pois\`
       WHERE poi_id = @poi_id
     `;
     await bigquery.query({
@@ -327,9 +316,10 @@ export class BigQueryService {
   // ==================== ユーザー ====================
   
   async getUsers(): Promise<any[]> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.users\`
+      FROM \`${currentProjectId}.${datasetId}.users\`
       ORDER BY created_at DESC
     `;
     const [rows] = await bigquery.query({
@@ -340,9 +330,10 @@ export class BigQueryService {
   }
 
   async getUserByEmail(email: string): Promise<any> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.users\`
+      FROM \`${currentProjectId}.${datasetId}.users\`
       WHERE email = @email
     `;
     const [rows] = await bigquery.query({
@@ -361,12 +352,13 @@ export class BigQueryService {
   }
 
   async updateUser(user_id: string, updates: any): Promise<void> {
+    const currentProjectId = validateProjectId();
     const setClause = Object.keys(updates)
       .map(key => `${key} = @${key}`)
       .join(', ');
     
     const query = `
-      UPDATE \`${projectId}.${datasetId}.users\`
+      UPDATE \`${currentProjectId}.${datasetId}.users\`
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @user_id
     `;
@@ -381,9 +373,10 @@ export class BigQueryService {
   // ==================== ユーザー登録申請 ====================
 
   async getUserRequests(): Promise<any[]> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.user_requests\`
+      FROM \`${currentProjectId}.${datasetId}.user_requests\`
       ORDER BY requested_at DESC
     `;
     const [rows] = await bigquery.query({
@@ -470,8 +463,9 @@ export class BigQueryService {
     await dataset.table('users').insert([newUser]);
 
     // 申請を承認済みに更新
+    const currentProjectId = validateProjectId();
     const query = `
-      UPDATE \`${projectId}.${datasetId}.user_requests\`
+      UPDATE \`${currentProjectId}.${datasetId}.user_requests\`
       SET status = 'approved',
           reviewed_at = CURRENT_TIMESTAMP(),
           reviewed_by = @reviewed_by,
@@ -503,8 +497,9 @@ export class BigQueryService {
     }
 
     // 申請を却下済みに更新
+    const currentProjectId = validateProjectId();
     const query = `
-      UPDATE \`${projectId}.${datasetId}.user_requests\`
+      UPDATE \`${currentProjectId}.${datasetId}.user_requests\`
       SET status = 'rejected',
           reviewed_at = CURRENT_TIMESTAMP(),
           reviewed_by = @reviewed_by,
@@ -526,9 +521,10 @@ export class BigQueryService {
   // ==================== メッセージ ====================
   
   async getMessages(project_id: string): Promise<any[]> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.messages\`
+      FROM \`${currentProjectId}.${datasetId}.messages\`
       WHERE project_id = @project_id
       ORDER BY timestamp DESC
     `;
@@ -540,9 +536,10 @@ export class BigQueryService {
   }
 
   async getAllMessages(): Promise<any[]> {
+    const currentProjectId = validateProjectId();
     const query = `
       SELECT *
-      FROM \`${projectId}.${datasetId}.messages\`
+      FROM \`${currentProjectId}.${datasetId}.messages\`
       ORDER BY timestamp DESC
     `;
     const [rows] = await bigquery.query({
@@ -559,9 +556,10 @@ export class BigQueryService {
   async markMessagesAsRead(message_ids: string[]): Promise<void> {
     if (message_ids.length === 0) return;
     
+    const currentProjectId = validateProjectId();
     const placeholders = message_ids.map((_, i) => `@message_id_${i}`).join(', ');
     const query = `
-      UPDATE \`${projectId}.${datasetId}.messages\`
+      UPDATE \`${currentProjectId}.${datasetId}.messages\`
       SET is_read = TRUE
       WHERE message_id IN (${placeholders})
     `;
