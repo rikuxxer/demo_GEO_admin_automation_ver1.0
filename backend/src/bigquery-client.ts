@@ -10,7 +10,7 @@ const BQ_LOCATION = 'asia-northeast1'; // 東京リージョン
 // Cloud Runではサービスアカウントが自動的に認証されるため、keyFilenameは不要
 const bigqueryConfig: any = {
   projectId,
-  // locationはクライアント初期化時には設定しない（クエリ実行時に指定）
+  location: BQ_LOCATION, // クライアント初期化時にlocationを設定
 };
 
 // ローカル開発環境でのみkeyFilenameを使用
@@ -46,10 +46,12 @@ export class BigQueryService {
         location: BQ_LOCATION,
         query: query.substring(0, 100) + '...',
       });
-      // locationをクエリ実行時に明示的に指定
+      
+      // locationはクライアント初期化時に設定されているため、クエリ実行時には不要
+      // ただし、明示的に指定することも可能
       const [rows] = await bigquery.query({
         query,
-        location: BQ_LOCATION,
+        location: BQ_LOCATION, // 明示的に指定
       });
       console.log('✅ BigQuery query successful, rows:', rows.length);
       return rows;
