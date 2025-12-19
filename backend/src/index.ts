@@ -17,20 +17,44 @@ const allowedOrigins = [
   'http://localhost:3000',
   // Cloud RunのフロントエンドURLも許可（環境変数から動的に取得）
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  // 一般的なCloud RunのURLパターンも許可（開発中）
+  /^https:\/\/universegeo.*\.run\.app$/,
 ].filter(Boolean); // 空の値を除外
+
+console.log('🌐 CORS設定:', {
+  FRONTEND_URL,
+  allowedOrigins: allowedOrigins.map(o => typeof o === 'string' ? o : 'regex pattern'),
+});
 
 // ミドルウェア
 app.use(cors({
   origin: (origin, callback) => {
-    // originが未設定（同一オリジンリクエスト）または許可されたoriginの場合
-    if (!origin || allowedOrigins.includes(origin)) {
+    // originが未設定（同一オリジンリクエスト）の場合
+    if (!origin) {
       callback(null, true);
-    } else {
-      console.warn(`⚠️ CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      return;
     }
+    
+    // 文字列のoriginをチェック
+    if (allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    })) {
+      callback(null, true);
+      return;
+    }
+    
+    console.warn(`⚠️ CORS blocked origin: ${origin}`);
+    console.warn(`   Allowed origins:`, allowedOrigins);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
 
