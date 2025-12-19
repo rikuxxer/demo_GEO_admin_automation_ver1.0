@@ -40,11 +40,14 @@ export class BigQueryService {
       console.log('🔍 BigQuery query config:', {
         projectId,
         datasetId,
-        location: bigqueryConfig.location,
+        location: BQ_LOCATION,
         query: query.substring(0, 100) + '...',
       });
-      // locationはクライアント初期化時に設定されているため、クエリ実行時には不要
-      const [rows] = await bigquery.query(query);
+      // locationをクエリ実行時に明示的に指定
+      const [rows] = await bigquery.query({
+        query,
+        location: BQ_LOCATION,
+      });
       console.log('✅ BigQuery query successful, rows:', rows.length);
       return rows;
     } catch (error: any) {
@@ -95,6 +98,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { project_id, ...updates },
+      location: BQ_LOCATION,
     });
   }
 
@@ -106,6 +110,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { project_id },
+      location: BQ_LOCATION,
     });
   }
 
@@ -117,7 +122,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.segments\`
       ORDER BY segment_registered_at DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: BQ_LOCATION,
+    });
     return rows;
   }
 
@@ -157,6 +165,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { segment_id, ...updates },
+      location: BQ_LOCATION,
     });
   }
 
@@ -168,7 +177,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.pois\`
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: BQ_LOCATION,
+    });
     return rows;
   }
 
@@ -217,6 +229,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { poi_id, ...updates },
+      location: BQ_LOCATION,
     });
   }
 
@@ -228,6 +241,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { poi_id },
+      location: BQ_LOCATION,
     });
   }
 
@@ -239,7 +253,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.users\`
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: BQ_LOCATION,
+    });
     return rows;
   }
 
@@ -278,6 +295,7 @@ export class BigQueryService {
     await bigquery.query({
       query,
       params: { user_id, ...updates },
+      location: BQ_LOCATION,
     });
   }
 
@@ -289,7 +307,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.user_requests\`
       ORDER BY requested_at DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: BQ_LOCATION,
+    });
     return rows;
   }
 
@@ -386,6 +407,7 @@ export class BigQueryService {
         reviewed_by: reviewedBy,
         review_comment: comment || null
       },
+      location: BQ_LOCATION,
     });
   }
 
@@ -418,6 +440,7 @@ export class BigQueryService {
         reviewed_by: reviewedBy,
         review_comment: comment
       },
+      location: BQ_LOCATION,
     });
   }
 
@@ -443,7 +466,10 @@ export class BigQueryService {
       FROM \`${projectId}.${datasetId}.messages\`
       ORDER BY timestamp DESC
     `;
-    const [rows] = await bigquery.query(query);
+    const [rows] = await bigquery.query({
+      query,
+      location: BQ_LOCATION,
+    });
     return rows;
   }
 
@@ -469,6 +495,7 @@ export class BigQueryService {
     await bigquery.query({ 
       query, 
       params,
+      location: BQ_LOCATION,
     });
   }
 
