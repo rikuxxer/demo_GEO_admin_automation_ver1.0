@@ -131,6 +131,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
+      location: BQ_LOCATION,
     });
     return rows[0] || null;
   }
@@ -339,6 +340,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { email },
+      location: BQ_LOCATION,
     });
     return rows[0] || null;
   }
@@ -531,6 +533,7 @@ export class BigQueryService {
     const [rows] = await bigquery.query({
       query,
       params: { project_id },
+      location: BQ_LOCATION,
     });
     return rows;
   }
