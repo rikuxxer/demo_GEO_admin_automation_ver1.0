@@ -40,6 +40,7 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.NODE_ENV !== 'prod
 
 // ログ出力（projectIdは使用時に取得）
 // 安全にログ出力（GCP_PROJECT_IDが空文字列の場合も考慮）
+// モジュール読み込み時には環境変数が設定されていない可能性があるため、エラーをスローしない
 const projectIdPreview = process.env.GCP_PROJECT_ID && process.env.GCP_PROJECT_ID.trim() 
   ? `${process.env.GCP_PROJECT_ID.substring(0, Math.min(10, process.env.GCP_PROJECT_ID.length))}...` 
   : 'NOT SET (will be validated on first use)';
@@ -51,6 +52,13 @@ console.log('🔧 BigQuery client initialization:', {
   hasKeyFilename: !!bigqueryConfig.keyFilename,
   nodeEnv: process.env.NODE_ENV,
 });
+
+// 環境変数が設定されていない場合の警告（エラーはスローしない）
+if (!process.env.GCP_PROJECT_ID || !process.env.GCP_PROJECT_ID.trim()) {
+  console.warn('⚠️ 警告: GCP_PROJECT_ID環境変数が設定されていません。');
+  console.warn('   実際にBigQueryを使用する際にエラーが発生します。');
+  console.warn('   Cloud Runの環境変数設定を確認してください。');
+}
 
 // BigQueryクライアントの初期化（エラーハンドリング付き）
 let bigquery: BigQuery;
@@ -676,5 +684,16 @@ export class BigQueryService {
   }
 }
 
-export const bqService = new BigQueryService();
+// BigQueryServiceのインスタンスを作成
+// モジュール読み込み時にエラーが発生しないように、遅延初期化を使用
+let bqServiceInstance: BigQueryService | null = null;
+
+function getBqService(): BigQueryService {
+  if (!bqServiceInstance) {
+    bqServiceInstance = new BigQueryService();
+  }
+  return bqServiceInstance;
+}
+
+export const bqService = getBqService();
 

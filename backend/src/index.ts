@@ -1,10 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { bqService } from './bigquery-client';
 
 // 環境変数を読み込み
 dotenv.config();
+
+// 環境変数の確認（アプリケーション起動時）
+console.log('🔍 環境変数の確認（起動時）:');
+console.log(`  GCP_PROJECT_ID: ${process.env.GCP_PROJECT_ID ? '✅ SET' : '❌ NOT SET'}`);
+console.log(`  BQ_DATASET: ${process.env.BQ_DATASET ? '✅ SET' : '❌ NOT SET'}`);
+
+// BigQueryサービスのインポート
+// モジュール読み込み時にエラーが発生する可能性があるため、
+// エラーハンドリングは各エンドポイントで行う
+import { bqService } from './bigquery-client';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
