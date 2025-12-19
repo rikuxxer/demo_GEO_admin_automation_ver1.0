@@ -43,18 +43,46 @@ app.get('/health', (req, res) => {
 
 app.get('/api/projects', async (req, res) => {
   try {
+    // 環境変数の確認
+    if (!process.env.GCP_PROJECT_ID) {
+      console.error('❌ GCP_PROJECT_ID環境変数が設定されていません');
+      return res.status(500).json({
+        error: 'GCP_PROJECT_ID環境変数が設定されていません',
+        type: 'ConfigurationError',
+        details: 'Cloud Runの環境変数設定を確認してください。GitHub SecretsのGCP_PROJECT_IDが正しく設定されているか確認してください。',
+      });
+    }
+    
     const projects = await bqService.getProjects();
     res.json(projects);
   } catch (error: any) {
     console.error('Error fetching projects:', error);
     console.error('Error stack:', error.stack);
+    console.error('Environment variables:', {
+      GCP_PROJECT_ID: process.env.GCP_PROJECT_ID ? 'SET' : 'NOT SET',
+      BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
+    });
+    
     // より詳細なエラーメッセージを返す
     const errorMessage = error.message || 'プロジェクトの取得に失敗しました';
-    const errorDetails = {
+    const errorDetails: any = {
       error: errorMessage,
       type: error.name || 'UnknownError',
-      ...(process.env.NODE_ENV !== 'production' && { stack: error.stack }),
     };
+    
+    // GCP_PROJECT_IDが設定されていない場合の詳細情報
+    if (errorMessage.includes('universegeo-project') || !process.env.GCP_PROJECT_ID) {
+      errorDetails.details = 'GCP_PROJECT_ID環境変数が正しく設定されていません。Cloud Runの環境変数設定を確認してください。';
+      errorDetails.configuration = {
+        GCP_PROJECT_ID: process.env.GCP_PROJECT_ID || 'NOT SET',
+        BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
+      };
+    }
+    
+    if (process.env.NODE_ENV !== 'production') {
+      errorDetails.stack = error.stack;
+    }
+    
     res.status(500).json(errorDetails);
   }
 });
