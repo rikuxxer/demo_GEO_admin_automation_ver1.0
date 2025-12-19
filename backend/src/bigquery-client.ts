@@ -56,14 +56,30 @@ export class BigQueryService {
   
   async getProjects(): Promise<any[]> {
     try {
+      // プロジェクトIDが設定されているか再確認
+      const currentProjectId = process.env.GCP_PROJECT_ID;
+      if (!currentProjectId || currentProjectId.trim() === '') {
+        const errorMsg = 'GCP_PROJECT_ID環境変数が設定されていません。Cloud Runの環境変数設定を確認してください。';
+        console.error('❌', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      // projectId変数と環境変数が一致しているか確認
+      if (currentProjectId !== projectId) {
+        console.warn('⚠️ projectId変数と環境変数が一致していません:', {
+          projectIdVariable: projectId,
+          envVariable: currentProjectId,
+        });
+      }
+      
       const query = `
         SELECT *
-        FROM \`${projectId}.${datasetId}.projects\`
+        FROM \`${currentProjectId}.${datasetId}.projects\`
         ORDER BY _register_datetime DESC
       `;
       
       console.log('🔍 BigQuery query config:', {
-        projectId,
+        projectId: currentProjectId,
         datasetId,
         location: BQ_LOCATION,
         locationType: typeof BQ_LOCATION,
@@ -99,11 +115,18 @@ export class BigQueryService {
         message: error.message,
         code: error.code,
         errors: error.errors,
-        projectId,
+        projectId: process.env.GCP_PROJECT_ID || 'NOT SET',
         datasetId,
         location: BQ_LOCATION,
       });
-      throw new Error(`BigQuery error: ${error.message || 'Unknown error'}`);
+      
+      // より詳細なエラーメッセージを構築
+      let errorMessage = error.message || 'Unknown error';
+      if (errorMessage.includes('universegeo-project')) {
+        errorMessage = 'GCP_PROJECT_ID環境変数が設定されていません。Cloud Runの環境変数設定を確認してください。';
+      }
+      
+      throw new Error(`BigQuery error: ${errorMessage}`);
     }
   }
 
