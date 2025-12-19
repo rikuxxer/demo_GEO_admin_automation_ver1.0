@@ -1,7 +1,20 @@
 import { BigQuery } from '@google-cloud/bigquery';
 
-const projectId = process.env.GCP_PROJECT_ID || 'universegeo-project';
+// 環境変数からプロジェクトIDを取得（必須）
+const projectId = process.env.GCP_PROJECT_ID;
 const datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
+
+// プロジェクトIDが設定されていない場合はエラー
+if (!projectId || projectId.trim() === '') {
+  const errorMsg = 'GCP_PROJECT_ID環境変数が設定されていません';
+  console.error('❌', errorMsg);
+  throw new Error(errorMsg);
+}
+
+console.log('✅ 環境変数確認:', {
+  GCP_PROJECT_ID: projectId ? `${projectId.substring(0, 10)}...` : 'NOT SET',
+  BQ_DATASET: datasetId,
+});
 
 // BigQueryのロケーション（固定値）
 // 注意: この値は必ず'asia-northeast1'である必要があります
