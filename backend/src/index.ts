@@ -36,7 +36,14 @@ app.use(express.json({ limit: '10mb' }));
 
 // ヘルスチェック
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: {
+      GCP_PROJECT_ID: process.env.GCP_PROJECT_ID ? 'SET' : 'NOT SET',
+      BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
+    }
+  });
 });
 
 // ==================== プロジェクト ====================
