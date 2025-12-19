@@ -4,7 +4,14 @@ const projectId = process.env.GCP_PROJECT_ID || 'universegeo-project';
 const datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
 
 // BigQueryのロケーション（固定値）
-const BQ_LOCATION = 'asia-northeast1'; // 東京リージョン
+// 注意: この値は必ず'asia-northeast1'である必要があります
+const BQ_LOCATION: string = 'asia-northeast1'; // 東京リージョン
+
+// BQ_LOCATIONが正しく設定されているか確認
+if (!BQ_LOCATION || BQ_LOCATION.trim() === '') {
+  throw new Error('BQ_LOCATION is not set correctly');
+}
+console.log('✅ BQ_LOCATION initialized:', BQ_LOCATION);
 
 // BigQueryクライアントの初期化
 // Cloud Runではサービスアカウントが自動的に認証されるため、keyFilenameは不要
