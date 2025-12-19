@@ -59,8 +59,15 @@ try {
   console.log('✅ BigQuery client created successfully');
 } catch (error: any) {
   console.error('❌ BigQuery client initialization failed:', error);
+  console.error('Error details:', {
+    message: error.message,
+    stack: error.stack,
+    name: error.name,
+  });
   // エラーが発生してもアプリケーションは起動を続ける（実際の使用時にエラーが発生する）
-  throw new Error(`BigQuery client initialization failed: ${error.message}`);
+  // ただし、BigQueryクライアントが作成できない場合は、ダミーのクライアントを作成
+  console.warn('⚠️ Creating fallback BigQuery client');
+  bigquery = new BigQuery();
 }
 
 // datasetは使用時に取得（projectIdが設定されている必要がある）
@@ -477,7 +484,7 @@ export class BigQueryService {
       last_login: null
     };
 
-    await dataset.table('users').insert([newUser]);
+    await getDataset().table('users').insert([newUser]);
 
     // 申請を承認済みに更新
     const currentProjectId = validateProjectId();
