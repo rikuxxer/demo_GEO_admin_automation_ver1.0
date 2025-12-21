@@ -443,6 +443,97 @@ jobs:
           echo "BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
           echo "🚀 Backend deployed to: $BACKEND_URL"
 
+      - name: Ensure Environment Variables Are Set
+        if: success()
+        run: |
+          # リージョンの値を明示的に設定
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          echo "🔍 環境変数の設定を確認中..."
+          
+          # 現在の環境変数を確認
+          CURRENT_GCP_PROJECT_ID=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region "$REGION_VALUE" \
+            --project ${{ env.PROJECT_ID }} \
+            --format='value(spec.template.spec.containers[0].env[?name="GCP_PROJECT_ID"].value)' 2>/dev/null || echo '')
+          
+          # 環境変数が設定されていない場合、手動で設定
+          if [ -z "$CURRENT_GCP_PROJECT_ID" ]; then
+            echo "⚠️ GCP_PROJECT_IDが設定されていません。環境変数を設定します..."
+            
+            # 環境変数の値を変数に保存
+            GCP_PROJECT_ID_VAL="${{ secrets.GCP_PROJECT_ID }}"
+            BQ_DATASET_VAL="${{ secrets.BQ_DATASET }}"
+            GOOGLE_SPREADSHEET_ID_VAL="${{ secrets.GOOGLE_SPREADSHEET_ID }}"
+            GOOGLE_SHEETS_API_KEY_VAL="${{ secrets.GOOGLE_SHEETS_API_KEY }}"
+            GOOGLE_SHEET_NAME_VAL="${{ secrets.GOOGLE_SHEET_NAME }}"
+            FRONTEND_URL_VAL="${{ secrets.FRONTEND_URL }}"
+            
+            # 必須環境変数の確認
+            if [ -z "$GCP_PROJECT_ID_VAL" ]; then
+              echo "❌ エラー: GCP_PROJECT_IDがGitHub Secretsに設定されていません"
+              exit 1
+            fi
+            
+            if [ -z "$BQ_DATASET_VAL" ]; then
+              echo "❌ エラー: BQ_DATASETがGitHub Secretsに設定されていません"
+              exit 1
+            fi
+            
+            # 環境変数を構築
+            ENV_VARS="GCP_PROJECT_ID=$GCP_PROJECT_ID_VAL,BQ_DATASET=$BQ_DATASET_VAL"
+            
+            if [ -n "$GOOGLE_SPREADSHEET_ID_VAL" ]; then
+              ENV_VARS="$ENV_VARS,GOOGLE_SPREADSHEET_ID=$GOOGLE_SPREADSHEET_ID_VAL"
+            fi
+            
+            if [ -n "$GOOGLE_SHEETS_API_KEY_VAL" ]; then
+              ENV_VARS="$ENV_VARS,GOOGLE_SHEETS_API_KEY=$GOOGLE_SHEETS_API_KEY_VAL"
+            fi
+            
+            if [ -n "$GOOGLE_SHEET_NAME_VAL" ]; then
+              ENV_VARS="$ENV_VARS,GOOGLE_SHEET_NAME=$GOOGLE_SHEET_NAME_VAL"
+            else
+              ENV_VARS="$ENV_VARS,GOOGLE_SHEET_NAME=シート1"
+            fi
+            
+            if [ -n "$FRONTEND_URL_VAL" ]; then
+              ENV_VARS="$ENV_VARS,FRONTEND_URL=$FRONTEND_URL_VAL"
+            else
+              ENV_VARS="$ENV_VARS,FRONTEND_URL=http://localhost:5173"
+            fi
+            
+            echo "📋 環境変数を設定中..."
+            echo "ENV_VARS: ${ENV_VARS:0:100}..."
+            
+            # 環境変数を設定
+            gcloud run services update ${{ env.SERVICE_NAME }} \
+              --region "$REGION_VALUE" \
+              --project ${{ env.PROJECT_ID }} \
+              --set-env-vars "$ENV_VARS" \
+              --quiet
+            
+            echo "✅ 環境変数の設定が完了しました"
+            
+            # 再度確認
+            sleep 3
+            VERIFIED_GCP_PROJECT_ID=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+              --region "$REGION_VALUE" \
+              --project ${{ env.PROJECT_ID }} \
+              --format='value(spec.template.spec.containers[0].env[?name="GCP_PROJECT_ID"].value)' 2>/dev/null || echo '')
+            
+            if [ -n "$VERIFIED_GCP_PROJECT_ID" ]; then
+              echo "✅ 確認: GCP_PROJECT_IDが正しく設定されました: $VERIFIED_GCP_PROJECT_ID"
+            else
+              echo "❌ 警告: 環境変数の設定に失敗した可能性があります"
+            fi
+          else
+            echo "✅ GCP_PROJECT_IDは既に設定されています: $CURRENT_GCP_PROJECT_ID"
+          fi
+
       - name: Verify Cloud Run Environment Variables
         run: |
           # リージョンの値を明示的に設定
