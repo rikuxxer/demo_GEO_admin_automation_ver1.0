@@ -290,6 +290,9 @@ jobs:
           echo "  --project ${{ env.PROJECT_ID }}"
           echo ""
           
+          # 注意: --set-env-varsは1回だけ指定する必要があります
+          # 複数回指定すると、最後の1つだけが有効になります
+          # すべての環境変数を1つのカンマ区切り文字列として設定します
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region "$REGION_VALUE" \
@@ -317,11 +320,34 @@ jobs:
             
             if [ -z "$ACTUAL_GCP_PROJECT_ID" ]; then
               echo "⚠️ 警告: デプロイは成功しましたが、GCP_PROJECT_IDが設定されていません"
-              echo "   手動で環境変数を設定してください:"
-              echo "   gcloud run services update ${{ env.SERVICE_NAME }} \\"
-              echo "     --region $REGION_VALUE \\"
-              echo "     --project ${{ env.PROJECT_ID }} \\"
-              echo "     --set-env-vars \"$ENV_VARS\""
+              echo "   環境変数を再設定します..."
+              
+              # 環境変数を再設定（--set-env-varsを使用）
+              gcloud run services update ${{ env.SERVICE_NAME }} \
+                --region "$REGION_VALUE" \
+                --project ${{ env.PROJECT_ID }} \
+                --set-env-vars "$ENV_VARS" \
+                --quiet
+              
+              echo "✅ 環境変数の再設定が完了しました"
+              
+              # 再度確認
+              sleep 3
+              VERIFIED_GCP_PROJECT_ID=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+                --region "$REGION_VALUE" \
+                --project ${{ env.PROJECT_ID }} \
+                --format='value(spec.template.spec.containers[0].env[?name="GCP_PROJECT_ID"].value)' 2>/dev/null || echo '')
+              
+              if [ -n "$VERIFIED_GCP_PROJECT_ID" ]; then
+                echo "✅ 確認: GCP_PROJECT_IDが正しく設定されました: $VERIFIED_GCP_PROJECT_ID"
+              else
+                echo "❌ エラー: 環境変数の設定に失敗しました"
+                echo "   手動で環境変数を設定してください:"
+                echo "   gcloud run services update ${{ env.SERVICE_NAME }} \\"
+                echo "     --region $REGION_VALUE \\"
+                echo "     --project ${{ env.PROJECT_ID }} \\"
+                echo "     --set-env-vars \"$ENV_VARS\""
+              fi
             else
               echo "✅ GCP_PROJECT_IDが正しく設定されています: $ACTUAL_GCP_PROJECT_ID"
             fi
