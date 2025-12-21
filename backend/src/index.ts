@@ -453,6 +453,25 @@ app.post('/api/sheets/export', async (req, res) => {
   }
 });
 
+// 404ハンドラー（定義されていないルート）
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Cannot ${req.method} ${req.path}`,
+    availableEndpoints: {
+      root: '/',
+      health: '/health',
+      projects: '/api/projects',
+      segments: '/api/segments',
+      pois: '/api/pois',
+      users: '/api/users',
+      userRequests: '/api/user-requests',
+      messages: '/api/messages',
+      sheets: '/api/sheets/export',
+    }
+  });
+});
+
 // サーバー起動（エラーハンドリング付き）
 try {
   app.listen(PORT, () => {
