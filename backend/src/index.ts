@@ -429,26 +429,54 @@ app.post('/api/sheets/export', async (req, res) => {
   }
 });
 
-// サーバー起動
-app.listen(PORT, () => {
-  console.log(`🚀 Backend API server running on port ${PORT}`);
-  console.log(`📊 BigQuery Project: ${process.env.GCP_PROJECT_ID || 'NOT SET'}`);
-  console.log(`📊 BigQuery Dataset: ${process.env.BQ_DATASET || 'NOT SET'}`);
-  console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔐 Service Account: ${process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'SET' : 'Using default (Cloud Run)'}`);
-  console.log('');
-  console.log('📋 環境変数の確認:');
-  console.log(`  GCP_PROJECT_ID: ${process.env.GCP_PROJECT_ID ? '✅ SET' : '❌ NOT SET'}`);
-  console.log(`  BQ_DATASET: ${process.env.BQ_DATASET ? '✅ SET' : '❌ NOT SET'}`);
-  console.log(`  GOOGLE_SPREADSHEET_ID: ${process.env.GOOGLE_SPREADSHEET_ID ? '✅ SET' : '❌ NOT SET'}`);
-  console.log(`  GOOGLE_SHEETS_API_KEY: ${process.env.GOOGLE_SHEETS_API_KEY ? '✅ SET' : '❌ NOT SET'}`);
-  
-  // 環境変数が設定されていない場合の警告
-  if (!process.env.GCP_PROJECT_ID) {
-    console.error('');
-    console.error('❌ 警告: GCP_PROJECT_ID環境変数が設定されていません！');
-    console.error('   Cloud Runの環境変数設定を確認してください。');
-  }
+// サーバー起動（エラーハンドリング付き）
+try {
+  app.listen(PORT, () => {
+    console.log(`🚀 Backend API server running on port ${PORT}`);
+    console.log(`📊 BigQuery Project: ${process.env.GCP_PROJECT_ID || 'NOT SET'}`);
+    console.log(`📊 BigQuery Dataset: ${process.env.BQ_DATASET || 'NOT SET'}`);
+    console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔐 Service Account: ${process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'SET' : 'Using default (Cloud Run)'}`);
+    console.log('');
+    console.log('📋 環境変数の確認:');
+    console.log(`  GCP_PROJECT_ID: ${process.env.GCP_PROJECT_ID ? '✅ SET' : '❌ NOT SET'}`);
+    console.log(`  BQ_DATASET: ${process.env.BQ_DATASET ? '✅ SET' : '❌ NOT SET'}`);
+    console.log(`  GOOGLE_SPREADSHEET_ID: ${process.env.GOOGLE_SPREADSHEET_ID ? '✅ SET' : '❌ NOT SET'}`);
+    console.log(`  GOOGLE_SHEETS_API_KEY: ${process.env.GOOGLE_SHEETS_API_KEY ? '✅ SET' : '❌ NOT SET'}`);
+    
+    // 環境変数が設定されていない場合の警告
+    if (!process.env.GCP_PROJECT_ID) {
+      console.error('');
+      console.error('❌ 警告: GCP_PROJECT_ID環境変数が設定されていません！');
+      console.error('   Cloud Runの環境変数設定を確認してください。');
+      console.error('   ただし、サーバーは起動します（実際のAPI呼び出し時にエラーが発生します）。');
+    }
+  });
+} catch (error: any) {
+  console.error('❌ サーバー起動エラー:', error);
+  console.error('Error details:', {
+    message: error.message,
+    stack: error.stack,
+    name: error.name,
+  });
+  process.exit(1);
+}
+
+// 未処理のエラーをキャッチ
+process.on('uncaughtException', (error: Error) => {
+  console.error('❌ 未処理の例外:', error);
+  console.error('Error details:', {
+    message: error.message,
+    stack: error.stack,
+    name: error.name,
+  });
+  // サーバーを終了せずに続行（Cloud Runが再起動する）
+});
+
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  console.error('❌ 未処理のPromise拒否:', reason);
+  console.error('Promise:', promise);
+  // サーバーを終了せずに続行（Cloud Runが再起動する）
 });
 

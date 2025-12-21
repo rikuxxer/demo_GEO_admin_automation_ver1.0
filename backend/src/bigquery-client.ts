@@ -61,27 +61,47 @@ if (!process.env.GCP_PROJECT_ID || !process.env.GCP_PROJECT_ID.trim()) {
 }
 
 // BigQueryクライアントの初期化（エラーハンドリング付き）
-let bigquery: BigQuery;
-try {
-  bigquery = new BigQuery(bigqueryConfig);
-  console.log('✅ BigQuery client created successfully');
-} catch (error: any) {
-  console.error('❌ BigQuery client initialization failed:', error);
-  console.error('Error details:', {
-    message: error.message,
-    stack: error.stack,
-    name: error.name,
-  });
-  // エラーが発生してもアプリケーションは起動を続ける（実際の使用時にエラーが発生する）
-  // ただし、BigQueryクライアントが作成できない場合は、ダミーのクライアントを作成
-  console.warn('⚠️ Creating fallback BigQuery client');
-  bigquery = new BigQuery();
+// 注意: モジュール読み込み時にエラーが発生しても、アプリケーションは起動を続ける
+let bigquery: BigQuery | null = null;
+
+function initializeBigQueryClient(): BigQuery {
+  if (bigquery) {
+    return bigquery;
+  }
+  
+  try {
+    bigquery = new BigQuery(bigqueryConfig);
+    console.log('✅ BigQuery client created successfully');
+    return bigquery;
+  } catch (error: any) {
+    console.error('❌ BigQuery client initialization failed:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    // エラーが発生してもアプリケーションは起動を続ける（実際の使用時にエラーが発生する）
+    // ただし、BigQueryクライアントが作成できない場合は、デフォルト設定で再試行
+    console.warn('⚠️ Creating fallback BigQuery client with default config');
+    try {
+      bigquery = new BigQuery();
+      return bigquery;
+    } catch (fallbackError: any) {
+      console.error('❌ Fallback BigQuery client creation also failed:', fallbackError);
+      // 最後の手段として、nullを返す（実際の使用時にエラーが発生する）
+      throw new Error('BigQuery client initialization failed completely');
+    }
+  }
 }
+
+// モジュール読み込み時には初期化しない（実際の使用時に初期化）
+// これにより、モジュール読み込み時のエラーを回避
 
 // datasetは使用時に取得（projectIdが設定されている必要がある）
 function getDataset() {
   const currentProjectId = validateProjectId();
-  return bigquery.dataset(datasetId);
+  const bqClient = initializeBigQueryClient();
+  return bqClient.dataset(datasetId);
 }
 
 export class BigQueryService {
@@ -126,7 +146,7 @@ export class BigQueryService {
         location: queryOptions.location,
       }));
       
-      const [rows] = await bigquery.query(queryOptions);
+      const [rows] = await initializeBigQueryClient().query(queryOptions);
       console.log('✅ BigQuery query successful, rows:', rows.length);
       return rows;
     } catch (error: any) {
@@ -157,7 +177,7 @@ export class BigQueryService {
       FROM \`${currentProjectId}.${datasetId}.projects\`
       WHERE project_id = @project_id
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       params: { project_id },
       location: BQ_LOCATION,
@@ -187,7 +207,7 @@ export class BigQueryService {
       WHERE project_id = @project_id
     `;
     
-    await bigquery.query({
+    await initializeBigQueryClient().query({
       query,
       params: { project_id, ...updates },
       location: BQ_LOCATION,
@@ -200,7 +220,7 @@ export class BigQueryService {
       DELETE FROM \`${currentProjectId}.${datasetId}.projects\`
       WHERE project_id = @project_id
     `;
-    await bigquery.query({
+    await initializeBigQueryClient().query({
       query,
       params: { project_id },
       location: BQ_LOCATION,
@@ -216,7 +236,7 @@ export class BigQueryService {
       FROM \`${currentProjectId}.${datasetId}.segments\`
       ORDER BY segment_registered_at DESC
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
     });
@@ -231,7 +251,7 @@ export class BigQueryService {
       WHERE project_id = @project_id
       ORDER BY segment_registered_at DESC
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       params: { project_id },
       location: BQ_LOCATION,
@@ -259,7 +279,7 @@ export class BigQueryService {
       WHERE segment_id = @segment_id
     `;
     
-    await bigquery.query({
+    await initializeBigQueryClient().query({
       query,
       params: { segment_id, ...updates },
       location: BQ_LOCATION,
@@ -275,7 +295,7 @@ export class BigQueryService {
       FROM \`${currentProjectId}.${datasetId}.pois\`
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
     });
@@ -290,7 +310,7 @@ export class BigQueryService {
       WHERE project_id = @project_id
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       params: { project_id },
     });
@@ -326,7 +346,7 @@ export class BigQueryService {
       WHERE poi_id = @poi_id
     `;
     
-    await bigquery.query({
+    await initializeBigQueryClient().query({
       query,
       params: { poi_id, ...updates },
       location: BQ_LOCATION,
@@ -339,7 +359,7 @@ export class BigQueryService {
       DELETE FROM \`${currentProjectId}.${datasetId}.pois\`
       WHERE poi_id = @poi_id
     `;
-    await bigquery.query({
+    await initializeBigQueryClient().query({
       query,
       params: { poi_id },
       location: BQ_LOCATION,
@@ -355,7 +375,7 @@ export class BigQueryService {
       FROM \`${currentProjectId}.${datasetId}.users\`
       ORDER BY created_at DESC
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
     });
@@ -369,7 +389,7 @@ export class BigQueryService {
       FROM \`${currentProjectId}.${datasetId}.users\`
       WHERE email = @email
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       params: { email },
       location: BQ_LOCATION,
@@ -397,7 +417,7 @@ export class BigQueryService {
       WHERE user_id = @user_id
     `;
     
-    await bigquery.query({
+    await initializeBigQueryClient().query({
       query,
       params: { user_id, ...updates },
       location: BQ_LOCATION,
@@ -413,7 +433,7 @@ export class BigQueryService {
       FROM \`${currentProjectId}.${datasetId}.user_requests\`
       ORDER BY requested_at DESC
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
     });
@@ -507,7 +527,7 @@ export class BigQueryService {
       WHERE user_id = @user_id
     `;
     
-    await bigquery.query({
+    await initializeBigQueryClient().query({
       query,
       params: {
         user_id: requestId,
@@ -541,7 +561,7 @@ export class BigQueryService {
       WHERE user_id = @user_id
     `;
     
-    await bigquery.query({
+    await initializeBigQueryClient().query({
       query,
       params: {
         user_id: requestId,
@@ -562,7 +582,7 @@ export class BigQueryService {
       WHERE project_id = @project_id
       ORDER BY timestamp DESC
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       params: { project_id },
       location: BQ_LOCATION,
@@ -577,7 +597,7 @@ export class BigQueryService {
       FROM \`${currentProjectId}.${datasetId}.messages\`
       ORDER BY timestamp DESC
     `;
-    const [rows] = await bigquery.query({
+    const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
     });
@@ -604,7 +624,7 @@ export class BigQueryService {
       params[`message_id_${i}`] = id;
     });
     
-    await bigquery.query({ 
+    await initializeBigQueryClient().query({ 
       query, 
       params,
       location: BQ_LOCATION,
