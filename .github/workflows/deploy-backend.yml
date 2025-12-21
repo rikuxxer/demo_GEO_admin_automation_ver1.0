@@ -278,6 +278,18 @@ jobs:
           
           set +e
           echo "🚀 gcloud run deploy コマンドを実行中..."
+          echo "📋 実行コマンド:"
+          echo "gcloud run deploy ${{ env.SERVICE_NAME }} \\"
+          echo "  --source . \\"
+          echo "  --region \"$REGION_VALUE\" \\"
+          echo "  --allow-unauthenticated \\"
+          echo "  --memory 512Mi \\"
+          echo "  --cpu 1 \\"
+          echo "  --max-instances 10 \\"
+          echo "  --set-env-vars \"$ENV_VARS\" \\"
+          echo "  --project ${{ env.PROJECT_ID }}"
+          echo ""
+          
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region "$REGION_VALUE" \
@@ -290,6 +302,30 @@ jobs:
             2>&1 | tee /tmp/deploy.log
           DEPLOY_EXIT_CODE=$?
           set -e
+          
+          # デプロイが成功した場合、環境変数が正しく設定されたか確認
+          if [ $DEPLOY_EXIT_CODE -eq 0 ]; then
+            echo ""
+            echo "✅ デプロイが成功しました。環境変数を確認中..."
+            sleep 5
+            
+            # 環境変数を確認
+            ACTUAL_GCP_PROJECT_ID=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+              --region "$REGION_VALUE" \
+              --project ${{ env.PROJECT_ID }} \
+              --format='value(spec.template.spec.containers[0].env[?name="GCP_PROJECT_ID"].value)' 2>/dev/null || echo '')
+            
+            if [ -z "$ACTUAL_GCP_PROJECT_ID" ]; then
+              echo "⚠️ 警告: デプロイは成功しましたが、GCP_PROJECT_IDが設定されていません"
+              echo "   手動で環境変数を設定してください:"
+              echo "   gcloud run services update ${{ env.SERVICE_NAME }} \\"
+              echo "     --region $REGION_VALUE \\"
+              echo "     --project ${{ env.PROJECT_ID }} \\"
+              echo "     --set-env-vars \"$ENV_VARS\""
+            else
+              echo "✅ GCP_PROJECT_IDが正しく設定されています: $ACTUAL_GCP_PROJECT_ID"
+            fi
+          fi
           
           echo ""
           echo "📋 デプロイログ（最後の50行）:"
