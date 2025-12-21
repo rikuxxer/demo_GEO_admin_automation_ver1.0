@@ -66,6 +66,30 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 
+// ルートパス（API情報を返す）
+app.get('/', (req, res) => {
+  res.json({
+    message: 'UNIVERSEGEO Backend API',
+    version: '1.0.0',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/health',
+      projects: '/api/projects',
+      segments: '/api/segments',
+      pois: '/api/pois',
+      users: '/api/users',
+      userRequests: '/api/user-requests',
+      messages: '/api/messages',
+      sheets: '/api/sheets/export',
+    },
+    environment: {
+      GCP_PROJECT_ID: process.env.GCP_PROJECT_ID ? 'SET' : 'NOT SET',
+      BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
+    }
+  });
+});
+
 // ヘルスチェック
 app.get('/health', (req, res) => {
   res.json({ 
