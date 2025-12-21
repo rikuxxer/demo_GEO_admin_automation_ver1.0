@@ -158,11 +158,10 @@ jobs:
           fi
 
       - name: Deploy to Cloud Run
-        working-directory: ./backend
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.SERVICE_NAME }}
-          source: .
+          source: ./backend
           region: ${{ env.REGION }}
           project_id: ${{ env.PROJECT_ID }}
           flags: '--allow-unauthenticated --memory 512Mi --cpu 1 --max-instances 10'
