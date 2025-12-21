@@ -198,9 +198,8 @@ jobs:
           fi
           
           # デフォルトのサービスアカウントでデプロイ（権限エラーを回避）
-          # 環境変数を個別に設定（より確実な方法）
-          # カンマ区切りだと値に特殊文字が含まれる場合に問題が発生する可能性があるため、
-          # 個別に--set-env-varsオプションを使用
+          # 環境変数を1つの--set-env-varsオプションで設定（カンマ区切り）
+          # 注意: 値にカンマや特殊文字が含まれる場合は、個別に--update-env-varsを使用する必要がある
           
           echo "📋 設定する環境変数:"
           echo "  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}"
@@ -211,6 +210,34 @@ jobs:
           echo "  FRONTEND_URL: ${{ secrets.FRONTEND_URL || 'http://localhost:5173' }}"
           echo ""
           
+          # 環境変数をカンマ区切りで構築
+          ENV_VARS="GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},BQ_DATASET=${{ secrets.BQ_DATASET }}"
+          
+          # オプショナルな環境変数を追加
+          if [ -n "${{ secrets.GOOGLE_SPREADSHEET_ID }}" ]; then
+            ENV_VARS="$ENV_VARS,GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}"
+          fi
+          
+          if [ -n "${{ secrets.GOOGLE_SHEETS_API_KEY }}" ]; then
+            ENV_VARS="$ENV_VARS,GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }}"
+          fi
+          
+          if [ -n "${{ secrets.GOOGLE_SHEET_NAME }}" ]; then
+            ENV_VARS="$ENV_VARS,GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME }}"
+          else
+            ENV_VARS="$ENV_VARS,GOOGLE_SHEET_NAME=シート1"
+          fi
+          
+          if [ -n "${{ secrets.FRONTEND_URL }}" ]; then
+            ENV_VARS="$ENV_VARS,FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
+          else
+            ENV_VARS="$ENV_VARS,FRONTEND_URL=http://localhost:5173"
+          fi
+          
+          echo "📋 構築された環境変数文字列:"
+          echo "$ENV_VARS" | tr ',' '\n' | sed 's/^/  /'
+          echo ""
+          
           set +e
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
@@ -219,12 +246,7 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --max-instances 10 \
-            --set-env-vars GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}" \
-            --set-env-vars BQ_DATASET="${{ secrets.BQ_DATASET }}" \
-            --set-env-vars GOOGLE_SPREADSHEET_ID="${{ secrets.GOOGLE_SPREADSHEET_ID }}" \
-            --set-env-vars GOOGLE_SHEETS_API_KEY="${{ secrets.GOOGLE_SHEETS_API_KEY }}" \
-            --set-env-vars GOOGLE_SHEET_NAME="${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }}" \
-            --set-env-vars FRONTEND_URL="${{ secrets.FRONTEND_URL || 'http://localhost:5173' }}" \
+            --set-env-vars "$ENV_VARS" \
             --project ${{ env.PROJECT_ID }}
           DEPLOY_EXIT_CODE=$?
           set -e
