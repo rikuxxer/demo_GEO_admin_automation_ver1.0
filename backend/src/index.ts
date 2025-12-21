@@ -11,9 +11,8 @@ console.log(`  GCP_PROJECT_ID: ${process.env.GCP_PROJECT_ID ? '✅ SET' : '❌ N
 console.log(`  BQ_DATASET: ${process.env.BQ_DATASET ? '✅ SET' : '❌ NOT SET'}`);
 
 // BigQueryサービスのインポート
-// モジュール読み込み時にエラーが発生する可能性があるため、
-// エラーハンドリングは各エンドポイントで行う
-import { bqService } from './bigquery-client';
+// モジュール読み込み時にエラーが発生しないように、遅延初期化を使用
+import { getBqService } from './bigquery-client';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -93,7 +92,7 @@ app.get('/api/projects', async (req, res) => {
       });
     }
     
-    const projects = await bqService.getProjects();
+    const projects = await getBqService().getProjects();
     res.json(projects);
   } catch (error: any) {
     console.error('Error fetching projects:', error);
@@ -129,7 +128,7 @@ app.get('/api/projects', async (req, res) => {
 
 app.get('/api/projects/:project_id', async (req, res) => {
   try {
-    const project = await bqService.getProjectById(req.params.project_id);
+    const project = await getBqService().getProjectById(req.params.project_id);
     if (!project) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -142,7 +141,7 @@ app.get('/api/projects/:project_id', async (req, res) => {
 
 app.post('/api/projects', async (req, res) => {
   try {
-    await bqService.createProject(req.body);
+    await getBqService().createProject(req.body);
     res.status(201).json({ message: 'Project created successfully' });
   } catch (error: any) {
     console.error('Error creating project:', error);
@@ -152,7 +151,7 @@ app.post('/api/projects', async (req, res) => {
 
 app.put('/api/projects/:project_id', async (req, res) => {
   try {
-    await bqService.updateProject(req.params.project_id, req.body);
+    await getBqService().updateProject(req.params.project_id, req.body);
     res.json({ message: 'Project updated successfully' });
   } catch (error: any) {
     console.error('Error updating project:', error);
@@ -162,7 +161,7 @@ app.put('/api/projects/:project_id', async (req, res) => {
 
 app.delete('/api/projects/:project_id', async (req, res) => {
   try {
-    await bqService.deleteProject(req.params.project_id);
+    await getBqService().deleteProject(req.params.project_id);
     res.json({ message: 'Project deleted successfully' });
   } catch (error: any) {
     console.error('Error deleting project:', error);
@@ -174,7 +173,7 @@ app.delete('/api/projects/:project_id', async (req, res) => {
 
 app.get('/api/segments', async (req, res) => {
   try {
-    const segments = await bqService.getSegments();
+    const segments = await getBqService().getSegments();
     res.json(segments);
   } catch (error: any) {
     console.error('Error fetching segments:', error);
@@ -184,7 +183,7 @@ app.get('/api/segments', async (req, res) => {
 
 app.get('/api/segments/project/:project_id', async (req, res) => {
   try {
-    const segments = await bqService.getSegmentsByProject(req.params.project_id);
+    const segments = await getBqService().getSegmentsByProject(req.params.project_id);
     res.json(segments);
   } catch (error: any) {
     console.error('Error fetching segments:', error);
@@ -194,7 +193,7 @@ app.get('/api/segments/project/:project_id', async (req, res) => {
 
 app.post('/api/segments', async (req, res) => {
   try {
-    await bqService.createSegment(req.body);
+    await getBqService().createSegment(req.body);
     res.status(201).json({ message: 'Segment created successfully' });
   } catch (error: any) {
     console.error('Error creating segment:', error);
@@ -204,7 +203,7 @@ app.post('/api/segments', async (req, res) => {
 
 app.put('/api/segments/:segment_id', async (req, res) => {
   try {
-    await bqService.updateSegment(req.params.segment_id, req.body);
+    await getBqService().updateSegment(req.params.segment_id, req.body);
     res.json({ message: 'Segment updated successfully' });
   } catch (error: any) {
     console.error('Error updating segment:', error);
@@ -216,7 +215,7 @@ app.put('/api/segments/:segment_id', async (req, res) => {
 
 app.get('/api/pois', async (req, res) => {
   try {
-    const pois = await bqService.getPois();
+    const pois = await getBqService().getPois();
     res.json(pois);
   } catch (error: any) {
     console.error('Error fetching POIs:', error);
@@ -226,7 +225,7 @@ app.get('/api/pois', async (req, res) => {
 
 app.get('/api/pois/project/:project_id', async (req, res) => {
   try {
-    const pois = await bqService.getPoisByProject(req.params.project_id);
+    const pois = await getBqService().getPoisByProject(req.params.project_id);
     res.json(pois);
   } catch (error: any) {
     console.error('Error fetching POIs:', error);
@@ -236,7 +235,7 @@ app.get('/api/pois/project/:project_id', async (req, res) => {
 
 app.post('/api/pois', async (req, res) => {
   try {
-    await bqService.createPoi(req.body);
+    await getBqService().createPoi(req.body);
     res.status(201).json({ message: 'POI created successfully' });
   } catch (error: any) {
     console.error('Error creating POI:', error);
@@ -246,7 +245,7 @@ app.post('/api/pois', async (req, res) => {
 
 app.post('/api/pois/bulk', async (req, res) => {
   try {
-    await bqService.createPoisBulk(req.body.pois);
+    await getBqService().createPoisBulk(req.body.pois);
     res.status(201).json({ message: 'POIs created successfully' });
   } catch (error: any) {
     console.error('Error creating POIs:', error);
@@ -256,7 +255,7 @@ app.post('/api/pois/bulk', async (req, res) => {
 
 app.put('/api/pois/:poi_id', async (req, res) => {
   try {
-    await bqService.updatePoi(req.params.poi_id, req.body);
+    await getBqService().updatePoi(req.params.poi_id, req.body);
     res.json({ message: 'POI updated successfully' });
   } catch (error: any) {
     console.error('Error updating POI:', error);
@@ -266,7 +265,7 @@ app.put('/api/pois/:poi_id', async (req, res) => {
 
 app.delete('/api/pois/:poi_id', async (req, res) => {
   try {
-    await bqService.deletePoi(req.params.poi_id);
+    await getBqService().deletePoi(req.params.poi_id);
     res.json({ message: 'POI deleted successfully' });
   } catch (error: any) {
     console.error('Error deleting POI:', error);
@@ -278,7 +277,7 @@ app.delete('/api/pois/:poi_id', async (req, res) => {
 
 app.get('/api/users', async (req, res) => {
   try {
-    const users = await bqService.getUsers();
+    const users = await getBqService().getUsers();
     res.json(users);
   } catch (error: any) {
     console.error('Error fetching users:', error);
@@ -288,7 +287,7 @@ app.get('/api/users', async (req, res) => {
 
 app.get('/api/users/email/:email', async (req, res) => {
   try {
-    const user = await bqService.getUserByEmail(req.params.email);
+    const user = await getBqService().getUserByEmail(req.params.email);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -301,7 +300,7 @@ app.get('/api/users/email/:email', async (req, res) => {
 
 app.post('/api/users', async (req, res) => {
   try {
-    await bqService.createUser(req.body);
+    await getBqService().createUser(req.body);
     res.status(201).json({ message: 'User created successfully' });
   } catch (error: any) {
     console.error('Error creating user:', error);
@@ -311,7 +310,7 @@ app.post('/api/users', async (req, res) => {
 
 app.put('/api/users/:user_id', async (req, res) => {
   try {
-    await bqService.updateUser(req.params.user_id, req.body);
+    await getBqService().updateUser(req.params.user_id, req.body);
     res.json({ message: 'User updated successfully' });
   } catch (error: any) {
     console.error('Error updating user:', error);
@@ -323,7 +322,7 @@ app.put('/api/users/:user_id', async (req, res) => {
 
 app.get('/api/user-requests', async (req, res) => {
   try {
-    const requests = await bqService.getUserRequests();
+    const requests = await getBqService().getUserRequests();
     res.json(requests);
   } catch (error: any) {
     console.error('Error fetching user requests:', error);
@@ -333,7 +332,7 @@ app.get('/api/user-requests', async (req, res) => {
 
 app.post('/api/user-requests', async (req, res) => {
   try {
-    const request = await bqService.createUserRequest(req.body);
+    const request = await getBqService().createUserRequest(req.body);
     res.status(201).json(request);
   } catch (error: any) {
     console.error('Error creating user request:', error);
@@ -345,7 +344,7 @@ app.post('/api/user-requests/:request_id/approve', async (req, res) => {
   try {
     const { request_id } = req.params;
     const { reviewed_by, comment } = req.body;
-    await bqService.approveUserRequest(request_id, reviewed_by, comment);
+    await getBqService().approveUserRequest(request_id, reviewed_by, comment);
     res.json({ message: 'User request approved successfully' });
   } catch (error: any) {
     console.error('Error approving user request:', error);
@@ -360,7 +359,7 @@ app.post('/api/user-requests/:request_id/reject', async (req, res) => {
     if (!comment) {
       return res.status(400).json({ error: 'Comment is required for rejection' });
     }
-    await bqService.rejectUserRequest(request_id, reviewed_by, comment);
+    await getBqService().rejectUserRequest(request_id, reviewed_by, comment);
     res.json({ message: 'User request rejected successfully' });
   } catch (error: any) {
     console.error('Error rejecting user request:', error);
@@ -372,7 +371,7 @@ app.post('/api/user-requests/:request_id/reject', async (req, res) => {
 
 app.get('/api/messages/:project_id', async (req, res) => {
   try {
-    const messages = await bqService.getMessages(req.params.project_id);
+    const messages = await getBqService().getMessages(req.params.project_id);
     res.json(messages);
   } catch (error: any) {
     console.error('Error fetching messages:', error);
@@ -382,7 +381,7 @@ app.get('/api/messages/:project_id', async (req, res) => {
 
 app.get('/api/messages', async (req, res) => {
   try {
-    const messages = await bqService.getAllMessages();
+    const messages = await getBqService().getAllMessages();
     res.json(messages);
   } catch (error: any) {
     console.error('Error fetching messages:', error);
@@ -392,7 +391,7 @@ app.get('/api/messages', async (req, res) => {
 
 app.post('/api/messages', async (req, res) => {
   try {
-    await bqService.createMessage(req.body);
+    await getBqService().createMessage(req.body);
     res.status(201).json({ message: 'Message created successfully' });
   } catch (error: any) {
     console.error('Error creating message:', error);
@@ -402,7 +401,7 @@ app.post('/api/messages', async (req, res) => {
 
 app.post('/api/messages/mark-read', async (req, res) => {
   try {
-    await bqService.markMessagesAsRead(req.body.message_ids);
+    await getBqService().markMessagesAsRead(req.body.message_ids);
     res.json({ message: 'Messages marked as read' });
   } catch (error: any) {
     console.error('Error marking messages as read:', error);
@@ -418,7 +417,7 @@ app.post('/api/sheets/export', async (req, res) => {
     if (!Array.isArray(rows)) {
       return res.status(400).json({ error: 'rows must be an array' });
     }
-    const result = await bqService.exportToGoogleSheets(rows);
+    const result = await getBqService().exportToGoogleSheets(rows);
     if (result.success) {
       res.json(result);
     } else {

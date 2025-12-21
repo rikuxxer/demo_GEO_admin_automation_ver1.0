@@ -688,12 +688,10 @@ export class BigQueryService {
 // モジュール読み込み時にエラーが発生しないように、遅延初期化を使用
 let bqServiceInstance: BigQueryService | null = null;
 
-function getBqService(): BigQueryService {
+export function getBqService(): BigQueryService {
   if (!bqServiceInstance) {
     bqServiceInstance = new BigQueryService();
   }
   return bqServiceInstance;
 }
-
-export const bqService = getBqService();
 
