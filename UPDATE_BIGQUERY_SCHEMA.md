@@ -119,6 +119,70 @@
 **オプションフィールド:**
 - `message_type` (STRING, NULLABLE)
 
+### 7. change_historyテーブル
+
+**必須フィールド:**
+- `history_id` (STRING, REQUIRED)
+- `entity_type` (STRING, REQUIRED) - 'project' | 'segment' | 'poi'
+- `entity_id` (STRING, REQUIRED)
+- `project_id` (STRING, REQUIRED)
+- `action` (STRING, REQUIRED) - 'create' | 'update' | 'delete'
+- `changed_by` (STRING, REQUIRED)
+- `changed_at` (TIMESTAMP, REQUIRED)
+
+**オプションフィールド:**
+- `segment_id` (STRING, NULLABLE)
+- `changes` (STRING, NULLABLE) - JSON形式で保存
+- `deleted_data` (STRING, NULLABLE) - JSON形式で保存
+
+### 8. edit_requestsテーブル
+
+**必須フィールド:**
+- `request_id` (STRING, REQUIRED)
+- `request_type` (STRING, REQUIRED) - 'project' | 'segment' | 'poi'
+- `target_id` (STRING, REQUIRED)
+- `project_id` (STRING, REQUIRED)
+- `requested_by` (STRING, REQUIRED)
+- `requested_at` (TIMESTAMP, REQUIRED)
+- `request_reason` (STRING, REQUIRED)
+- `status` (STRING, REQUIRED) - 'pending' | 'approved' | 'rejected' | 'withdrawn'
+
+**オプションフィールド:**
+- `segment_id` (STRING, NULLABLE)
+- `changes` (STRING, NULLABLE) - JSON形式で保存
+- `reviewed_by` (STRING, NULLABLE)
+- `reviewed_at` (TIMESTAMP, NULLABLE)
+- `review_comment` (STRING, NULLABLE)
+
+### 9. feature_requestsテーブル
+
+**必須フィールド:**
+- `request_id` (STRING, REQUIRED)
+- `requested_by` (STRING, REQUIRED)
+- `requested_by_name` (STRING, REQUIRED)
+- `requested_at` (TIMESTAMP, REQUIRED)
+- `title` (STRING, REQUIRED)
+- `description` (STRING, REQUIRED)
+- `category` (STRING, REQUIRED) - 'new_feature' | 'improvement' | 'bug_fix' | 'other'
+- `priority` (STRING, REQUIRED) - 'low' | 'medium' | 'high'
+- `status` (STRING, REQUIRED) - 'pending' | 'under_review' | 'approved' | 'rejected' | 'implemented'
+
+**オプションフィールド:**
+- `reviewed_by` (STRING, NULLABLE)
+- `reviewed_at` (TIMESTAMP, NULLABLE)
+- `review_comment` (STRING, NULLABLE)
+- `implemented_at` (TIMESTAMP, NULLABLE)
+
+### 10. visit_measurement_groupsテーブル
+
+**必須フィールド:**
+- `project_id` (STRING, REQUIRED)
+- `group_id` (STRING, REQUIRED)
+- `group_name` (STRING, REQUIRED)
+
+**オプションフィールド:**
+- `created` (TIMESTAMP, NULLABLE)
+
 ## スキーマ更新コマンド
 
 ### 方法1: 既存スキーマを確認してから更新
@@ -135,6 +199,10 @@ bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.pois" > pois_s
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.users" > users_schema.json
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.user_requests" > user_requests_schema.json
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.messages" > messages_schema.json
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.change_history" > change_history_schema.json
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.edit_requests" > edit_requests_schema.json
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.feature_requests" > feature_requests_schema.json
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.visit_measurement_groups" > visit_measurement_groups_schema.json
 
 # スキーマを確認
 cat projects_schema.json
@@ -143,6 +211,10 @@ cat pois_schema.json
 cat users_schema.json
 cat user_requests_schema.json
 cat messages_schema.json
+cat change_history_schema.json
+cat edit_requests_schema.json
+cat feature_requests_schema.json
+cat visit_measurement_groups_schema.json
 ```
 
 ### 方法2: スキーマを更新（既存フィールドを保持）
@@ -315,6 +387,99 @@ jq '
 bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
 ```
 
+#### change_historyテーブル
+
+```bash
+PROJECT_ID="univere-geo-demo"
+DATASET_ID="universegeo_dataset"
+TABLE="change_history"
+
+# 現在のスキーマを取得
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# 新しいフィールドを追加（既に存在する場合はスキップ）
+jq '
+  def addfield($f):
+    if (map(.name) | index($f.name)) then . else . + [$f] end;
+  addfield({"name":"segment_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"changes","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"deleted_data","type":"STRING","mode":"NULLABLE"})
+' schema.json > schema_new.json
+
+# スキーマを更新
+bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+```
+
+#### edit_requestsテーブル
+
+```bash
+PROJECT_ID="univere-geo-demo"
+DATASET_ID="universegeo_dataset"
+TABLE="edit_requests"
+
+# 現在のスキーマを取得
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# 新しいフィールドを追加（既に存在する場合はスキップ）
+jq '
+  def addfield($f):
+    if (map(.name) | index($f.name)) then . else . + [$f] end;
+  addfield({"name":"segment_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"changes","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"reviewed_by","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"reviewed_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
+  addfield({"name":"review_comment","type":"STRING","mode":"NULLABLE"})
+' schema.json > schema_new.json
+
+# スキーマを更新
+bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+```
+
+#### feature_requestsテーブル
+
+```bash
+PROJECT_ID="univere-geo-demo"
+DATASET_ID="universegeo_dataset"
+TABLE="feature_requests"
+
+# 現在のスキーマを取得
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# 新しいフィールドを追加（既に存在する場合はスキップ）
+jq '
+  def addfield($f):
+    if (map(.name) | index($f.name)) then . else . + [$f] end;
+  addfield({"name":"reviewed_by","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"reviewed_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
+  addfield({"name":"review_comment","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"implemented_at","type":"TIMESTAMP","mode":"NULLABLE"})
+' schema.json > schema_new.json
+
+# スキーマを更新
+bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+```
+
+#### visit_measurement_groupsテーブル
+
+```bash
+PROJECT_ID="univere-geo-demo"
+DATASET_ID="universegeo_dataset"
+TABLE="visit_measurement_groups"
+
+# 現在のスキーマを取得
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# 新しいフィールドを追加（既に存在する場合はスキップ）
+jq '
+  def addfield($f):
+    if (map(.name) | index($f.name)) then . else . + [$f] end;
+  addfield({"name":"created","type":"TIMESTAMP","mode":"NULLABLE"})
+' schema.json > schema_new.json
+
+# スキーマを更新
+bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+```
+
 ### 方法3: 完全なスキーマ定義で上書き（注意: 既存データは保持されます）
 
 #### projectsテーブル
@@ -383,6 +548,10 @@ bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.pois"
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.users"
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.user_requests"
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.messages"
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.change_history"
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.edit_requests"
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.feature_requests"
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.visit_measurement_groups"
 ```
 
 ## 注意事項
