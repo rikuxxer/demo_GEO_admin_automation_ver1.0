@@ -259,12 +259,29 @@ class BigQueryService {
     // バックエンドAPIを使用する場合
     if (USE_API) {
       try {
+        // project_idを生成（モック実装と同じ形式）
+        const projectId = `PRJ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // バックエンドに送信するデータを構築（project_idを含める）
+        const projectData = {
+          ...project,
+          project_id: projectId,
+          person_in_charge: userName || '営業A', // 主担当者を設定
+        };
+        
+        console.log('📤 プロジェクト作成リクエスト:', {
+          project_id: projectData.project_id,
+          advertiser_name: projectData.advertiser_name,
+          delivery_start_date: projectData.delivery_start_date,
+          delivery_end_date: projectData.delivery_end_date,
+        });
+        
         const response = await fetch(`${API_BASE_URL}/api/projects`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(project),
+          body: JSON.stringify(projectData),
         });
 
         if (!response.ok) {
