@@ -407,9 +407,28 @@ export class BigQueryService {
 
       // プロジェクトデータの検証と変換
       // 1. project_idが必須であることを確認
-      if (!project.project_id || typeof project.project_id !== 'string' || project.project_id.trim() === '') {
+      console.log('🔍 project_id検証開始:');
+      console.log('  project.project_id:', project.project_id);
+      console.log('  typeof project.project_id:', typeof project.project_id);
+      console.log('  project.project_id?.trim():', project.project_id?.trim());
+      console.log('  project keys:', Object.keys(project || {}));
+      
+      if (!project.project_id) {
+        console.error('❌ project_idが存在しません');
         throw new Error('project_id is required and must be a non-empty string');
       }
+      
+      if (typeof project.project_id !== 'string') {
+        console.error('❌ project_idが文字列ではありません:', typeof project.project_id);
+        throw new Error('project_id is required and must be a non-empty string');
+      }
+      
+      if (project.project_id.trim() === '') {
+        console.error('❌ project_idが空文字列です');
+        throw new Error('project_id is required and must be a non-empty string');
+      }
+      
+      console.log('✅ project_id検証成功:', project.project_id);
 
       // 2. DATE型フィールドをYYYY-MM-DD形式に変換（共通関数を使用）
 
