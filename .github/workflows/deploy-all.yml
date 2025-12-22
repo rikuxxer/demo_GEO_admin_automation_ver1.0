@@ -413,6 +413,30 @@ jobs:
           
           gcloud auth configure-docker "${REGION_VALUE}-docker.pkg.dev"
 
+      - name: Verify Dockerfile before build
+        run: |
+          echo "🔍 実際に使用されるDockerfileの内容を確認中..."
+          echo ""
+          echo "📋 現在のディレクトリ:"
+          pwd
+          echo ""
+          echo "📋 Dockerfileの存在確認:"
+          ls -la Dockerfile 2>/dev/null || echo "❌ ルートにDockerfileが見つかりません"
+          echo ""
+          echo "📋 すべてのDockerfileを検索:"
+          find . -name "Dockerfile*" -type f 2>/dev/null | head -10
+          echo ""
+          echo "📋 ルートのDockerfileの内容（最初の60行）:"
+          echo "----------------------------------------"
+          head -60 Dockerfile 2>/dev/null || echo "❌ Dockerfileを読み込めません"
+          echo "----------------------------------------"
+          echo ""
+          echo "📋 COPY行を検索:"
+          grep -n "COPY.*from=builder" Dockerfile 2>/dev/null || echo "❌ COPY行が見つかりません"
+          echo ""
+          echo "📋 FROM行を検索:"
+          grep -n "^FROM" Dockerfile 2>/dev/null || echo "❌ FROM行が見つかりません"
+
       - name: Build and push Docker image
         run: |
           # リージョンの値を明示的に設定
