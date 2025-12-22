@@ -455,78 +455,13 @@ app.get('/api/user-requests', async (req, res) => {
   }
 });
 
-app.post('/api/user-requests', async (req, res) => {
-  try {
-    console.log('📥 POST /api/user-requests リクエスト受信:');
-    console.log('  Body:', JSON.stringify(req.body, null, 2));
-    
-    const request = await getBqService().createUserRequest(req.body);
-    res.status(201).json(request);
-  } catch (error: any) {
-    console.error('Error creating user request:', error);
-    console.error('Error stack:', error.stack);
-    
-    // BigQueryエラーの詳細をログ出力
-    if (error.errors) {
-      console.error('[BQ insert user_requests] errors:', JSON.stringify(error.errors, null, 2));
-    }
-    console.error('[BQ insert user_requests] message:', error?.message);
-    console.error('[BQ insert user_requests] name:', error?.name);
-    console.error('[BQ insert user_requests] code:', error?.code);
-    console.error('[BQ insert user_requests] response:', JSON.stringify(error?.response?.body ?? error?.response, null, 2));
-    
-    // BigQueryの元のエラー情報を保持したままレスポンスを構築
-    const errorDetails: any = {
-      error: error.message || 'ユーザー登録申請に失敗しました',
-      type: error.name || 'UnknownError',
-    };
-    
-    // BigQueryエラーの詳細を必ず含める
-    if (error.errors) {
-      errorDetails.errors = error.errors;
-      errorDetails.bigqueryErrors = error.errors;
-      
-      // location情報（欠けている列名）を抽出
-      const locations: string[] = [];
-      error.errors.forEach((err: any) => {
-        if (err.location) {
-          locations.push(err.location);
-        }
-      });
-      if (locations.length > 0) {
-        errorDetails.missingColumns = locations;
-        errorDetails.hint = `以下の列がBigQueryスキーマに存在しません: ${locations.join(', ')}。UPDATE_BIGQUERY_SCHEMA.mdのaddfieldコマンドで追加してください。`;
-      }
-    }
-    
-    // BigQueryのresponse情報を含める
-    if (error.response) {
-      errorDetails.response = error.response;
-    }
-    
-    // エラーコードを含める
-    if (error.code) {
-      errorDetails.code = error.code;
-    }
-    
-    // cause（元例外）の情報を含める
-    if (error.cause) {
-      errorDetails.cause = {
-        message: error.cause.message,
-        name: error.cause.name,
-        code: error.cause.code,
-      };
-    }
-    
-    // hint（補足説明）を含める
-    if (error.hint) {
-      errorDetails.hint = error.hint;
-    }
-    
-    const statusCode = error.message?.includes('既に登録') || error.message?.includes('既に申請') ? 400 : 500;
-    return res.status(statusCode).json(errorDetails);
-  }
-});
+app.post('/api/user-requests', wrapAsync(async (req, res) => {
+  console.log('📥 POST /api/user-requests リクエスト受信:');
+  console.log('  Body:', JSON.stringify(req.body, null, 2));
+  
+  const request = await getBqService().createUserRequest(req.body);
+  res.status(201).json(request);
+}));
 
 app.post('/api/user-requests/:request_id/approve', async (req, res) => {
   try {
