@@ -21,7 +21,72 @@
 - `project_status` (STRING, NULLABLE)
 - `project_registration_started_at` (TIMESTAMP, NULLABLE)
 
-### 2. user_requestsテーブル
+### 2. segmentsテーブル
+
+**必須フィールド:**
+- `segment_id` (STRING, REQUIRED)
+- `project_id` (STRING, REQUIRED)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+**オプションフィールド:**
+- `segment_name` (STRING, NULLABLE)
+- `segment_registered_at` (TIMESTAMP, NULLABLE)
+- `delivery_media` (STRING, NULLABLE)
+- `media_id` (STRING, NULLABLE)
+- `attribute` (STRING, NULLABLE)
+- `extraction_period` (STRING, NULLABLE)
+- `extraction_start_date` (DATE, NULLABLE)
+- `extraction_end_date` (DATE, NULLABLE)
+- `detection_count` (INTEGER, NULLABLE)
+- `detection_time_start` (TIME, NULLABLE)
+- `detection_time_end` (TIME, NULLABLE)
+- `stay_time` (STRING, NULLABLE)
+- `designated_radius` (STRING, NULLABLE)
+- `location_request_status` (STRING, NULLABLE)
+- `data_coordination_date` (DATE, NULLABLE)
+- `delivery_confirmed` (BOOL, NULLABLE)
+
+### 3. poisテーブル
+
+**必須フィールド:**
+- `poi_id` (STRING, REQUIRED)
+- `project_id` (STRING, REQUIRED)
+- `poi_name` (STRING, REQUIRED)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+**オプションフィールド:**
+- `segment_id` (STRING, NULLABLE)
+- `location_id` (STRING, NULLABLE)
+- `address` (STRING, NULLABLE)
+- `latitude` (FLOAT64, NULLABLE)
+- `longitude` (FLOAT64, NULLABLE)
+- `prefectures` (ARRAY<STRING>, NULLABLE)
+- `cities` (ARRAY<STRING>, NULLABLE)
+- `poi_type` (STRING, NULLABLE)
+- `poi_category` (STRING, NULLABLE)
+- `designated_radius` (STRING, NULLABLE)
+- `setting_flag` (STRING, NULLABLE)
+- `visit_measurement_group_id` (STRING, NULLABLE)
+
+### 4. usersテーブル
+
+**必須フィールド:**
+- `user_id` (STRING, REQUIRED)
+- `name` (STRING, REQUIRED)
+- `email` (STRING, REQUIRED)
+- `password_hash` (STRING, REQUIRED)
+- `role` (STRING, REQUIRED)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+**オプションフィールド:**
+- `department` (STRING, NULLABLE)
+- `is_active` (BOOL, NULLABLE)
+- `last_login` (TIMESTAMP, NULLABLE)
+
+### 5. user_requestsテーブル
 
 **必須フィールド:**
 - `user_id` (STRING, REQUIRED)
@@ -39,6 +104,21 @@
 - `reviewed_by` (STRING, NULLABLE)
 - `review_comment` (STRING, NULLABLE)
 
+### 6. messagesテーブル
+
+**必須フィールド:**
+- `message_id` (STRING, REQUIRED)
+- `project_id` (STRING, REQUIRED)
+- `sender_id` (STRING, REQUIRED)
+- `sender_name` (STRING, REQUIRED)
+- `sender_role` (STRING, REQUIRED)
+- `content` (STRING, REQUIRED)
+- `is_read` (BOOL)
+- `timestamp` (TIMESTAMP)
+
+**オプションフィールド:**
+- `message_type` (STRING, NULLABLE)
+
 ## スキーマ更新コマンド
 
 ### 方法1: 既存スキーマを確認してから更新
@@ -50,11 +130,19 @@ DATASET_ID="universegeo_dataset"
 
 # 現在のスキーマを確認
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.projects" > projects_schema.json
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.segments" > segments_schema.json
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.pois" > pois_schema.json
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.users" > users_schema.json
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.user_requests" > user_requests_schema.json
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.messages" > messages_schema.json
 
 # スキーマを確認
 cat projects_schema.json
+cat segments_schema.json
+cat pois_schema.json
+cat users_schema.json
 cat user_requests_schema.json
+cat messages_schema.json
 ```
 
 ### 方法2: スキーマを更新（既存フィールドを保持）
@@ -102,6 +190,125 @@ jq '
   addfield({"name":"reviewed_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
   addfield({"name":"reviewed_by","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"review_comment","type":"STRING","mode":"NULLABLE"})
+' schema.json > schema_new.json
+
+# スキーマを更新
+bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+```
+
+#### segmentsテーブル
+
+```bash
+PROJECT_ID="univere-geo-demo"
+DATASET_ID="universegeo_dataset"
+TABLE="segments"
+
+# 現在のスキーマを取得
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# 新しいフィールドを追加（既に存在する場合はスキップ）
+jq '
+  def addfield($f):
+    if (map(.name) | index($f.name)) then . else . + [$f] end;
+  addfield({"name":"segment_name","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"segment_registered_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
+  addfield({"name":"delivery_media","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"media_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"attribute","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"extraction_period","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"extraction_start_date","type":"DATE","mode":"NULLABLE"}) |
+  addfield({"name":"extraction_end_date","type":"DATE","mode":"NULLABLE"}) |
+  addfield({"name":"detection_count","type":"INTEGER","mode":"NULLABLE"}) |
+  addfield({"name":"detection_time_start","type":"TIME","mode":"NULLABLE"}) |
+  addfield({"name":"detection_time_end","type":"TIME","mode":"NULLABLE"}) |
+  addfield({"name":"stay_time","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"designated_radius","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"location_request_status","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"data_coordination_date","type":"DATE","mode":"NULLABLE"}) |
+  addfield({"name":"delivery_confirmed","type":"BOOL","mode":"NULLABLE"}) |
+  addfield({"name":"created_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
+  addfield({"name":"updated_at","type":"TIMESTAMP","mode":"NULLABLE"})
+' schema.json > schema_new.json
+
+# スキーマを更新
+bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+```
+
+#### poisテーブル
+
+```bash
+PROJECT_ID="univere-geo-demo"
+DATASET_ID="universegeo_dataset"
+TABLE="pois"
+
+# 現在のスキーマを取得
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# 新しいフィールドを追加（既に存在する場合はスキップ）
+jq '
+  def addfield($f):
+    if (map(.name) | index($f.name)) then . else . + [$f] end;
+  addfield({"name":"location_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"address","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"latitude","type":"FLOAT64","mode":"NULLABLE"}) |
+  addfield({"name":"longitude","type":"FLOAT64","mode":"NULLABLE"}) |
+  addfield({"name":"prefectures","type":"STRING","mode":"REPEATED"}) |
+  addfield({"name":"cities","type":"STRING","mode":"REPEATED"}) |
+  addfield({"name":"poi_type","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"poi_category","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"designated_radius","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"setting_flag","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"visit_measurement_group_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"created_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
+  addfield({"name":"updated_at","type":"TIMESTAMP","mode":"NULLABLE"})
+' schema.json > schema_new.json
+
+# スキーマを更新
+bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+```
+
+#### usersテーブル
+
+```bash
+PROJECT_ID="univere-geo-demo"
+DATASET_ID="universegeo_dataset"
+TABLE="users"
+
+# 現在のスキーマを取得
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# 新しいフィールドを追加（既に存在する場合はスキップ）
+jq '
+  def addfield($f):
+    if (map(.name) | index($f.name)) then . else . + [$f] end;
+  addfield({"name":"department","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"is_active","type":"BOOL","mode":"NULLABLE"}) |
+  addfield({"name":"last_login","type":"TIMESTAMP","mode":"NULLABLE"}) |
+  addfield({"name":"created_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
+  addfield({"name":"updated_at","type":"TIMESTAMP","mode":"NULLABLE"})
+' schema.json > schema_new.json
+
+# スキーマを更新
+bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+```
+
+#### messagesテーブル
+
+```bash
+PROJECT_ID="univere-geo-demo"
+DATASET_ID="universegeo_dataset"
+TABLE="messages"
+
+# 現在のスキーマを取得
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# 新しいフィールドを追加（既に存在する場合はスキップ）
+jq '
+  def addfield($f):
+    if (map(.name) | index($f.name)) then . else . + [$f] end;
+  addfield({"name":"message_type","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"is_read","type":"BOOL","mode":"NULLABLE"}) |
+  addfield({"name":"timestamp","type":"TIMESTAMP","mode":"NULLABLE"})
 ' schema.json > schema_new.json
 
 # スキーマを更新
@@ -169,11 +376,13 @@ bq update -t --schema user_requests_schema.json "${PROJECT_ID}:${DATASET_ID}.use
 PROJECT_ID="univere-geo-demo"
 DATASET_ID="universegeo_dataset"
 
-# projectsテーブルのスキーマを確認
+# すべてのテーブルのスキーマを確認
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.projects"
-
-# user_requestsテーブルのスキーマを確認
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.segments"
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.pois"
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.users"
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.user_requests"
+bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.messages"
 ```
 
 ## 注意事項
