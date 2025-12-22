@@ -53,7 +53,7 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    outDir: 'dist', // 修正: 'build' から 'dist' に変更（Dockerfileに合わせる）
+    outDir: 'build', // Dockerfileで/app/buildをコピーしているため、'build'に統一
     sourcemap: false,
     minify: 'terser',
     chunkSizeWarningLimit: 1000,
