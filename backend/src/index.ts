@@ -14,6 +14,11 @@ console.log(`  BQ_DATASET: ${process.env.BQ_DATASET ? '✅ SET' : '❌ NOT SET'}
 // モジュール読み込み時にエラーが発生しないように、遅延初期化を使用
 import { getBqService } from './bigquery-client';
 
+// ミドルウェアのインポート
+import { requestContext } from './middleware/request-context';
+import { wrapAsync } from './middleware/async-wrapper';
+import { errorHandler } from './middleware/error-handler';
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -66,6 +71,9 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 
+// リクエストコンテキストミドルウェア（相関IDの生成・設定）
+app.use(requestContext);
+
 // ルートパス（API情報を返す）
 app.get('/', (req, res) => {
   res.json({
@@ -91,7 +99,7 @@ app.get('/', (req, res) => {
 });
 
 // ヘルスチェック
-app.get('/health', (req, res) => {
+app.get('/health', wrapAsync(async (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -100,55 +108,23 @@ app.get('/health', (req, res) => {
       BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
     }
   });
-});
+}));
 
 // ==================== プロジェクト ====================
 
-app.get('/api/projects', async (req, res) => {
-  try {
-    // 環境変数の確認
-    if (!process.env.GCP_PROJECT_ID) {
-      console.error('❌ GCP_PROJECT_ID環境変数が設定されていません');
-      return res.status(500).json({
-        error: 'GCP_PROJECT_ID環境変数が設定されていません',
-        type: 'ConfigurationError',
-        details: 'Cloud Runの環境変数設定を確認してください。GitHub SecretsのGCP_PROJECT_IDが正しく設定されているか確認してください。',
-      });
-    }
-    
-    const projects = await getBqService().getProjects();
-    res.json(projects);
-  } catch (error: any) {
-    console.error('Error fetching projects:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Environment variables:', {
-      GCP_PROJECT_ID: process.env.GCP_PROJECT_ID ? 'SET' : 'NOT SET',
-      BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
-    });
-    
-    // より詳細なエラーメッセージを返す
-    const errorMessage = error.message || 'プロジェクトの取得に失敗しました';
-    const errorDetails: any = {
-      error: errorMessage,
-      type: error.name || 'UnknownError',
-    };
-    
-    // GCP_PROJECT_IDが設定されていない場合の詳細情報
-    if (errorMessage.includes('universegeo-project') || !process.env.GCP_PROJECT_ID) {
-      errorDetails.details = 'GCP_PROJECT_ID環境変数が正しく設定されていません。Cloud Runの環境変数設定を確認してください。';
-      errorDetails.configuration = {
-        GCP_PROJECT_ID: process.env.GCP_PROJECT_ID || 'NOT SET',
-        BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
-      };
-    }
-    
-    if (process.env.NODE_ENV !== 'production') {
-      errorDetails.stack = error.stack;
-    }
-    
-    res.status(500).json(errorDetails);
+app.get('/api/projects', wrapAsync(async (req, res) => {
+  // 環境変数の確認
+  if (!process.env.GCP_PROJECT_ID) {
+    const error: any = new Error('GCP_PROJECT_ID環境変数が設定されていません');
+    error.statusCode = 500;
+    error.name = 'ConfigurationError';
+    error.details = 'Cloud Runの環境変数設定を確認してください。GitHub SecretsのGCP_PROJECT_IDが正しく設定されているか確認してください。';
+    throw error;
   }
-});
+  
+  const projects = await getBqService().getProjects();
+  res.json(projects);
+}));
 
 app.get('/api/projects/:project_id', async (req, res) => {
   try {
@@ -641,11 +617,16 @@ app.post('/api/sheets/export', async (req, res) => {
   }
 });
 
+// エラーハンドリングミドルウェア（404ハンドラーの前に配置）
+// すべてのルートで発生したエラーをここでキャッチして統一的なレスポンスを返す
+app.use(errorHandler);
+
 // 404ハンドラー（定義されていないルート）
 app.use((req, res) => {
   res.status(404).json({
     error: 'Not Found',
     message: `Cannot ${req.method} ${req.path}`,
+    request_id: (req as any).request_id,
     availableEndpoints: {
       root: '/',
       health: '/health',
