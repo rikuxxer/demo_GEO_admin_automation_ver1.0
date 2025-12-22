@@ -239,28 +239,25 @@ jobs:
           echo "⏳ デプロイ完了を待機中（10秒）..."
           sleep 10
           
-          # 既存の環境変数を取得（マージするため）
-          echo "🔍 既存の環境変数を取得中..."
-          EXISTING_ENV_VARS=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region "$REGION_VALUE" \
-            --project ${{ env.PROJECT_ID }} \
-            --format='value(spec.template.spec.containers[0].env)' 2>/dev/null || echo '')
-          
-          # 環境変数を設定（--update-env-varsを使用して既存の環境変数とマージ）
-          # 注意: --update-env-varsは既存の環境変数を保持し、指定した環境変数のみを更新/追加します
+          # 環境変数を設定（--set-env-varsを使用してすべての環境変数を一度に設定）
+          # 注意: --set-env-varsは既存の環境変数をすべて置き換えます
+          # すべての環境変数を1回のコマンドで設定することで、確実に設定されます
           echo "🔧 gcloud run services update を実行中..."
-          echo "   使用するフラグ: --update-env-vars (既存の環境変数とマージ)"
+          echo "   使用するフラグ: --set-env-vars (すべての環境変数を一度に設定)"
+          echo "   注意: 既存の環境変数はすべて置き換えられます"
+          
           gcloud run services update ${{ env.SERVICE_NAME }} \
             --region "$REGION_VALUE" \
             --project ${{ env.PROJECT_ID }} \
-            --update-env-vars "$ENV_VARS" \
+            --set-env-vars "$ENV_VARS" \
             --quiet
           
           echo "✅ 環境変数の設定が完了しました"
           
-          # 設定を確認
+          # 設定を確認（環境変数が反映されるまで待機）
           echo "🔍 設定された環境変数を確認中..."
-          sleep 5
+          echo "   環境変数が反映されるまで待機中（10秒）..."
+          sleep 10
           
           # すべての環境変数を確認
           echo "📋 設定されているすべての環境変数:"

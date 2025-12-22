@@ -27,7 +27,8 @@ RUN npm run build
 FROM nginx:alpine
 
 # ビルド成果物をコピー（Viteの出力ディレクトリに合わせる）
-COPY --from=builder /app/dist /usr/share/nginx/html
+# 注意: ルートのvite.config.tsでoutDir: 'build'が設定されているため、build/を使用
+COPY --from=builder /app/build /usr/share/nginx/html
 
 # Nginxの設定ファイル
 COPY nginx.conf /etc/nginx/conf.d/default.conf
