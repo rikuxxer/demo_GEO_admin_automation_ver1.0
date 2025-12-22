@@ -311,16 +311,113 @@ export class BigQueryService {
         location: BQ_LOCATION,
       });
 
+      // プロジェクトデータの検証と変換
+      // 1. project_idが必須であることを確認
+      if (!project.project_id || typeof project.project_id !== 'string' || project.project_id.trim() === '') {
+        throw new Error('project_id is required and must be a non-empty string');
+      }
+
+      // 2. DATE型フィールドをYYYY-MM-DD形式に変換
+      const formatDateForBigQuery = (dateValue: any): string | null => {
+        if (!dateValue) return null;
+        
+        // 既にYYYY-MM-DD形式の場合はそのまま返す
+        if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+          return dateValue;
+        }
+        
+        // YYYY/MM/DD形式をYYYY-MM-DDに変換
+        if (typeof dateValue === 'string' && /^\d{4}\/\d{2}\/\d{2}$/.test(dateValue)) {
+          return dateValue.replace(/\//g, '-');
+        }
+        
+        // DateオブジェクトまたはISO datetime文字列をYYYY-MM-DDに変換
+        try {
+          const date = new Date(dateValue);
+          if (isNaN(date.getTime())) {
+            console.warn(`⚠️ Invalid date value: ${dateValue}, setting to null`);
+            return null;
+          }
+          return date.toISOString().split('T')[0]; // YYYY-MM-DD形式に変換
+        } catch (e) {
+          console.warn(`⚠️ Date conversion error for ${dateValue}:`, e);
+          return null;
+        }
+      };
+
+      // 3. TIMESTAMP型フィールドをRFC3339/ISO形式に変換
+      const formatTimestampForBigQuery = (timestampValue: any): string => {
+        if (timestampValue instanceof Date) {
+          return timestampValue.toISOString();
+        }
+        if (typeof timestampValue === 'string') {
+          // 既にISO形式の場合はそのまま返す
+          if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestampValue)) {
+            return timestampValue;
+          }
+          // Dateオブジェクトに変換してISO形式に
+          const date = new Date(timestampValue);
+          if (isNaN(date.getTime())) {
+            console.warn(`⚠️ Invalid timestamp value: ${timestampValue}, using current time`);
+            return new Date().toISOString();
+          }
+          return date.toISOString();
+        }
+        // その他の場合は現在時刻を使用
+        return new Date().toISOString();
+      };
+
+      // 4. BigQueryのスキーマに存在するフィールドのみを含める
+      // スキーマに存在するフィールド: project_id, advertiser_name, appeal_point, delivery_start_date, 
+      // delivery_end_date, person_in_charge, project_status, _register_datetime, created_at, updated_at
+      const allowedFields = [
+        'project_id',
+        'advertiser_name',
+        'appeal_point',
+        'delivery_start_date',
+        'delivery_end_date',
+        'person_in_charge',
+        'project_status',
+        'project_registration_started_at', // 追加フィールド（存在する場合）
+      ];
+
+      const cleanedProject: any = {
+        project_id: project.project_id.trim(), // REQUIRED STRING
+      };
+
+      // 許可されたフィールドのみをコピー
+      for (const field of allowedFields) {
+        if (field in project && project[field] !== undefined && project[field] !== null) {
+          if (field === 'delivery_start_date' || field === 'delivery_end_date') {
+            // DATE型フィールドをYYYY-MM-DD形式に変換
+            cleanedProject[field] = formatDateForBigQuery(project[field]);
+          } else {
+            cleanedProject[field] = project[field];
+          }
+        }
+      }
+
+      // TIMESTAMP型フィールドを追加
+      const now = new Date();
+      cleanedProject._register_datetime = formatTimestampForBigQuery(project._register_datetime || now);
+      cleanedProject.created_at = formatTimestampForBigQuery(project.created_at || now);
+      cleanedProject.updated_at = formatTimestampForBigQuery(project.updated_at || now);
+
+      console.log('📋 Cleaned project data for BigQuery:', {
+        project_id: cleanedProject.project_id,
+        delivery_start_date: cleanedProject.delivery_start_date,
+        delivery_end_date: cleanedProject.delivery_end_date,
+        _register_datetime: cleanedProject._register_datetime,
+        created_at: cleanedProject.created_at,
+        updated_at: cleanedProject.updated_at,
+        allFields: Object.keys(cleanedProject),
+      });
+
       // 明示的にプロジェクトIDとデータセットIDを指定してテーブルを取得
       const dataset = bq.dataset(cleanDatasetId, { projectId: currentProjectId });
       const table = dataset.table('projects');
       
-      const rows = [{
-        ...project,
-        _register_datetime: new Date().toISOString(), // BigQueryのスキーマに合わせて追加
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }];
+      const rows = [cleanedProject];
       
       try {
         await table.insert(rows);
@@ -339,6 +436,7 @@ export class BigQueryService {
           location: BQ_LOCATION,
           clientProjectId: bq.projectId || 'NOT SET',
         });
+        console.error('[BQ insert] attempted data:', JSON.stringify(cleanedProject, null, 2));
         
         // エラーを再スロー（詳細情報を含む）
         throw err;
@@ -358,6 +456,8 @@ export class BigQueryService {
         errorMessage = 'GCP_PROJECT_ID環境変数が正しく設定されていないか、プロジェクトが見つかりません。Cloud Runの環境変数設定を確認してください。';
       } else if (errorMessage.includes('Permission denied')) {
         errorMessage = 'BigQueryへの書き込み権限がありません。Cloud Runサービスアカウントの権限を確認してください。';
+      } else if (errorMessage.includes('project_id is required')) {
+        errorMessage = 'project_idは必須です。リクエストにproject_idが含まれているか確認してください。';
       }
       throw new Error(`プロジェクトの作成に失敗しました: ${errorMessage}`);
     }
