@@ -510,21 +510,42 @@ export class BigQueryService {
       console.error('❌ BigQuery createProject error:', error);
       console.error('Error details:', {
         message: error.message,
+        name: error.name,
         code: error.code,
         errors: error.errors,
+        response: error.response,
+        stack: error.stack,
         projectId: process.env.GCP_PROJECT_ID,
         datasetId: datasetId,
         location: BQ_LOCATION,
       });
-      let errorMessage = error.message || 'プロジェクトの作成に失敗しました';
-      if (errorMessage.includes('Not found: Project')) {
-        errorMessage = 'GCP_PROJECT_ID環境変数が正しく設定されていないか、プロジェクトが見つかりません。Cloud Runの環境変数設定を確認してください。';
-      } else if (errorMessage.includes('Permission denied')) {
-        errorMessage = 'BigQueryへの書き込み権限がありません。Cloud Runサービスアカウントの権限を確認してください。';
-      } else if (errorMessage.includes('project_id is required')) {
-        errorMessage = 'project_idは必須です。リクエストにproject_idが含まれているか確認してください。';
+      
+      // BigQueryのエラー情報を保持したまま、新しいエラーオブジェクトを作成
+      // causeに元のエラーを設定（Node.js 16.9.0+でサポート）
+      const enhancedError = new Error(error.message || 'プロジェクトの作成に失敗しました');
+      enhancedError.name = error.name || 'BigQueryError';
+      
+      // 元のエラー情報を保持
+      (enhancedError as any).code = error.code;
+      (enhancedError as any).errors = error.errors;
+      (enhancedError as any).response = error.response;
+      (enhancedError as any).cause = error; // 元例外をcauseに設定
+      
+      // エラーメッセージの補足説明を追加（元のメッセージは保持）
+      if (error.message) {
+        if (error.message.includes('Not found: Project')) {
+          (enhancedError as any).hint = 'GCP_PROJECT_ID環境変数が正しく設定されていないか、プロジェクトが見つかりません。Cloud Runの環境変数設定を確認してください。';
+        } else if (error.message.includes('Permission denied')) {
+          (enhancedError as any).hint = 'BigQueryへの書き込み権限がありません。Cloud Runサービスアカウントの権限を確認してください。';
+        } else if (error.message.includes('project_id is required')) {
+          (enhancedError as any).hint = 'project_idは必須です。リクエストにproject_idが含まれているか確認してください。';
+        }
       }
-      throw new Error(`プロジェクトの作成に失敗しました: ${errorMessage}`);
+      
+      // スタックトレースを保持
+      enhancedError.stack = error.stack || enhancedError.stack;
+      
+      throw enhancedError;
     }
   }
 

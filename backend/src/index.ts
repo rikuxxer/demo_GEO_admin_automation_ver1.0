@@ -191,21 +191,32 @@ app.post('/api/projects', async (req, res) => {
       });
     }
     
-    // project_idの事前チェック
-    if (!req.body || !req.body.project_id) {
-      console.error('❌ リクエストボディにproject_idが含まれていません');
-      console.error('  リクエストボディ:', JSON.stringify(req.body, null, 2));
-      return res.status(400).json({
-        error: 'project_idは必須です。リクエストにproject_idが含まれているか確認してください。',
-        type: 'ValidationError',
-        details: {
-          receivedBody: req.body,
-          bodyKeys: req.body ? Object.keys(req.body) : [],
-        },
-      });
+    // project_idの事前チェックと自動生成
+    let projectData = { ...req.body };
+    
+    if (!projectData.project_id || typeof projectData.project_id !== 'string' || projectData.project_id.trim() === '') {
+      // project_idが存在しない、または空文字列の場合、自動生成
+      const generatedProjectId = `PRJ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      console.warn('⚠️ リクエストボディにproject_idが含まれていません。自動生成します:', generatedProjectId);
+      projectData.project_id = generatedProjectId;
     }
     
-    await getBqService().createProject(req.body);
+    // person_in_chargeが存在しない場合、デフォルト値を設定
+    if (!projectData.person_in_charge || typeof projectData.person_in_charge !== 'string' || projectData.person_in_charge.trim() === '') {
+      projectData.person_in_charge = '営業A';
+      console.warn('⚠️ person_in_chargeが設定されていません。デフォルト値を設定します:', projectData.person_in_charge);
+    }
+    
+    console.log('📋 最終的なプロジェクトデータ:', {
+      project_id: projectData.project_id,
+      advertiser_name: projectData.advertiser_name,
+      delivery_start_date: projectData.delivery_start_date,
+      delivery_end_date: projectData.delivery_end_date,
+      person_in_charge: projectData.person_in_charge,
+      allKeys: Object.keys(projectData),
+    });
+    
+    await getBqService().createProject(projectData);
     res.status(201).json({ message: 'Project created successfully' });
   } catch (error: any) {
     console.error('Error creating project:', error);
@@ -224,33 +235,52 @@ app.post('/api/projects', async (req, res) => {
     console.error('[BQ insert projects] code:', error?.code);
     console.error('[BQ insert projects] response:', JSON.stringify(error?.response?.body ?? error?.response, null, 2));
     
-    // より詳細なエラーメッセージを返す
-    const errorMessage = error.message || 'プロジェクトの作成に失敗しました';
+    // BigQueryの元のエラー情報を保持したままレスポンスを構築
     const errorDetails: any = {
-      error: errorMessage,
+      error: error.message || 'プロジェクトの作成に失敗しました',
       type: error.name || 'UnknownError',
     };
     
-    // BigQueryエラーの詳細を追加
-    if (error.errors && Array.isArray(error.errors) && error.errors.length > 0) {
-      errorDetails.details = error.errors;
-      errorDetails.bigqueryErrors = error.errors;
-      // 最初のエラーメッセージを抽出
-      const firstError = error.errors[0];
-      if (firstError && firstError.message) {
-        errorDetails.error = `${errorMessage}: ${firstError.message}`;
+    // BigQueryエラーの詳細を必ず含める
+    if (error.errors) {
+      errorDetails.errors = error.errors; // BigQueryのerrors配列をそのまま含める
+      errorDetails.bigqueryErrors = error.errors; // 後方互換性のため
+      
+      // 最初のエラーメッセージを抽出してメインメッセージに追加
+      if (Array.isArray(error.errors) && error.errors.length > 0) {
+        const firstError = error.errors[0];
+        if (firstError && firstError.message) {
+          errorDetails.error = `${errorDetails.error}: ${firstError.message}`;
+        }
       }
-    } else if (error.errors) {
-      errorDetails.details = error.errors;
     }
     
-    // エラーコードを追加
+    // BigQueryのresponse情報を含める
+    if (error.response) {
+      errorDetails.response = error.response;
+    }
+    
+    // エラーコードを含める
     if (error.code) {
       errorDetails.code = error.code;
     }
     
+    // cause（元例外）の情報を含める（可能な場合）
+    if (error.cause) {
+      errorDetails.cause = {
+        message: error.cause.message,
+        name: error.cause.name,
+        code: error.cause.code,
+      };
+    }
+    
+    // hint（補足説明）を含める
+    if (error.hint) {
+      errorDetails.hint = error.hint;
+    }
+    
     // GCP_PROJECT_IDが設定されていない場合の詳細情報
-    if (errorMessage.includes('GCP_PROJECT_ID') || !process.env.GCP_PROJECT_ID) {
+    if (errorDetails.error.includes('GCP_PROJECT_ID') || !process.env.GCP_PROJECT_ID) {
       errorDetails.details = errorDetails.details || 'GCP_PROJECT_ID環境変数が正しく設定されていません。Cloud Runの環境変数設定を確認してください。';
       errorDetails.configuration = {
         GCP_PROJECT_ID: process.env.GCP_PROJECT_ID || 'NOT SET',
