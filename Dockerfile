@@ -24,21 +24,29 @@ ENV VITE_GOOGLE_SHEETS_API_KEY=$VITE_GOOGLE_SHEETS_API_KEY
 RUN npm run build
 
 # ビルド成果物の確認（デバッグ用）
+# vite.config.tsでoutDir: 'build'が設定されているため、成果物は/app/buildに生成される
 RUN echo "📋 ビルド成果物の確認:" && \
     ls -la /app/ && \
     echo "" && \
-    echo "📁 buildディレクトリの内容:" && \
-    ls -la /app/build/ 2>/dev/null || echo "⚠️ /app/build が見つかりません" && \
+    echo "📁 buildディレクトリの内容（期待される出力先）:" && \
+    if [ -d "/app/build" ]; then \
+      ls -la /app/build/ && \
+      echo "✅ /app/build が存在します"; \
+    else \
+      echo "❌ エラー: /app/build が見つかりません！" && \
+      echo "vite.config.tsのoutDir設定を確認してください" && \
+      exit 1; \
+    fi && \
     echo "" && \
-    echo "📁 distディレクトリの内容:" && \
-    ls -la /app/dist/ 2>/dev/null || echo "⚠️ /app/dist が見つかりません（これは正常です）"
+    echo "📁 distディレクトリの内容（存在しないはず）:" && \
+    ls -la /app/dist/ 2>/dev/null || echo "⚠️ /app/dist が見つかりません（これは正常です。vite.config.tsでoutDir: 'build'が設定されているため）"
 
 # 本番環境用の軽量イメージ
 FROM nginx:alpine
 
-# ビルド成果物をコピー（Viteの出力ディレクトリに合わせる）
-# 注意: vite.config.tsでoutDir: 'build'が設定されているため、build/を使用
-# エラーが発生する場合は、上記のビルド成果物確認ログを参照してください
+# ビルド成果物をコピー
+# 重要: vite.config.tsでoutDir: 'build'が設定されているため、/app/buildを使用
+# /app/distは使用しない（存在しないため、エラーになります）
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Nginxの設定ファイル
