@@ -256,11 +256,20 @@ class BigQueryService {
   }
 
   async createProject(project: Omit<Project, 'project_id' | '_register_datetime' | 'person_in_charge'>, userName?: string): Promise<Project> {
+    // デバッグ: 受信したプロジェクトデータをログ出力
+    console.log('🔍 createProject 呼び出し:');
+    console.log('  USE_API:', USE_API);
+    console.log('  API_BASE_URL:', API_BASE_URL);
+    console.log('  受信したproject:', project);
+    console.log('  project keys:', Object.keys(project || {}));
+    console.log('  userName:', userName);
+    
     // バックエンドAPIを使用する場合
     if (USE_API) {
       try {
         // project_idを生成（モック実装と同じ形式）
         const projectId = `PRJ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log('✅ 生成されたproject_id:', projectId);
         
         // バックエンドに送信するデータを構築（project_idを含める）
         const projectData = {
@@ -274,7 +283,9 @@ class BigQueryService {
           advertiser_name: projectData.advertiser_name,
           delivery_start_date: projectData.delivery_start_date,
           delivery_end_date: projectData.delivery_end_date,
+          allKeys: Object.keys(projectData),
         });
+        console.log('📤 送信する完全なデータ:', JSON.stringify(projectData, null, 2));
         
         const response = await fetch(`${API_BASE_URL}/api/projects`, {
           method: 'POST',
