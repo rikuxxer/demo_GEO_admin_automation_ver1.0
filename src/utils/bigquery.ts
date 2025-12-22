@@ -1232,11 +1232,20 @@ class BigQueryService {
         if (!response.ok) {
           // エラーレスポンスを安全にパース
           let errorMessage = 'ユーザー登録申請に失敗しました';
+          let errorDetails: any = null;
           try {
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
               const error = await response.json();
               errorMessage = error.error || errorMessage;
+              errorDetails = error;
+              
+              // missingColumnsがある場合は詳細をログ出力
+              if (error.missingColumns && Array.isArray(error.missingColumns)) {
+                console.error('❌ BigQueryスキーマに欠けている列:', error.missingColumns);
+                console.error('💡 ヒント:', error.hint || 'UPDATE_BIGQUERY_SCHEMA.mdのaddfieldコマンドで追加してください');
+                console.error('📋 エラー詳細:', JSON.stringify(error, null, 2));
+              }
             } else {
               const errorText = await response.text();
               errorMessage = errorText || errorMessage;
@@ -1245,6 +1254,12 @@ class BigQueryService {
             console.error('エラーレスポンスのパースに失敗:', parseError);
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
+          
+          // エラーメッセージにmissingColumns情報を追加
+          if (errorDetails?.missingColumns && errorDetails.missingColumns.length > 0) {
+            errorMessage += ` (欠けている列: ${errorDetails.missingColumns.join(', ')})`;
+          }
+          
           throw new Error(errorMessage);
         }
 
