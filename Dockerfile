@@ -23,11 +23,22 @@ ENV VITE_GOOGLE_SHEETS_API_KEY=$VITE_GOOGLE_SHEETS_API_KEY
 # ビルド実行
 RUN npm run build
 
+# ビルド成果物の確認（デバッグ用）
+RUN echo "📋 ビルド成果物の確認:" && \
+    ls -la /app/ && \
+    echo "" && \
+    echo "📁 buildディレクトリの内容:" && \
+    ls -la /app/build/ 2>/dev/null || echo "⚠️ /app/build が見つかりません" && \
+    echo "" && \
+    echo "📁 distディレクトリの内容:" && \
+    ls -la /app/dist/ 2>/dev/null || echo "⚠️ /app/dist が見つかりません（これは正常です）"
+
 # 本番環境用の軽量イメージ
 FROM nginx:alpine
 
 # ビルド成果物をコピー（Viteの出力ディレクトリに合わせる）
-# 注意: ルートのvite.config.tsでoutDir: 'build'が設定されているため、build/を使用
+# 注意: vite.config.tsでoutDir: 'build'が設定されているため、build/を使用
+# エラーが発生する場合は、上記のビルド成果物確認ログを参照してください
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Nginxの設定ファイル
