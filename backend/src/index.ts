@@ -208,20 +208,39 @@ app.post('/api/projects', async (req, res) => {
     const errorDetails: any = {
       error: errorMessage,
       type: error.name || 'UnknownError',
-      details: error?.errors ?? null,
     };
+    
+    // BigQueryエラーの詳細を追加
+    if (error.errors && Array.isArray(error.errors) && error.errors.length > 0) {
+      errorDetails.details = error.errors;
+      errorDetails.bigqueryErrors = error.errors;
+      // 最初のエラーメッセージを抽出
+      const firstError = error.errors[0];
+      if (firstError && firstError.message) {
+        errorDetails.error = `${errorMessage}: ${firstError.message}`;
+      }
+    } else if (error.errors) {
+      errorDetails.details = error.errors;
+    }
+    
+    // エラーコードを追加
+    if (error.code) {
+      errorDetails.code = error.code;
+    }
     
     // GCP_PROJECT_IDが設定されていない場合の詳細情報
     if (errorMessage.includes('GCP_PROJECT_ID') || !process.env.GCP_PROJECT_ID) {
-      errorDetails.details = 'GCP_PROJECT_ID環境変数が正しく設定されていません。Cloud Runの環境変数設定を確認してください。';
+      errorDetails.details = errorDetails.details || 'GCP_PROJECT_ID環境変数が正しく設定されていません。Cloud Runの環境変数設定を確認してください。';
       errorDetails.configuration = {
         GCP_PROJECT_ID: process.env.GCP_PROJECT_ID || 'NOT SET',
         BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
       };
     }
     
+    // リクエストボディの情報を追加（デバッグ用）
     if (process.env.NODE_ENV !== 'production') {
       errorDetails.stack = error.stack;
+      errorDetails.requestBody = req.body;
     }
     
     res.status(500).json(errorDetails);

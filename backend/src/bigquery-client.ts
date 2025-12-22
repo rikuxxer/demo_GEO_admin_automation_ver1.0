@@ -310,7 +310,7 @@ export class BigQueryService {
       const query = `
         SELECT *
         FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
-        ORDER BY _register_datetime DESC
+        ORDER BY COALESCE(_register_datetime, created_at, updated_at) DESC
       `;
       
       console.log('🔍 BigQuery query config:', {
