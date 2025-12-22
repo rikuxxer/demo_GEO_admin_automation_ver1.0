@@ -510,13 +510,27 @@ export class BigQueryService {
       const rows = [cleanedProject];
       
       try {
-        await table.insert(rows);
+        // ignoreUnknownValues: true を追加（未知のフィールドを無視）
+        await table.insert(rows, { ignoreUnknownValues: true });
         console.log('✅ Project created successfully in BigQuery.');
       } catch (err: any) {
         // BigQuery insertAll の行エラーがここに入る
         console.error('[BQ insert] message:', err?.message);
         console.error('[BQ insert] name:', err?.name);
         console.error('[BQ insert] errors:', JSON.stringify(err?.errors, null, 2)); // ←最重要
+        
+        // location情報を詳細に出力（欠けている列名がここに出る）
+        if (err.errors && Array.isArray(err.errors)) {
+          err.errors.forEach((error: any, index: number) => {
+            console.error(`[BQ insert] error[${index}]:`, {
+              message: error.message,
+              reason: error.reason,
+              location: error.location, // ←欠けている列名がここに出る
+              debugInfo: error.debugInfo,
+            });
+          });
+        }
+        
         console.error('[BQ insert] response:', JSON.stringify(err?.response?.body ?? err?.response, null, 2));
         console.error('[BQ insert] code:', err?.code);
         console.error('[BQ insert] config:', {
@@ -709,10 +723,22 @@ export class BigQueryService {
         allFields: Object.keys(cleanedSegment),
       });
 
-      await getDataset().table('segments').insert([cleanedSegment]);
+      await getDataset().table('segments').insert([cleanedSegment], { ignoreUnknownValues: true });
     } catch (err: any) {
       console.error('[BQ insert segments] message:', err?.message);
       console.error('[BQ insert segments] errors:', JSON.stringify(err?.errors, null, 2));
+      
+      // location情報を詳細に出力
+      if (err.errors && Array.isArray(err.errors)) {
+        err.errors.forEach((error: any, index: number) => {
+          console.error(`[BQ insert segments] error[${index}]:`, {
+            message: error.message,
+            reason: error.reason,
+            location: error.location, // ←欠けている列名がここに出る
+          });
+        });
+      }
+      
       throw err;
     }
   }
@@ -847,10 +873,22 @@ export class BigQueryService {
         allFields: Object.keys(cleanedPoi),
       });
 
-      await getDataset().table('pois').insert([cleanedPoi]);
+      await getDataset().table('pois').insert([cleanedPoi], { ignoreUnknownValues: true });
     } catch (err: any) {
       console.error('[BQ insert pois] message:', err?.message);
       console.error('[BQ insert pois] errors:', JSON.stringify(err?.errors, null, 2));
+      
+      // location情報を詳細に出力
+      if (err.errors && Array.isArray(err.errors)) {
+        err.errors.forEach((error: any, index: number) => {
+          console.error(`[BQ insert pois] error[${index}]:`, {
+            message: error.message,
+            reason: error.reason,
+            location: error.location, // ←欠けている列名がここに出る
+          });
+        });
+      }
+      
       throw err;
     }
   }
@@ -928,10 +966,22 @@ export class BigQueryService {
 
       console.log(`📋 Cleaned ${cleanedPois.length} POIs for BigQuery bulk insert`);
 
-      await getDataset().table('pois').insert(cleanedPois);
+      await getDataset().table('pois').insert(cleanedPois, { ignoreUnknownValues: true });
     } catch (err: any) {
       console.error('[BQ insert pois bulk] message:', err?.message);
       console.error('[BQ insert pois bulk] errors:', JSON.stringify(err?.errors, null, 2));
+      
+      // location情報を詳細に出力
+      if (err.errors && Array.isArray(err.errors)) {
+        err.errors.forEach((error: any, index: number) => {
+          console.error(`[BQ insert pois bulk] error[${index}]:`, {
+            message: error.message,
+            reason: error.reason,
+            location: error.location, // ←欠けている列名がここに出る
+          });
+        });
+      }
+      
       throw err;
     }
   }
@@ -1067,10 +1117,22 @@ export class BigQueryService {
         allFields: Object.keys(cleanedUser),
       });
 
-      await getDataset().table('users').insert([cleanedUser]);
+      await getDataset().table('users').insert([cleanedUser], { ignoreUnknownValues: true });
     } catch (err: any) {
       console.error('[BQ insert users] message:', err?.message);
       console.error('[BQ insert users] errors:', JSON.stringify(err?.errors, null, 2));
+      
+      // location情報を詳細に出力
+      if (err.errors && Array.isArray(err.errors)) {
+        err.errors.forEach((error: any, index: number) => {
+          console.error(`[BQ insert users] error[${index}]:`, {
+            message: error.message,
+            reason: error.reason,
+            location: error.location, // ←欠けている列名がここに出る
+          });
+        });
+      }
+      
       throw err;
     }
   }
@@ -1199,13 +1261,27 @@ export class BigQueryService {
         table: 'user_requests',
       });
       
-      await table.insert([cleanedRequest]);
+      // ignoreUnknownValues: true を追加（未知のフィールドを無視）
+      await table.insert([cleanedRequest], { ignoreUnknownValues: true });
       console.log('✅ User request created successfully in BigQuery.');
     } catch (err: any) {
       // BigQuery insertAll の行エラーがここに入る
       console.error('[BQ insert user_requests] message:', err?.message);
       console.error('[BQ insert user_requests] name:', err?.name);
       console.error('[BQ insert user_requests] errors:', JSON.stringify(err?.errors, null, 2)); // ←最重要
+      
+      // location情報を詳細に出力（欠けている列名がここに出る）
+      if (err.errors && Array.isArray(err.errors)) {
+        err.errors.forEach((error: any, index: number) => {
+          console.error(`[BQ insert user_requests] error[${index}]:`, {
+            message: error.message,
+            reason: error.reason,
+            location: error.location, // ←欠けている列名がここに出る
+            debugInfo: error.debugInfo,
+          });
+        });
+      }
+      
       console.error('[BQ insert user_requests] response:', JSON.stringify(err?.response?.body ?? err?.response, null, 2));
       console.error('[BQ insert user_requests] code:', err?.code);
       console.error('[BQ insert user_requests] attempted data:', JSON.stringify(cleanedRequest, null, 2));
@@ -1268,7 +1344,7 @@ export class BigQueryService {
       allFields: Object.keys(cleanedUser),
     });
 
-    await getDataset().table('users').insert([cleanedUser]);
+    await getDataset().table('users').insert([cleanedUser], { ignoreUnknownValues: true });
 
     // 申請を承認済みに更新
     const currentProjectId = validateProjectId();
@@ -1436,10 +1512,22 @@ export class BigQueryService {
         allFields: Object.keys(cleanedMessage),
       });
 
-      await getDataset().table('messages').insert([cleanedMessage]);
+      await getDataset().table('messages').insert([cleanedMessage], { ignoreUnknownValues: true });
     } catch (err: any) {
       console.error('[BQ insert messages] message:', err?.message);
       console.error('[BQ insert messages] errors:', JSON.stringify(err?.errors, null, 2));
+      
+      // location情報を詳細に出力
+      if (err.errors && Array.isArray(err.errors)) {
+        err.errors.forEach((error: any, index: number) => {
+          console.error(`[BQ insert messages] error[${index}]:`, {
+            message: error.message,
+            reason: error.reason,
+            location: error.location, // ←欠けている列名がここに出る
+          });
+        });
+      }
+      
       throw err;
     }
   }
