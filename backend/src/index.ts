@@ -509,6 +509,18 @@ app.post('/api/user-requests', async (req, res) => {
     if (error.errors) {
       errorDetails.errors = error.errors;
       errorDetails.bigqueryErrors = error.errors;
+      
+      // location情報（欠けている列名）を抽出
+      const locations: string[] = [];
+      error.errors.forEach((err: any) => {
+        if (err.location) {
+          locations.push(err.location);
+        }
+      });
+      if (locations.length > 0) {
+        errorDetails.missingColumns = locations;
+        errorDetails.hint = `以下の列がBigQueryスキーマに存在しません: ${locations.join(', ')}。UPDATE_BIGQUERY_SCHEMA.mdのaddfieldコマンドで追加してください。`;
+      }
     }
     
     // BigQueryのresponse情報を含める
