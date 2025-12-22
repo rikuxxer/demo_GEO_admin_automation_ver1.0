@@ -202,6 +202,100 @@ function getDataset() {
   return bqClient.dataset(cleanDatasetId, { projectId: currentProjectId });
 }
 
+// ==================== スキーマ正規化関数 ====================
+
+// DATE型フィールドをYYYY-MM-DD形式に変換
+function formatDateForBigQuery(dateValue: any): string | null {
+  if (!dateValue) return null;
+  
+  // 既にYYYY-MM-DD形式の場合はそのまま返す
+  if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return dateValue;
+  }
+  
+  // YYYY/MM/DD形式をYYYY-MM-DDに変換
+  if (typeof dateValue === 'string' && /^\d{4}\/\d{2}\/\d{2}$/.test(dateValue)) {
+    return dateValue.replace(/\//g, '-');
+  }
+  
+  // DateオブジェクトまたはISO datetime文字列をYYYY-MM-DDに変換
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) {
+      console.warn(`⚠️ Invalid date value: ${dateValue}, setting to null`);
+      return null;
+    }
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD形式に変換
+  } catch (e) {
+    console.warn(`⚠️ Date conversion error for ${dateValue}:`, e);
+    return null;
+  }
+}
+
+// TIMESTAMP型フィールドをRFC3339/ISO形式に変換
+function formatTimestampForBigQuery(timestampValue: any): string {
+  if (timestampValue instanceof Date) {
+    return timestampValue.toISOString();
+  }
+  if (typeof timestampValue === 'string') {
+    // 既にISO形式の場合はそのまま返す
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestampValue)) {
+      return timestampValue;
+    }
+    // Dateオブジェクトに変換してISO形式に
+    const date = new Date(timestampValue);
+    if (isNaN(date.getTime())) {
+      console.warn(`⚠️ Invalid timestamp value: ${timestampValue}, using current time`);
+      return new Date().toISOString();
+    }
+    return date.toISOString();
+  }
+  // その他の場合は現在時刻を使用
+  return new Date().toISOString();
+}
+
+// TIME型フィールドをHH:MM:SS形式に変換
+function formatTimeForBigQuery(timeValue: any): string | null {
+  if (!timeValue) return null;
+  
+  if (typeof timeValue === 'string') {
+    // 既にHH:MM:SS形式の場合はそのまま返す
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeValue)) {
+      return timeValue;
+    }
+    // HH:MM形式をHH:MM:SSに変換
+    if (/^\d{2}:\d{2}$/.test(timeValue)) {
+      return `${timeValue}:00`;
+    }
+  }
+  
+  // Dateオブジェクトから時刻部分を抽出
+  if (timeValue instanceof Date) {
+    const hours = String(timeValue.getHours()).padStart(2, '0');
+    const minutes = String(timeValue.getMinutes()).padStart(2, '0');
+    const seconds = String(timeValue.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  }
+  
+  console.warn(`⚠️ Invalid time value: ${timeValue}, setting to null`);
+  return null;
+}
+
+// BOOL型フィールドをbooleanに変換
+function formatBoolForBigQuery(boolValue: any): boolean {
+  if (typeof boolValue === 'boolean') {
+    return boolValue;
+  }
+  if (typeof boolValue === 'string') {
+    const lower = boolValue.toLowerCase();
+    return lower === 'true' || lower === '1' || lower === 'yes';
+  }
+  if (typeof boolValue === 'number') {
+    return boolValue !== 0;
+  }
+  return false;
+}
+
 export class BigQueryService {
   // ==================== プロジェクト ====================
   
@@ -317,55 +411,7 @@ export class BigQueryService {
         throw new Error('project_id is required and must be a non-empty string');
       }
 
-      // 2. DATE型フィールドをYYYY-MM-DD形式に変換
-      const formatDateForBigQuery = (dateValue: any): string | null => {
-        if (!dateValue) return null;
-        
-        // 既にYYYY-MM-DD形式の場合はそのまま返す
-        if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-          return dateValue;
-        }
-        
-        // YYYY/MM/DD形式をYYYY-MM-DDに変換
-        if (typeof dateValue === 'string' && /^\d{4}\/\d{2}\/\d{2}$/.test(dateValue)) {
-          return dateValue.replace(/\//g, '-');
-        }
-        
-        // DateオブジェクトまたはISO datetime文字列をYYYY-MM-DDに変換
-        try {
-          const date = new Date(dateValue);
-          if (isNaN(date.getTime())) {
-            console.warn(`⚠️ Invalid date value: ${dateValue}, setting to null`);
-            return null;
-          }
-          return date.toISOString().split('T')[0]; // YYYY-MM-DD形式に変換
-        } catch (e) {
-          console.warn(`⚠️ Date conversion error for ${dateValue}:`, e);
-          return null;
-        }
-      };
-
-      // 3. TIMESTAMP型フィールドをRFC3339/ISO形式に変換
-      const formatTimestampForBigQuery = (timestampValue: any): string => {
-        if (timestampValue instanceof Date) {
-          return timestampValue.toISOString();
-        }
-        if (typeof timestampValue === 'string') {
-          // 既にISO形式の場合はそのまま返す
-          if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestampValue)) {
-            return timestampValue;
-          }
-          // Dateオブジェクトに変換してISO形式に
-          const date = new Date(timestampValue);
-          if (isNaN(date.getTime())) {
-            console.warn(`⚠️ Invalid timestamp value: ${timestampValue}, using current time`);
-            return new Date().toISOString();
-          }
-          return date.toISOString();
-        }
-        // その他の場合は現在時刻を使用
-        return new Date().toISOString();
-      };
+      // 2. DATE型フィールドをYYYY-MM-DD形式に変換（共通関数を使用）
 
       // 4. BigQueryのスキーマに存在するフィールドのみを含める
       // スキーマに存在するフィールド: project_id, advertiser_name, appeal_point, delivery_start_date, 
@@ -397,7 +443,7 @@ export class BigQueryService {
         }
       }
 
-      // TIMESTAMP型フィールドを追加
+      // TIMESTAMP型フィールドを追加（共通関数を使用）
       const now = new Date();
       cleanedProject._register_datetime = formatTimestampForBigQuery(project._register_datetime || now);
       cleanedProject.created_at = formatTimestampForBigQuery(project.created_at || now);
@@ -532,11 +578,78 @@ export class BigQueryService {
   }
 
   async createSegment(segment: any): Promise<void> {
-    await getDataset().table('segments').insert([{
-      ...segment,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }]);
+    try {
+      // 必須フィールドの検証
+      if (!segment.segment_id || typeof segment.segment_id !== 'string' || segment.segment_id.trim() === '') {
+        throw new Error('segment_id is required and must be a non-empty string');
+      }
+      if (!segment.project_id || typeof segment.project_id !== 'string' || segment.project_id.trim() === '') {
+        throw new Error('project_id is required and must be a non-empty string');
+      }
+
+      // スキーマに存在するフィールドのみを含める
+      const allowedFields = [
+        'segment_id',
+        'project_id',
+        'segment_name',
+        'segment_registered_at',
+        'delivery_media',
+        'media_id',
+        'attribute',
+        'extraction_period',
+        'extraction_start_date',
+        'extraction_end_date',
+        'detection_count',
+        'detection_time_start',
+        'detection_time_end',
+        'stay_time',
+        'designated_radius',
+        'location_request_status',
+        'data_coordination_date',
+        'delivery_confirmed',
+      ];
+
+      const cleanedSegment: any = {
+        segment_id: segment.segment_id.trim(),
+        project_id: segment.project_id.trim(),
+      };
+
+      // 許可されたフィールドのみをコピー
+      for (const field of allowedFields) {
+        if (field in segment && segment[field] !== undefined && segment[field] !== null) {
+          if (field === 'extraction_start_date' || field === 'extraction_end_date' || field === 'data_coordination_date') {
+            cleanedSegment[field] = formatDateForBigQuery(segment[field]);
+          } else if (field === 'detection_time_start' || field === 'detection_time_end') {
+            cleanedSegment[field] = formatTimeForBigQuery(segment[field]);
+          } else if (field === 'delivery_confirmed') {
+            cleanedSegment[field] = formatBoolForBigQuery(segment[field]);
+          } else if (field === 'segment_registered_at') {
+            cleanedSegment[field] = formatTimestampForBigQuery(segment[field] || new Date());
+          } else {
+            cleanedSegment[field] = segment[field];
+          }
+        }
+      }
+
+      // TIMESTAMP型フィールドを追加
+      const now = new Date();
+      cleanedSegment.created_at = formatTimestampForBigQuery(segment.created_at || now);
+      cleanedSegment.updated_at = formatTimestampForBigQuery(segment.updated_at || now);
+
+      console.log('📋 Cleaned segment data for BigQuery:', {
+        segment_id: cleanedSegment.segment_id,
+        project_id: cleanedSegment.project_id,
+        extraction_start_date: cleanedSegment.extraction_start_date,
+        extraction_end_date: cleanedSegment.extraction_end_date,
+        allFields: Object.keys(cleanedSegment),
+      });
+
+      await getDataset().table('segments').insert([cleanedSegment]);
+    } catch (err: any) {
+      console.error('[BQ insert segments] message:', err?.message);
+      console.error('[BQ insert segments] errors:', JSON.stringify(err?.errors, null, 2));
+      throw err;
+    }
   }
 
   async updateSegment(segment_id: string, updates: any): Promise<void> {
@@ -593,20 +706,169 @@ export class BigQueryService {
   }
 
   async createPoi(poi: any): Promise<void> {
-    await getDataset().table('pois').insert([{
-      ...poi,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }]);
+    try {
+      // 必須フィールドの検証
+      if (!poi.poi_id || typeof poi.poi_id !== 'string' || poi.poi_id.trim() === '') {
+        throw new Error('poi_id is required and must be a non-empty string');
+      }
+      if (!poi.project_id || typeof poi.project_id !== 'string' || poi.project_id.trim() === '') {
+        throw new Error('project_id is required and must be a non-empty string');
+      }
+      if (!poi.poi_name || typeof poi.poi_name !== 'string' || poi.poi_name.trim() === '') {
+        throw new Error('poi_name is required and must be a non-empty string');
+      }
+
+      // スキーマに存在するフィールドのみを含める
+      const allowedFields = [
+        'poi_id',
+        'project_id',
+        'segment_id',
+        'location_id',
+        'poi_name',
+        'address',
+        'latitude',
+        'longitude',
+        'prefectures',
+        'cities',
+        'poi_type',
+        'poi_category',
+        'designated_radius',
+        'setting_flag',
+        'visit_measurement_group_id',
+      ];
+
+      const cleanedPoi: any = {
+        poi_id: poi.poi_id.trim(),
+        project_id: poi.project_id.trim(),
+        poi_name: poi.poi_name.trim(),
+      };
+
+      // 許可されたフィールドのみをコピー
+      for (const field of allowedFields) {
+        if (field in poi && poi[field] !== undefined && poi[field] !== null) {
+          if (field === 'latitude' || field === 'longitude') {
+            // FLOAT64型フィールド
+            const numValue = typeof poi[field] === 'string' ? parseFloat(poi[field]) : poi[field];
+            if (!isNaN(numValue)) {
+              cleanedPoi[field] = numValue;
+            }
+          } else if (field === 'prefectures' || field === 'cities') {
+            // ARRAY<STRING>型フィールド
+            if (Array.isArray(poi[field])) {
+              cleanedPoi[field] = poi[field];
+            } else if (typeof poi[field] === 'string') {
+              // JSON文字列の場合はパース
+              try {
+                cleanedPoi[field] = JSON.parse(poi[field]);
+              } catch {
+                cleanedPoi[field] = [poi[field]];
+              }
+            }
+          } else {
+            cleanedPoi[field] = poi[field];
+          }
+        }
+      }
+
+      // TIMESTAMP型フィールドを追加
+      const now = new Date();
+      cleanedPoi.created_at = formatTimestampForBigQuery(poi.created_at || now);
+      cleanedPoi.updated_at = formatTimestampForBigQuery(poi.updated_at || now);
+
+      console.log('📋 Cleaned POI data for BigQuery:', {
+        poi_id: cleanedPoi.poi_id,
+        project_id: cleanedPoi.project_id,
+        poi_name: cleanedPoi.poi_name,
+        allFields: Object.keys(cleanedPoi),
+      });
+
+      await getDataset().table('pois').insert([cleanedPoi]);
+    } catch (err: any) {
+      console.error('[BQ insert pois] message:', err?.message);
+      console.error('[BQ insert pois] errors:', JSON.stringify(err?.errors, null, 2));
+      throw err;
+    }
   }
 
   async createPoisBulk(pois: any[]): Promise<void> {
-    const poisWithTimestamps = pois.map(poi => ({
-      ...poi,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
-    await getDataset().table('pois').insert(poisWithTimestamps);
+    try {
+      const cleanedPois = pois.map(poi => {
+        // 必須フィールドの検証
+        if (!poi.poi_id || typeof poi.poi_id !== 'string' || poi.poi_id.trim() === '') {
+          throw new Error('poi_id is required and must be a non-empty string');
+        }
+        if (!poi.project_id || typeof poi.project_id !== 'string' || poi.project_id.trim() === '') {
+          throw new Error('project_id is required and must be a non-empty string');
+        }
+        if (!poi.poi_name || typeof poi.poi_name !== 'string' || poi.poi_name.trim() === '') {
+          throw new Error('poi_name is required and must be a non-empty string');
+        }
+
+        // スキーマに存在するフィールドのみを含める
+        const allowedFields = [
+          'poi_id',
+          'project_id',
+          'segment_id',
+          'location_id',
+          'poi_name',
+          'address',
+          'latitude',
+          'longitude',
+          'prefectures',
+          'cities',
+          'poi_type',
+          'poi_category',
+          'designated_radius',
+          'setting_flag',
+          'visit_measurement_group_id',
+        ];
+
+        const cleanedPoi: any = {
+          poi_id: poi.poi_id.trim(),
+          project_id: poi.project_id.trim(),
+          poi_name: poi.poi_name.trim(),
+        };
+
+        // 許可されたフィールドのみをコピー
+        for (const field of allowedFields) {
+          if (field in poi && poi[field] !== undefined && poi[field] !== null) {
+            if (field === 'latitude' || field === 'longitude') {
+              const numValue = typeof poi[field] === 'string' ? parseFloat(poi[field]) : poi[field];
+              if (!isNaN(numValue)) {
+                cleanedPoi[field] = numValue;
+              }
+            } else if (field === 'prefectures' || field === 'cities') {
+              if (Array.isArray(poi[field])) {
+                cleanedPoi[field] = poi[field];
+              } else if (typeof poi[field] === 'string') {
+                try {
+                  cleanedPoi[field] = JSON.parse(poi[field]);
+                } catch {
+                  cleanedPoi[field] = [poi[field]];
+                }
+              }
+            } else {
+              cleanedPoi[field] = poi[field];
+            }
+          }
+        }
+
+        // TIMESTAMP型フィールドを追加
+        const now = new Date();
+        cleanedPoi.created_at = formatTimestampForBigQuery(poi.created_at || now);
+        cleanedPoi.updated_at = formatTimestampForBigQuery(poi.updated_at || now);
+
+        return cleanedPoi;
+      });
+
+      console.log(`📋 Cleaned ${cleanedPois.length} POIs for BigQuery bulk insert`);
+
+      await getDataset().table('pois').insert(cleanedPois);
+    } catch (err: any) {
+      console.error('[BQ insert pois bulk] message:', err?.message);
+      console.error('[BQ insert pois bulk] errors:', JSON.stringify(err?.errors, null, 2));
+      throw err;
+    }
   }
 
   async updatePoi(poi_id: string, updates: any): Promise<void> {
@@ -677,11 +939,75 @@ export class BigQueryService {
   }
 
   async createUser(user: any): Promise<void> {
-    await getDataset().table('users').insert([{
-      ...user,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }]);
+    try {
+      // 必須フィールドの検証
+      if (!user.user_id || typeof user.user_id !== 'string' || user.user_id.trim() === '') {
+        throw new Error('user_id is required and must be a non-empty string');
+      }
+      if (!user.name || typeof user.name !== 'string' || user.name.trim() === '') {
+        throw new Error('name is required and must be a non-empty string');
+      }
+      if (!user.email || typeof user.email !== 'string' || user.email.trim() === '') {
+        throw new Error('email is required and must be a non-empty string');
+      }
+      if (!user.password_hash || typeof user.password_hash !== 'string' || user.password_hash.trim() === '') {
+        throw new Error('password_hash is required and must be a non-empty string');
+      }
+      if (!user.role || typeof user.role !== 'string' || user.role.trim() === '') {
+        throw new Error('role is required and must be a non-empty string');
+      }
+
+      // スキーマに存在するフィールドのみを含める
+      const allowedFields = [
+        'user_id',
+        'name',
+        'email',
+        'password_hash',
+        'role',
+        'department',
+        'is_active',
+        'last_login',
+      ];
+
+      const cleanedUser: any = {
+        user_id: user.user_id.trim(),
+        name: user.name.trim(),
+        email: user.email.trim().toLowerCase(),
+        password_hash: user.password_hash,
+        role: user.role.trim(),
+      };
+
+      // 許可されたフィールドのみをコピー
+      for (const field of allowedFields) {
+        if (field in user && user[field] !== undefined && user[field] !== null) {
+          if (field === 'is_active') {
+            cleanedUser[field] = formatBoolForBigQuery(user[field]);
+          } else if (field === 'last_login') {
+            cleanedUser[field] = user[field] ? formatTimestampForBigQuery(user[field]) : null;
+          } else {
+            cleanedUser[field] = user[field];
+          }
+        }
+      }
+
+      // TIMESTAMP型フィールドを追加
+      const now = new Date();
+      cleanedUser.created_at = formatTimestampForBigQuery(user.created_at || now);
+      cleanedUser.updated_at = formatTimestampForBigQuery(user.updated_at || now);
+
+      console.log('📋 Cleaned user data for BigQuery:', {
+        user_id: cleanedUser.user_id,
+        email: cleanedUser.email,
+        role: cleanedUser.role,
+        allFields: Object.keys(cleanedUser),
+      });
+
+      await getDataset().table('users').insert([cleanedUser]);
+    } catch (err: any) {
+      console.error('[BQ insert users] message:', err?.message);
+      console.error('[BQ insert users] errors:', JSON.stringify(err?.errors, null, 2));
+      throw err;
+    }
   }
 
   async updateUser(user_id: string, updates: any): Promise<void> {
@@ -748,23 +1074,55 @@ export class BigQueryService {
     const password_hash = Buffer.from(requestData.password).toString('base64');
 
     const user_id = `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const newRequest = {
-      user_id,
-      name: requestData.name,
-      email: requestData.email,
-      password_hash,
+    
+    // スキーマに存在するフィールドのみを含める
+    // user_requestsテーブルのスキーマ: user_id, name, email, password_hash, requested_role, 
+    // department, reason, status, requested_at, reviewed_at, reviewed_by, review_comment
+    const allowedFields = [
+      'user_id',
+      'name',
+      'email',
+      'password_hash',
+      'requested_role',
+      'department',
+      'reason',
+      'status',
+      'requested_at',
+      'reviewed_at',
+      'reviewed_by',
+      'review_comment',
+    ];
+
+    const cleanedRequest: any = {
+      user_id: user_id.trim(),
+      name: requestData.name.trim(),
+      email: requestData.email.trim().toLowerCase(),
+      password_hash: password_hash,
       requested_role: requestData.requested_role,
-      department: requestData.department || null,
-      reason: requestData.reason || null,
       status: 'pending',
-      requested_at: new Date().toISOString(),
+      requested_at: formatTimestampForBigQuery(new Date()),
       reviewed_at: null,
       reviewed_by: null,
-      review_comment: null
+      review_comment: null,
     };
 
+    // オプションフィールド
+    if (requestData.department) {
+      cleanedRequest.department = requestData.department.trim();
+    }
+    if (requestData.reason) {
+      cleanedRequest.reason = requestData.reason.trim();
+    }
+
+    console.log('📋 Cleaned user_request data for BigQuery:', {
+      user_id: cleanedRequest.user_id,
+      email: cleanedRequest.email,
+      requested_role: cleanedRequest.requested_role,
+      allFields: Object.keys(cleanedRequest),
+    });
+
     try {
-      await getDataset().table('user_requests').insert([newRequest]);
+      await getDataset().table('user_requests').insert([cleanedRequest]);
     } catch (err: any) {
       // BigQuery insertAll の行エラーがここに入る
       console.error('[BQ insert user_requests] message:', err?.message);
@@ -777,7 +1135,7 @@ export class BigQueryService {
       throw err;
     }
     
-    const { password_hash: _, ...requestWithoutPassword } = newRequest;
+    const { password_hash: _, ...requestWithoutPassword } = cleanedRequest;
     return requestWithoutPassword;
   }
 
@@ -793,21 +1151,33 @@ export class BigQueryService {
       throw new Error('この申請は既に処理されています');
     }
 
-    // ユーザーを作成
-    const newUser = {
+    // ユーザーを作成（スキーマに存在するフィールドのみを含める）
+    // usersテーブルのスキーマ: user_id, name, email, password_hash, role, department, 
+    // is_active, created_at, updated_at, last_login
+    const cleanedUser: any = {
       user_id: `USER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: request.name,
-      email: request.email,
+      name: request.name.trim(),
+      email: request.email.trim().toLowerCase(),
       password_hash: request.password_hash,
       role: request.requested_role,
-      department: request.department,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_login: null
+      is_active: formatBoolForBigQuery(true),
+      created_at: formatTimestampForBigQuery(new Date()),
+      updated_at: formatTimestampForBigQuery(new Date()),
+      last_login: null,
     };
 
-    await getDataset().table('users').insert([newUser]);
+    if (request.department) {
+      cleanedUser.department = request.department.trim();
+    }
+
+    console.log('📋 Cleaned user data for BigQuery:', {
+      user_id: cleanedUser.user_id,
+      email: cleanedUser.email,
+      role: cleanedUser.role,
+      allFields: Object.keys(cleanedUser),
+    });
+
+    await getDataset().table('users').insert([cleanedUser]);
 
     // 申請を承認済みに更新
     const currentProjectId = validateProjectId();
@@ -902,7 +1272,85 @@ export class BigQueryService {
   }
 
   async createMessage(message: any): Promise<void> {
-    await getDataset().table('messages').insert([message]);
+    try {
+      // 必須フィールドの検証
+      if (!message.message_id || typeof message.message_id !== 'string' || message.message_id.trim() === '') {
+        throw new Error('message_id is required and must be a non-empty string');
+      }
+      if (!message.project_id || typeof message.project_id !== 'string' || message.project_id.trim() === '') {
+        throw new Error('project_id is required and must be a non-empty string');
+      }
+      if (!message.sender_id || typeof message.sender_id !== 'string' || message.sender_id.trim() === '') {
+        throw new Error('sender_id is required and must be a non-empty string');
+      }
+      if (!message.sender_name || typeof message.sender_name !== 'string' || message.sender_name.trim() === '') {
+        throw new Error('sender_name is required and must be a non-empty string');
+      }
+      if (!message.sender_role || typeof message.sender_role !== 'string' || message.sender_role.trim() === '') {
+        throw new Error('sender_role is required and must be a non-empty string');
+      }
+      if (!message.content || typeof message.content !== 'string' || message.content.trim() === '') {
+        throw new Error('content is required and must be a non-empty string');
+      }
+
+      // スキーマに存在するフィールドのみを含める
+      // messagesテーブルのスキーマ: message_id, project_id, sender_id, sender_name, 
+      // sender_role, content, message_type, is_read, timestamp
+      const allowedFields = [
+        'message_id',
+        'project_id',
+        'sender_id',
+        'sender_name',
+        'sender_role',
+        'content',
+        'message_type',
+        'is_read',
+        'timestamp',
+      ];
+
+      const cleanedMessage: any = {
+        message_id: message.message_id.trim(),
+        project_id: message.project_id.trim(),
+        sender_id: message.sender_id.trim(),
+        sender_name: message.sender_name.trim(),
+        sender_role: message.sender_role.trim(),
+        content: message.content.trim(),
+      };
+
+      // 許可されたフィールドのみをコピー
+      for (const field of allowedFields) {
+        if (field in message && message[field] !== undefined && message[field] !== null) {
+          if (field === 'is_read') {
+            cleanedMessage[field] = formatBoolForBigQuery(message[field]);
+          } else if (field === 'timestamp') {
+            cleanedMessage[field] = formatTimestampForBigQuery(message[field] || new Date());
+          } else {
+            cleanedMessage[field] = message[field];
+          }
+        }
+      }
+
+      // デフォルト値の設定
+      if (!cleanedMessage.is_read) {
+        cleanedMessage.is_read = formatBoolForBigQuery(false);
+      }
+      if (!cleanedMessage.timestamp) {
+        cleanedMessage.timestamp = formatTimestampForBigQuery(new Date());
+      }
+
+      console.log('📋 Cleaned message data for BigQuery:', {
+        message_id: cleanedMessage.message_id,
+        project_id: cleanedMessage.project_id,
+        sender_id: cleanedMessage.sender_id,
+        allFields: Object.keys(cleanedMessage),
+      });
+
+      await getDataset().table('messages').insert([cleanedMessage]);
+    } catch (err: any) {
+      console.error('[BQ insert messages] message:', err?.message);
+      console.error('[BQ insert messages] errors:', JSON.stringify(err?.errors, null, 2));
+      throw err;
+    }
   }
 
   async markMessagesAsRead(message_ids: string[]): Promise<void> {
