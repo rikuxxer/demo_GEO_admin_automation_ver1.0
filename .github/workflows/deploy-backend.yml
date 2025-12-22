@@ -164,8 +164,42 @@ jobs:
           source: ./backend
           region: ${{ env.REGION }}
           project_id: ${{ env.PROJECT_ID }}
-          flags: '--allow-unauthenticated --memory 512Mi --cpu 1 --max-instances 10'
+          flags: '--allow-unauthenticated --memory 512Mi --cpu 1 --max-instances 10 --no-traffic'
         id: deploy
+        continue-on-error: true
+
+      - name: Wait for deployment to complete
+        if: steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure'
+        run: |
+          echo "⏳ デプロイ完了を待機中（10秒）..."
+          sleep 10
+
+      - name: Retry deployment if conflict
+        if: steps.deploy.outcome == 'failure'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          source: ./backend
+          region: ${{ env.REGION }}
+          project_id: ${{ env.PROJECT_ID }}
+          flags: '--allow-unauthenticated --memory 512Mi --cpu 1 --max-instances 10 --no-traffic'
+        id: deploy-retry
+
+      - name: Route traffic to latest revision
+        if: steps.deploy.outcome == 'success' || (steps.deploy.outcome == 'failure' && steps.deploy-retry.outcome == 'success')
+        run: |
+          echo "🚦 トラフィックを最新リビジョンに100%固定中..."
+          REGION_VALUE="${{ env.REGION }}"
+          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
+            REGION_VALUE="asia-northeast1"
+          fi
+          
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region "$REGION_VALUE" \
+            --project ${{ env.PROJECT_ID }} \
+            --to-latest \
+            --quiet
+          echo "✅ トラフィックの固定が完了しました"
 
       - name: Set Environment Variables to Cloud Run
         if: always()
