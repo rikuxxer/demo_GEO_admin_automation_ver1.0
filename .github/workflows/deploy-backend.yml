@@ -239,17 +239,17 @@ jobs:
           echo "⏳ デプロイ完了を待機中（10秒）..."
           sleep 10
           
-          # 環境変数を設定（--set-env-varsを使用してすべての環境変数を一度に設定）
-          # 注意: --set-env-varsは既存の環境変数をすべて置き換えます
-          # すべての環境変数を1回のコマンドで設定することで、確実に設定されます
+          # 環境変数を設定（--update-env-varsを使用して既存の環境変数とマージ）
+          # 注意: --update-env-varsは既存の環境変数を保持しつつ、指定した環境変数を追加・更新します
+          # これにより、既存の環境変数が失われることを防ぎます
           echo "🔧 gcloud run services update を実行中..."
-          echo "   使用するフラグ: --set-env-vars (すべての環境変数を一度に設定)"
-          echo "   注意: 既存の環境変数はすべて置き換えられます"
+          echo "   使用するフラグ: --update-env-vars (既存の環境変数とマージ)"
+          echo "   注意: 既存の環境変数は保持され、指定した環境変数のみが追加・更新されます"
           
           gcloud run services update ${{ env.SERVICE_NAME }} \
             --region "$REGION_VALUE" \
             --project ${{ env.PROJECT_ID }} \
-            --set-env-vars "$ENV_VARS" \
+            --update-env-vars "$ENV_VARS" \
             --quiet
           
           echo "✅ 環境変数の設定が完了しました"
@@ -390,11 +390,11 @@ jobs:
             echo "📋 環境変数を設定中..."
             echo "ENV_VARS: ${ENV_VARS:0:100}..."
             
-            # 環境変数を設定
+            # 環境変数を設定（--update-env-varsを使用して既存の環境変数とマージ）
             gcloud run services update ${{ env.SERVICE_NAME }} \
               --region "$REGION_VALUE" \
               --project ${{ env.PROJECT_ID }} \
-              --set-env-vars "$ENV_VARS" \
+              --update-env-vars "$ENV_VARS" \
               --quiet
             
             echo "✅ 環境変数の設定が完了しました"
@@ -518,11 +518,11 @@ jobs:
             echo "ENV_VARS: ${ENV_VARS:0:100}..."
             echo ""
             
-            # 環境変数を設定
+            # 環境変数を設定（--update-env-varsを使用して既存の環境変数とマージ）
             gcloud run services update ${{ env.SERVICE_NAME }} \
               --region "$REGION_VALUE" \
               --project ${{ env.PROJECT_ID }} \
-              --set-env-vars "$ENV_VARS" \
+              --update-env-vars "$ENV_VARS" \
               --quiet
             
             echo "✅ 環境変数の設定が完了しました"

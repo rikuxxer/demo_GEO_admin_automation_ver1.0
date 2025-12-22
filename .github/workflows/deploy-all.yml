@@ -183,6 +183,8 @@ jobs:
           echo ""
           
           # デフォルトのサービスアカウントでデプロイ（権限エラーを回避）
+          # 注意: デプロイ時に環境変数を設定すると、既存の環境変数が失われる可能性があるため、
+          # デプロイ後に関数変数を設定する方法に変更
           set +e
           gcloud run deploy universegeo-backend \
             --source . \
@@ -191,15 +193,57 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --max-instances 10 \
-            --set-env-vars GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}" \
-            --set-env-vars BQ_DATASET="${{ secrets.BQ_DATASET }}" \
-            --set-env-vars GOOGLE_SPREADSHEET_ID="${{ secrets.GOOGLE_SPREADSHEET_ID }}" \
-            --set-env-vars GOOGLE_SHEETS_API_KEY="${{ secrets.GOOGLE_SHEETS_API_KEY }}" \
-            --set-env-vars GOOGLE_SHEET_NAME="${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }}" \
-            --set-env-vars FRONTEND_URL="${{ secrets.FRONTEND_URL || 'http://localhost:5173' }}" \
             --project ${{ env.PROJECT_ID }}
           DEPLOY_EXIT_CODE=$?
           set -e
+          
+          # デプロイが成功した場合、環境変数を設定
+          if [ $DEPLOY_EXIT_CODE -eq 0 ]; then
+            echo ""
+            echo "🔧 環境変数を設定中..."
+            sleep 5  # デプロイ完了を待機
+            
+            # 環境変数を構築
+            ENV_VARS="GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},BQ_DATASET=${{ secrets.BQ_DATASET }}"
+            
+            if [ -n "${{ secrets.GOOGLE_SPREADSHEET_ID }}" ]; then
+              ENV_VARS="$ENV_VARS,GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}"
+            fi
+            
+            if [ -n "${{ secrets.GOOGLE_SHEETS_API_KEY }}" ]; then
+              ENV_VARS="$ENV_VARS,GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }}"
+            fi
+            
+            if [ -n "${{ secrets.GOOGLE_SHEET_NAME }}" ]; then
+              ENV_VARS="$ENV_VARS,GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME }}"
+            else
+              ENV_VARS="$ENV_VARS,GOOGLE_SHEET_NAME=シート1"
+            fi
+            
+            if [ -n "${{ secrets.FRONTEND_URL }}" ]; then
+              ENV_VARS="$ENV_VARS,FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
+            else
+              ENV_VARS="$ENV_VARS,FRONTEND_URL=http://localhost:5173"
+            fi
+            
+            # 環境変数を更新（--update-env-varsを使用して既存の環境変数とマージ）
+            gcloud run services update universegeo-backend \
+              --region "$REGION_VALUE" \
+              --project ${{ env.PROJECT_ID }} \
+              --update-env-vars "$ENV_VARS" \
+              --quiet
+            
+            echo "✅ 環境変数の設定が完了しました"
+            
+            # トラフィックを最新リビジョンに100%固定
+            echo ""
+            echo "🔧 トラフィックを最新リビジョンに100%固定中..."
+            gcloud run services update-traffic universegeo-backend \
+              --region "$REGION_VALUE" \
+              --project ${{ env.PROJECT_ID }} \
+              --to-latest
+            echo "✅ トラフィックを最新リビジョンに100%固定しました"
+          fi
           
           if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
             echo ""
