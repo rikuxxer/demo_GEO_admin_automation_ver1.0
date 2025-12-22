@@ -1,7 +1,35 @@
 import { BigQuery } from '@google-cloud/bigquery';
 
-// 環境変数からデータセットIDを取得
-const datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
+// 環境変数からデータセットIDを取得（プロジェクトIDのプレフィックスを削除）
+function getDatasetId(): string {
+  let datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
+  
+  // データセットIDにプロジェクトIDが含まれている場合（例: "univere-geo-demo.universegeo_dataset"）、削除
+  // プロジェクトIDは通常、ドットで区切られた形式（例: "my-project-id"）
+  // データセットIDは通常、アンダースコアやハイフンを含む（例: "my_dataset"）
+  // もし "project.dataset" 形式の場合、データセット部分のみを取得
+  if (datasetId.includes('.')) {
+    const parts = datasetId.split('.');
+    // 最後の部分がデータセットID（通常はプロジェクトIDの後に続く）
+    // ただし、データセットID自体にドットが含まれる可能性は低い
+    if (parts.length > 1) {
+      // プロジェクトIDの形式をチェック（通常は小文字、数字、ハイフンのみ）
+      const firstPart = parts[0];
+      const secondPart = parts[1];
+      // 最初の部分がプロジェクトIDっぽい場合（小文字、数字、ハイフンのみ）、2番目以降を結合
+      if (/^[a-z0-9-]+$/.test(firstPart) && firstPart.length > 5) {
+        console.warn(`⚠️ データセットIDにプロジェクトIDが含まれています: ${datasetId}`);
+        console.warn(`   プロジェクトID部分を削除します: ${firstPart}`);
+        datasetId = parts.slice(1).join('.');
+        console.warn(`   修正後のデータセットID: ${datasetId}`);
+      }
+    }
+  }
+  
+  return datasetId.trim();
+}
+
+const datasetId = getDatasetId();
 
 // プロジェクトIDの検証関数（遅延評価）
 function validateProjectId(): string {
@@ -28,10 +56,23 @@ console.log('✅ BQ_LOCATION initialized:', BQ_LOCATION);
 // Cloud Runではサービスアカウントが自動的に認証されるため、keyFilenameは不要
 // 注意: BigQueryクライアントの初期化時にlocationを設定することはできません
 // locationはクエリ実行時にのみ指定できます
-// projectIdは使用時に動的に取得するため、初期化時には設定しない
-const bigqueryConfig: any = {
-  // projectIdは使用時に動的に取得
-};
+// projectIdは環境変数から取得して明示的に設定する（Cloud Runのデフォルトプロジェクトを回避）
+function getBigQueryConfig(): any {
+  const config: any = {};
+  
+  // プロジェクトIDを明示的に設定（環境変数が設定されている場合）
+  const projectId = process.env.GCP_PROJECT_ID;
+  if (projectId && projectId.trim()) {
+    config.projectId = projectId.trim();
+    console.log('✅ BigQuery client will use explicit projectId:', config.projectId);
+  } else {
+    console.warn('⚠️ GCP_PROJECT_IDが設定されていません。Cloud Runのデフォルトプロジェクトが使用される可能性があります。');
+  }
+  
+  return config;
+}
+
+const bigqueryConfig = getBigQueryConfig();
 
 // ローカル開発環境でのみkeyFilenameを使用
 if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.NODE_ENV !== 'production') {
@@ -66,12 +107,43 @@ let bigquery: BigQuery | null = null;
 
 function initializeBigQueryClient(): BigQuery {
   if (bigquery) {
-    return bigquery;
+    // 既存のクライアントのprojectIdを確認
+    const currentProjectId = validateProjectId();
+    const clientProjectId = bigquery.projectId || '';
+    
+    // プロジェクトIDが一致しない場合、再初期化
+    if (clientProjectId && clientProjectId !== currentProjectId) {
+      console.warn(`⚠️ BigQuery client projectId mismatch: client=${clientProjectId}, env=${currentProjectId}`);
+      console.warn('   クライアントを再初期化します...');
+      bigquery = null;
+    } else {
+      return bigquery;
+    }
   }
   
   try {
-    bigquery = new BigQuery(bigqueryConfig);
+    // 最新の設定でクライアントを初期化
+    const config = getBigQueryConfig();
+    bigquery = new BigQuery(config);
+    
+    const actualProjectId = bigquery.projectId || 'NOT SET';
     console.log('✅ BigQuery client created successfully');
+    console.log('📋 BigQuery client config:', {
+      configuredProjectId: config.projectId || 'NOT SET',
+      actualProjectId: actualProjectId,
+      datasetId: datasetId,
+      location: BQ_LOCATION,
+    });
+    
+    // プロジェクトIDの検証
+    const expectedProjectId = process.env.GCP_PROJECT_ID?.trim();
+    if (expectedProjectId && actualProjectId !== expectedProjectId) {
+      console.error('❌ BigQuery client projectId mismatch!');
+      console.error(`   期待値: ${expectedProjectId}`);
+      console.error(`   実際の値: ${actualProjectId}`);
+      console.error('   Cloud Runの環境変数設定を確認してください。');
+    }
+    
     return bigquery;
   } catch (error: any) {
     console.error('❌ BigQuery client initialization failed:', error);
@@ -85,6 +157,7 @@ function initializeBigQueryClient(): BigQuery {
     console.warn('⚠️ Creating fallback BigQuery client with default config');
     try {
       bigquery = new BigQuery();
+      console.warn('⚠️ Fallback client created (may use wrong project)');
       return bigquery;
     } catch (fallbackError: any) {
       console.error('❌ Fallback BigQuery client creation also failed:', fallbackError);
@@ -97,11 +170,36 @@ function initializeBigQueryClient(): BigQuery {
 // モジュール読み込み時には初期化しない（実際の使用時に初期化）
 // これにより、モジュール読み込み時のエラーを回避
 
+// データセットIDをクリーンアップ（プロジェクトIDのプレフィックスを削除）
+function getCleanDatasetId(): string {
+  // データセットIDにプロジェクトIDが含まれている場合（例: "univere-geo-demo.universegeo_dataset"）、削除
+  if (datasetId.includes('.')) {
+    const parts = datasetId.split('.');
+    // 最初の部分がプロジェクトIDっぽい場合（小文字、数字、ハイフンのみ）、2番目以降を結合
+    if (parts.length > 1 && /^[a-z0-9-]+$/.test(parts[0]) && parts[0].length > 5) {
+      return parts.slice(1).join('.');
+    }
+  }
+  return datasetId.trim();
+}
+
 // datasetは使用時に取得（projectIdが設定されている必要がある）
+// 注意: 明示的にプロジェクトIDを指定して、二重指定を回避
 function getDataset() {
   const currentProjectId = validateProjectId();
   const bqClient = initializeBigQueryClient();
-  return bqClient.dataset(datasetId);
+  const cleanDatasetId = getCleanDatasetId();
+  
+  console.log('📋 getDataset() called:', {
+    projectId: currentProjectId,
+    datasetId: cleanDatasetId,
+    rawDatasetId: datasetId,
+    clientProjectId: bqClient.projectId || 'NOT SET',
+  });
+  
+  // 明示的にプロジェクトIDを指定してデータセットを取得
+  // これにより、クライアントのデフォルトプロジェクトIDが使用されることを防ぐ
+  return bqClient.dataset(cleanDatasetId, { projectId: currentProjectId });
 }
 
 export class BigQueryService {
@@ -112,15 +210,19 @@ export class BigQueryService {
       // プロジェクトIDを検証して取得
       const currentProjectId = validateProjectId();
       
+      // データセットIDをクリーンアップ（プロジェクトIDのプレフィックスを削除）
+      const cleanDatasetId = getCleanDatasetId();
+      
       const query = `
         SELECT *
-        FROM \`${currentProjectId}.${datasetId}.projects\`
+        FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
         ORDER BY _register_datetime DESC
       `;
       
       console.log('🔍 BigQuery query config:', {
         projectId: currentProjectId,
-        datasetId,
+        datasetId: cleanDatasetId,
+        rawDatasetId: datasetId,
         location: BQ_LOCATION,
         locationType: typeof BQ_LOCATION,
         locationLength: BQ_LOCATION?.length,
@@ -154,11 +256,12 @@ export class BigQueryService {
       console.error('Error details:', {
         message: error.message,
         code: error.code,
-        errors: error.errors,
-        projectId: process.env.GCP_PROJECT_ID || 'NOT SET',
-        datasetId,
-        location: BQ_LOCATION,
-      });
+          errors: error.errors,
+          projectId: process.env.GCP_PROJECT_ID || 'NOT SET',
+          datasetId: getCleanDatasetId(),
+          rawDatasetId: datasetId,
+          location: BQ_LOCATION,
+        });
       
       // より詳細なエラーメッセージを構築
       let errorMessage = error.message || 'Unknown error';
@@ -172,9 +275,10 @@ export class BigQueryService {
 
   async getProjectById(project_id: string): Promise<any> {
     const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
     const query = `
       SELECT *
-      FROM \`${currentProjectId}.${datasetId}.projects\`
+      FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
       WHERE project_id = @project_id
     `;
     const [rows] = await initializeBigQueryClient().query({
@@ -186,13 +290,77 @@ export class BigQueryService {
   }
 
   async createProject(project: any): Promise<void> {
-    const now = new Date();
-    await getDataset().table('projects').insert([{
-      ...project,
-      _register_datetime: now.toISOString(),
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
-    }]);
+    try {
+      const bq = initializeBigQueryClient(); // クライアントを初期化
+      const currentProjectId = validateProjectId(); // プロジェクトIDを検証
+      
+      if (!currentProjectId || currentProjectId.trim() === '') {
+        const errorMsg = 'GCP_PROJECT_ID環境変数が設定されていません。Cloud Runの環境変数設定を確認してください。';
+        console.error('❌', errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // データセットIDをクリーンアップ（プロジェクトIDのプレフィックスを削除）
+      const cleanDatasetId = getCleanDatasetId();
+      
+      console.log('📋 createProject config:', {
+        projectId: currentProjectId,
+        datasetId: cleanDatasetId,
+        rawDatasetId: datasetId,
+        clientProjectId: bq.projectId || 'NOT SET',
+        location: BQ_LOCATION,
+      });
+
+      // 明示的にプロジェクトIDとデータセットIDを指定してテーブルを取得
+      const dataset = bq.dataset(cleanDatasetId, { projectId: currentProjectId });
+      const table = dataset.table('projects');
+      
+      const rows = [{
+        ...project,
+        _register_datetime: new Date().toISOString(), // BigQueryのスキーマに合わせて追加
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }];
+      
+      try {
+        await table.insert(rows);
+        console.log('✅ Project created successfully in BigQuery.');
+      } catch (err: any) {
+        // BigQuery insertAll の行エラーがここに入る
+        console.error('[BQ insert] message:', err?.message);
+        console.error('[BQ insert] name:', err?.name);
+        console.error('[BQ insert] errors:', JSON.stringify(err?.errors, null, 2)); // ←最重要
+        console.error('[BQ insert] response:', JSON.stringify(err?.response?.body ?? err?.response, null, 2));
+        console.error('[BQ insert] code:', err?.code);
+        console.error('[BQ insert] config:', {
+          projectId: currentProjectId,
+          datasetId: cleanDatasetId,
+          rawDatasetId: datasetId,
+          location: BQ_LOCATION,
+          clientProjectId: bq.projectId || 'NOT SET',
+        });
+        
+        // エラーを再スロー（詳細情報を含む）
+        throw err;
+      }
+    } catch (error: any) {
+      console.error('❌ BigQuery createProject error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        errors: error.errors,
+        projectId: process.env.GCP_PROJECT_ID,
+        datasetId: datasetId,
+        location: BQ_LOCATION,
+      });
+      let errorMessage = error.message || 'プロジェクトの作成に失敗しました';
+      if (errorMessage.includes('Not found: Project')) {
+        errorMessage = 'GCP_PROJECT_ID環境変数が正しく設定されていないか、プロジェクトが見つかりません。Cloud Runの環境変数設定を確認してください。';
+      } else if (errorMessage.includes('Permission denied')) {
+        errorMessage = 'BigQueryへの書き込み権限がありません。Cloud Runサービスアカウントの権限を確認してください。';
+      }
+      throw new Error(`プロジェクトの作成に失敗しました: ${errorMessage}`);
+    }
   }
 
   async updateProject(project_id: string, updates: any): Promise<void> {
@@ -201,11 +369,12 @@ export class BigQueryService {
       .map(key => `${key} = @${key}`)
       .join(', ');
     
-    const query = `
-      UPDATE \`${currentProjectId}.${datasetId}.projects\`
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
-      WHERE project_id = @project_id
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        UPDATE \`${currentProjectId}.${cleanDatasetId}.projects\`
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
+        WHERE project_id = @project_id
+      `;
     
     await initializeBigQueryClient().query({
       query,
@@ -216,8 +385,9 @@ export class BigQueryService {
 
   async deleteProject(project_id: string): Promise<void> {
     const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
     const query = `
-      DELETE FROM \`${currentProjectId}.${datasetId}.projects\`
+      DELETE FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
       WHERE project_id = @project_id
     `;
     await initializeBigQueryClient().query({
@@ -231,11 +401,12 @@ export class BigQueryService {
   
   async getSegments(): Promise<any[]> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.segments\`
-      ORDER BY segment_registered_at DESC
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.segments\`
+        ORDER BY segment_registered_at DESC
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
@@ -245,12 +416,13 @@ export class BigQueryService {
 
   async getSegmentsByProject(project_id: string): Promise<any[]> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.segments\`
-      WHERE project_id = @project_id
-      ORDER BY segment_registered_at DESC
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.segments\`
+        WHERE project_id = @project_id
+        ORDER BY segment_registered_at DESC
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       params: { project_id },
@@ -273,11 +445,12 @@ export class BigQueryService {
       .map(key => `${key} = @${key}`)
       .join(', ');
     
-    const query = `
-      UPDATE \`${currentProjectId}.${datasetId}.segments\`
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
-      WHERE segment_id = @segment_id
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        UPDATE \`${currentProjectId}.${cleanDatasetId}.segments\`
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
+        WHERE segment_id = @segment_id
+      `;
     
     await initializeBigQueryClient().query({
       query,
@@ -290,11 +463,12 @@ export class BigQueryService {
   
   async getPois(): Promise<any[]> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.pois\`
-      ORDER BY created_at DESC
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.pois\`
+        ORDER BY created_at DESC
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
@@ -304,12 +478,13 @@ export class BigQueryService {
 
   async getPoisByProject(project_id: string): Promise<any[]> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.pois\`
-      WHERE project_id = @project_id
-      ORDER BY created_at DESC
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.pois\`
+        WHERE project_id = @project_id
+        ORDER BY created_at DESC
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       params: { project_id },
@@ -340,11 +515,12 @@ export class BigQueryService {
       .map(key => `${key} = @${key}`)
       .join(', ');
     
-    const query = `
-      UPDATE \`${currentProjectId}.${datasetId}.pois\`
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
-      WHERE poi_id = @poi_id
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        UPDATE \`${currentProjectId}.${cleanDatasetId}.pois\`
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
+        WHERE poi_id = @poi_id
+      `;
     
     await initializeBigQueryClient().query({
       query,
@@ -355,8 +531,9 @@ export class BigQueryService {
 
   async deletePoi(poi_id: string): Promise<void> {
     const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
     const query = `
-      DELETE FROM \`${currentProjectId}.${datasetId}.pois\`
+      DELETE FROM \`${currentProjectId}.${cleanDatasetId}.pois\`
       WHERE poi_id = @poi_id
     `;
     await initializeBigQueryClient().query({
@@ -370,11 +547,12 @@ export class BigQueryService {
   
   async getUsers(): Promise<any[]> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.users\`
-      ORDER BY created_at DESC
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.users\`
+        ORDER BY created_at DESC
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
@@ -384,11 +562,12 @@ export class BigQueryService {
 
   async getUserByEmail(email: string): Promise<any> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.users\`
-      WHERE email = @email
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.users\`
+        WHERE email = @email
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       params: { email },
@@ -411,11 +590,12 @@ export class BigQueryService {
       .map(key => `${key} = @${key}`)
       .join(', ');
     
-    const query = `
-      UPDATE \`${currentProjectId}.${datasetId}.users\`
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
-      WHERE user_id = @user_id
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        UPDATE \`${currentProjectId}.${cleanDatasetId}.users\`
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
+        WHERE user_id = @user_id
+      `;
     
     await initializeBigQueryClient().query({
       query,
@@ -428,11 +608,12 @@ export class BigQueryService {
 
   async getUserRequests(): Promise<any[]> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.user_requests\`
-      ORDER BY requested_at DESC
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.user_requests\`
+        ORDER BY requested_at DESC
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
@@ -482,7 +663,19 @@ export class BigQueryService {
       review_comment: null
     };
 
-    await getDataset().table('user_requests').insert([newRequest]);
+    try {
+      await getDataset().table('user_requests').insert([newRequest]);
+    } catch (err: any) {
+      // BigQuery insertAll の行エラーがここに入る
+      console.error('[BQ insert user_requests] message:', err?.message);
+      console.error('[BQ insert user_requests] name:', err?.name);
+      console.error('[BQ insert user_requests] errors:', JSON.stringify(err?.errors, null, 2)); // ←最重要
+      console.error('[BQ insert user_requests] response:', JSON.stringify(err?.response?.body ?? err?.response, null, 2));
+      console.error('[BQ insert user_requests] code:', err?.code);
+      
+      // エラーを再スロー（詳細情報を含む）
+      throw err;
+    }
     
     const { password_hash: _, ...requestWithoutPassword } = newRequest;
     return requestWithoutPassword;
@@ -518,8 +711,9 @@ export class BigQueryService {
 
     // 申請を承認済みに更新
     const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
     const query = `
-      UPDATE \`${currentProjectId}.${datasetId}.user_requests\`
+      UPDATE \`${currentProjectId}.${cleanDatasetId}.user_requests\`
       SET status = 'approved',
           reviewed_at = CURRENT_TIMESTAMP(),
           reviewed_by = @reviewed_by,
@@ -552,8 +746,9 @@ export class BigQueryService {
 
     // 申請を却下済みに更新
     const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
     const query = `
-      UPDATE \`${currentProjectId}.${datasetId}.user_requests\`
+      UPDATE \`${currentProjectId}.${cleanDatasetId}.user_requests\`
       SET status = 'rejected',
           reviewed_at = CURRENT_TIMESTAMP(),
           reviewed_by = @reviewed_by,
@@ -576,12 +771,13 @@ export class BigQueryService {
   
   async getMessages(project_id: string): Promise<any[]> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.messages\`
-      WHERE project_id = @project_id
-      ORDER BY timestamp DESC
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.messages\`
+        WHERE project_id = @project_id
+        ORDER BY timestamp DESC
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       params: { project_id },
@@ -592,11 +788,12 @@ export class BigQueryService {
 
   async getAllMessages(): Promise<any[]> {
     const currentProjectId = validateProjectId();
-    const query = `
-      SELECT *
-      FROM \`${currentProjectId}.${datasetId}.messages\`
-      ORDER BY timestamp DESC
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.messages\`
+        ORDER BY timestamp DESC
+      `;
     const [rows] = await initializeBigQueryClient().query({
       query,
       location: BQ_LOCATION,
@@ -612,12 +809,13 @@ export class BigQueryService {
     if (message_ids.length === 0) return;
     
     const currentProjectId = validateProjectId();
-    const placeholders = message_ids.map((_, i) => `@message_id_${i}`).join(', ');
-    const query = `
-      UPDATE \`${currentProjectId}.${datasetId}.messages\`
-      SET is_read = TRUE
-      WHERE message_id IN (${placeholders})
-    `;
+      const cleanDatasetId = getCleanDatasetId();
+      const placeholders = message_ids.map((_, i) => `@message_id_${i}`).join(', ');
+      const query = `
+        UPDATE \`${currentProjectId}.${cleanDatasetId}.messages\`
+        SET is_read = TRUE
+        WHERE message_id IN (${placeholders})
+      `;
     
     const params: any = {};
     message_ids.forEach((id, i) => {

@@ -194,11 +194,21 @@ app.post('/api/projects', async (req, res) => {
       BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
     });
     
+    // BigQueryエラーの詳細をログ出力
+    if (error.errors) {
+      console.error('[BQ insert projects] errors:', JSON.stringify(error.errors, null, 2));
+    }
+    console.error('[BQ insert projects] message:', error?.message);
+    console.error('[BQ insert projects] name:', error?.name);
+    console.error('[BQ insert projects] code:', error?.code);
+    console.error('[BQ insert projects] response:', JSON.stringify(error?.response?.body ?? error?.response, null, 2));
+    
     // より詳細なエラーメッセージを返す
     const errorMessage = error.message || 'プロジェクトの作成に失敗しました';
     const errorDetails: any = {
       error: errorMessage,
       type: error.name || 'UnknownError',
+      details: error?.errors ?? null,
     };
     
     // GCP_PROJECT_IDが設定されていない場合の詳細情報
@@ -405,7 +415,19 @@ app.post('/api/user-requests', async (req, res) => {
     res.status(201).json(request);
   } catch (error: any) {
     console.error('Error creating user request:', error);
-    res.status(400).json({ error: error.message });
+    
+    // BigQueryエラーの詳細をログ出力
+    if (error.errors) {
+      console.error('[BQ insert user_requests] errors:', JSON.stringify(error.errors, null, 2));
+    }
+    
+    // デバッグしやすいように一時的に details を返す
+    const statusCode = error.message?.includes('既に登録') || error.message?.includes('既に申請') ? 400 : 500;
+    return res.status(statusCode).json({
+      error: error.message || 'ユーザー登録申請に失敗しました',
+      type: error?.name ?? 'UnknownError',
+      details: error?.errors ?? null,
+    });
   }
 });
 
