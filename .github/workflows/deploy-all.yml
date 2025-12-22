@@ -588,7 +588,7 @@ jobs:
           
           FRONTEND_URL="${{ steps.frontend-url.outputs.frontend_url }}"
           gcloud run services update universegeo-backend \
-            --set-env-vars FRONTEND_URL="$FRONTEND_URL" \
+            --update-env-vars FRONTEND_URL="$FRONTEND_URL" \
             --region "$REGION_VALUE" \
             --project ${{ env.PROJECT_ID }}
 
