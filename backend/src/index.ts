@@ -165,6 +165,13 @@ app.get('/api/projects/:project_id', async (req, res) => {
 
 app.post('/api/projects', async (req, res) => {
   try {
+    // リクエストボディをログ出力（デバッグ用）
+    console.log('📥 POST /api/projects リクエスト受信:');
+    console.log('  Content-Type:', req.headers['content-type']);
+    console.log('  Body keys:', Object.keys(req.body || {}));
+    console.log('  Body:', JSON.stringify(req.body, null, 2));
+    console.log('  project_id:', req.body?.project_id || 'NOT FOUND');
+    
     // 環境変数の確認
     if (!process.env.GCP_PROJECT_ID) {
       console.error('❌ GCP_PROJECT_ID環境変数が設定されていません');
@@ -181,6 +188,20 @@ app.post('/api/projects', async (req, res) => {
         error: 'BQ_DATASET環境変数が設定されていません',
         type: 'ConfigurationError',
         details: 'Cloud Runの環境変数設定を確認してください。GitHub SecretsのBQ_DATASETが正しく設定されているか確認してください。',
+      });
+    }
+    
+    // project_idの事前チェック
+    if (!req.body || !req.body.project_id) {
+      console.error('❌ リクエストボディにproject_idが含まれていません');
+      console.error('  リクエストボディ:', JSON.stringify(req.body, null, 2));
+      return res.status(400).json({
+        error: 'project_idは必須です。リクエストにproject_idが含まれているか確認してください。',
+        type: 'ValidationError',
+        details: {
+          receivedBody: req.body,
+          bodyKeys: req.body ? Object.keys(req.body) : [],
+        },
       });
     }
     
