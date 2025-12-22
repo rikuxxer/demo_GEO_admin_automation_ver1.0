@@ -222,12 +222,24 @@ cat visit_measurement_groups_schema.json
 #### projectsテーブル
 
 ```bash
+# プロジェクトIDとデータセットIDを設定
 PROJECT_ID="univere-geo-demo"
 DATASET_ID="universegeo_dataset"
 TABLE="projects"
 
+# 変数が正しく設定されているか確認
+echo "PROJECT_ID: $PROJECT_ID"
+echo "DATASET_ID: $DATASET_ID"
+echo "TABLE: $TABLE"
+
 # 現在のスキーマを取得
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
+
+# スキーマファイルが正しく作成されたか確認
+if [ ! -f schema.json ]; then
+  echo "❌ エラー: schema.jsonが作成されませんでした"
+  exit 1
+fi
 
 # 新しいフィールドを追加（既に存在する場合はスキップ）
 jq '
@@ -239,8 +251,18 @@ jq '
   addfield({"name":"project_registration_started_at","type":"TIMESTAMP","mode":"NULLABLE"})
 ' schema.json > schema_new.json
 
-# スキーマを更新
-bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
+# 更新後のスキーマを確認
+echo "📋 更新後のスキーマ:"
+cat schema_new.json
+
+# スキーマを更新（--projectフラグを明示的に指定）
+bq update -t \
+  --project_id="${PROJECT_ID}" \
+  --schema schema_new.json \
+  "${DATASET_ID}.${TABLE}"
+
+# または、完全修飾名を使用
+# bq update -t --schema schema_new.json "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
 ```
 
 #### user_requestsテーブル
