@@ -223,7 +223,7 @@ jobs:
           echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_ENV
           echo "🚀 Frontend deployed to: $FRONTEND_URL"
 
-      - name: Update Backend CORS
+      - name: Update Backend CORS and Environment Variables
         run: |
           # リージョンの値を明示的に設定
           REGION_VALUE="${{ env.REGION }}"
@@ -231,11 +231,31 @@ jobs:
             REGION_VALUE="asia-northeast1"
           fi
           
-          echo "🔄 Updating backend CORS settings..."
-          gcloud run services update universegeo-backend \
-            --set-env-vars FRONTEND_URL="$FRONTEND_URL" \
+          echo "🔄 バックエンドのCORS設定と環境変数を更新中..."
+          
+          # バックエンドURLを取得（最新のリビジョンから）
+          CURRENT_BACKEND_URL=$(gcloud run services describe universegeo-backend \
             --region "$REGION_VALUE" \
-            --project ${{ env.PROJECT_ID }} || echo "⚠️ Backend update skipped (may not exist)"
+            --project ${{ env.PROJECT_ID }} \
+            --format 'value(status.url)' 2>/dev/null || echo '')
+          
+          if [ -z "$CURRENT_BACKEND_URL" ]; then
+            echo "⚠️ バックエンドサービスが見つかりません。スキップします。"
+            exit 0
+          fi
+          
+          echo "📋 バックエンドURL: $CURRENT_BACKEND_URL"
+          echo "📋 フロントエンドURL: $FRONTEND_URL"
+          
+          # 環境変数を更新（--update-env-varsを使用して既存の環境変数とマージ）
+          # 注意: すべての環境変数を1回のコマンドで設定する必要があります
+          gcloud run services update universegeo-backend \
+            --update-env-vars FRONTEND_URL="$FRONTEND_URL" \
+            --region "$REGION_VALUE" \
+            --project ${{ env.PROJECT_ID }} \
+            --quiet || echo "⚠️ バックエンド更新をスキップしました"
+          
+          echo "✅ バックエンドの更新が完了しました"
 
       - name: Deployment Summary
         run: |

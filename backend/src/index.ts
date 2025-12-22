@@ -165,11 +165,56 @@ app.get('/api/projects/:project_id', async (req, res) => {
 
 app.post('/api/projects', async (req, res) => {
   try {
+    // 環境変数の確認
+    if (!process.env.GCP_PROJECT_ID) {
+      console.error('❌ GCP_PROJECT_ID環境変数が設定されていません');
+      return res.status(500).json({
+        error: 'GCP_PROJECT_ID環境変数が設定されていません',
+        type: 'ConfigurationError',
+        details: 'Cloud Runの環境変数設定を確認してください。GitHub SecretsのGCP_PROJECT_IDが正しく設定されているか確認してください。',
+      });
+    }
+    
+    if (!process.env.BQ_DATASET) {
+      console.error('❌ BQ_DATASET環境変数が設定されていません');
+      return res.status(500).json({
+        error: 'BQ_DATASET環境変数が設定されていません',
+        type: 'ConfigurationError',
+        details: 'Cloud Runの環境変数設定を確認してください。GitHub SecretsのBQ_DATASETが正しく設定されているか確認してください。',
+      });
+    }
+    
     await getBqService().createProject(req.body);
     res.status(201).json({ message: 'Project created successfully' });
   } catch (error: any) {
     console.error('Error creating project:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error stack:', error.stack);
+    console.error('Environment variables:', {
+      GCP_PROJECT_ID: process.env.GCP_PROJECT_ID ? 'SET' : 'NOT SET',
+      BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
+    });
+    
+    // より詳細なエラーメッセージを返す
+    const errorMessage = error.message || 'プロジェクトの作成に失敗しました';
+    const errorDetails: any = {
+      error: errorMessage,
+      type: error.name || 'UnknownError',
+    };
+    
+    // GCP_PROJECT_IDが設定されていない場合の詳細情報
+    if (errorMessage.includes('GCP_PROJECT_ID') || !process.env.GCP_PROJECT_ID) {
+      errorDetails.details = 'GCP_PROJECT_ID環境変数が正しく設定されていません。Cloud Runの環境変数設定を確認してください。';
+      errorDetails.configuration = {
+        GCP_PROJECT_ID: process.env.GCP_PROJECT_ID || 'NOT SET',
+        BQ_DATASET: process.env.BQ_DATASET || 'NOT SET',
+      };
+    }
+    
+    if (process.env.NODE_ENV !== 'production') {
+      errorDetails.stack = error.stack;
+    }
+    
+    res.status(500).json(errorDetails);
   }
 });
 
