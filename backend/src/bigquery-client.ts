@@ -434,17 +434,37 @@ export class BigQueryService {
 
       // 4. BigQueryのスキーマに存在するフィールドのみを含める
       // スキーマに存在するフィールド: project_id, advertiser_name, appeal_point, delivery_start_date, 
-      // delivery_end_date, person_in_charge, project_status, _register_datetime, created_at, updated_at
+      // delivery_end_date, person_in_charge, project_status, agency_name, remarks,
+      // _register_datetime, created_at, updated_at
+      // 注意: universe_service_id, universe_service_name, sub_person_in_charge は
+      // スキーマに存在しないため、除外されます
       const allowedFields = [
         'project_id',
         'advertiser_name',
+        'agency_name', // スキーマに追加済み
         'appeal_point',
         'delivery_start_date',
         'delivery_end_date',
         'person_in_charge',
         'project_status',
+        'remarks', // スキーマに追加済み
         'project_registration_started_at', // 追加フィールド（存在する場合）
       ];
+
+      // 受信したプロジェクトデータの全フィールドをログ出力
+      const receivedFields = Object.keys(project || {});
+      const excludedFields = receivedFields.filter(field => !allowedFields.includes(field));
+      
+      console.log('📋 フィールドフィルタリング:');
+      console.log('  受信したフィールド:', receivedFields);
+      console.log('  許可されたフィールド:', allowedFields);
+      console.log('  除外されるフィールド:', excludedFields);
+      if (excludedFields.length > 0) {
+        console.warn('  ⚠️ 以下のフィールドはBigQueryスキーマに存在しないため除外されます:', excludedFields);
+        excludedFields.forEach(field => {
+          console.warn(`    - ${field}: ${JSON.stringify(project[field])}`);
+        });
+      }
 
       const cleanedProject: any = {
         project_id: project.project_id.trim(), // REQUIRED STRING
@@ -461,6 +481,11 @@ export class BigQueryService {
           }
         }
       }
+      
+      console.log('✅ フィルタリング後のプロジェクトデータ:', {
+        includedFields: Object.keys(cleanedProject),
+        excludedFields: excludedFields,
+      });
 
       // TIMESTAMP型フィールドを追加（共通関数を使用）
       const now = new Date();
@@ -1159,10 +1184,23 @@ export class BigQueryService {
       email: cleanedRequest.email,
       requested_role: cleanedRequest.requested_role,
       allFields: Object.keys(cleanedRequest),
+      fullData: JSON.stringify(cleanedRequest, null, 2),
     });
 
     try {
-      await getDataset().table('user_requests').insert([cleanedRequest]);
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getCleanDatasetId();
+      const dataset = initializeBigQueryClient().dataset(cleanDatasetId, { projectId: currentProjectId });
+      const table = dataset.table('user_requests');
+      
+      console.log('📋 Inserting into BigQuery:', {
+        projectId: currentProjectId,
+        datasetId: cleanDatasetId,
+        table: 'user_requests',
+      });
+      
+      await table.insert([cleanedRequest]);
+      console.log('✅ User request created successfully in BigQuery.');
     } catch (err: any) {
       // BigQuery insertAll の行エラーがここに入る
       console.error('[BQ insert user_requests] message:', err?.message);
@@ -1170,9 +1208,22 @@ export class BigQueryService {
       console.error('[BQ insert user_requests] errors:', JSON.stringify(err?.errors, null, 2)); // ←最重要
       console.error('[BQ insert user_requests] response:', JSON.stringify(err?.response?.body ?? err?.response, null, 2));
       console.error('[BQ insert user_requests] code:', err?.code);
+      console.error('[BQ insert user_requests] attempted data:', JSON.stringify(cleanedRequest, null, 2));
       
-      // エラーを再スロー（詳細情報を含む）
-      throw err;
+      // BigQueryのエラー情報を保持したまま、新しいエラーオブジェクトを作成
+      const enhancedError = new Error(err.message || 'ユーザー登録申請の作成に失敗しました');
+      enhancedError.name = err.name || 'BigQueryError';
+      
+      // 元のエラー情報を保持
+      (enhancedError as any).code = err.code;
+      (enhancedError as any).errors = err.errors;
+      (enhancedError as any).response = err.response;
+      (enhancedError as any).cause = err; // 元例外をcauseに設定
+      
+      // スタックトレースを保持
+      enhancedError.stack = err.stack || enhancedError.stack;
+      
+      throw enhancedError;
     }
     
     const { password_hash: _, ...requestWithoutPassword } = cleanedRequest;
