@@ -513,7 +513,12 @@
                                 result += `     ${header}: ${test.headers[header]}\n`;
                             });
                         } else {
-                            result += `   ⚠️ CORSヘッダーが見つかりません\n`;
+                            // リクエストが成功している場合、CORSは機能している（ブラウザのセキュリティ制限で読み取れないだけ）
+                            if (test.ok) {
+                                result += `   ✅ CORSは機能しています（ブラウザのセキュリティ制限でヘッダーは読み取れません）\n`;
+                            } else {
+                                result += `   ⚠️ CORSヘッダーが見つかりません\n`;
+                            }
                         }
                     }
                 }

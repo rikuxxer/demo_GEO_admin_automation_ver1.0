@@ -1667,16 +1667,18 @@ class BigQueryService {
       throw new Error('リセットトークンの有効期限が切れています');
     }
 
-    // ユーザーのパスワードを更新
+    // 登録されているメールアドレスでユーザーを検索
     const users = await this.getUsers();
+    const registeredEmail = resetRequest.email.trim().toLowerCase();
     const userIndex = users.findIndex(u => 
-      u.email && u.email.trim().toLowerCase() === resetRequest.email
+      u.email && u.email.trim().toLowerCase() === registeredEmail
     );
 
     if (userIndex === -1) {
       throw new Error('ユーザーが見つかりません');
     }
 
+    // ユーザーのパスワードを更新
     users[userIndex].password_hash = btoa(newPassword);
     users[userIndex].updated_at = new Date().toISOString();
     localStorage.setItem(this.userStorageKey, JSON.stringify(users));
@@ -1685,7 +1687,10 @@ class BigQueryService {
     const updatedTokens = resetTokens.filter((r: any) => r.token !== token);
     localStorage.setItem('password_reset_tokens', JSON.stringify(updatedTokens));
 
-    console.log('✅ パスワードをリセットしました');
+    console.log('✅ パスワードをリセットしました:', {
+      email: registeredEmail,
+      user_id: users[userIndex].user_id
+    });
   }
 }
 
