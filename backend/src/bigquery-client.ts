@@ -1391,18 +1391,21 @@ export class BigQueryService {
 
   // パスワードリセット機能
   async requestPasswordReset(email: string): Promise<void> {
-    const normalizedEmail = email.trim().toLowerCase();
+    const inputEmail = email.trim().toLowerCase();
     
-    // ユーザーが存在するか確認
-    const user = await this.getUserByEmail(normalizedEmail);
+    // ユーザーが存在するか確認（登録されているメールアドレスで検索）
+    const user = await this.getUserByEmail(inputEmail);
     if (!user) {
       // セキュリティ上の理由で、ユーザーが存在しない場合でも成功メッセージを返す
       console.log('⚠️ パスワードリセット申請: ユーザーが見つかりませんでした（セキュリティ上の理由で成功メッセージを返します）');
       return;
     }
 
-    // 既存の有効なトークンを無効化
-    await this.invalidatePasswordResetTokens(normalizedEmail);
+    // 登録されているメールアドレスを取得（データベースに保存されている正確なメールアドレス）
+    const registeredEmail = user.email ? user.email.trim().toLowerCase() : inputEmail;
+    
+    // 既存の有効なトークンを無効化（登録されているメールアドレスで）
+    await this.invalidatePasswordResetTokens(registeredEmail);
 
     // リセットトークンを生成
     const tokenId = `TOKEN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -1416,7 +1419,7 @@ export class BigQueryService {
     const tokenData = {
       token_id: tokenId,
       user_id: user.user_id,
-      email: normalizedEmail,
+      email: registeredEmail, // 登録されているメールアドレスを使用
       token: resetToken,
       expires_at: formatTimestampForBigQuery(resetExpiry),
       used: formatBoolForBigQuery(false),
@@ -1428,15 +1431,16 @@ export class BigQueryService {
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}?token=${resetToken}`;
     
     console.log('📧 パスワードリセットトークンを生成しました:', {
-      email: normalizedEmail,
+      inputEmail: inputEmail,
+      registeredEmail: registeredEmail, // 登録されているメールアドレス
       user_id: user.user_id,
       token: resetToken,
       expires_at: formatTimestampForBigQuery(resetExpiry),
       resetUrl: resetUrl
     });
 
-    // メール送信
-    await this.sendPasswordResetEmail(normalizedEmail, user.name, resetUrl);
+    // メール送信（登録されているメールアドレスに送信）
+    await this.sendPasswordResetEmail(registeredEmail, user.name, resetUrl);
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {

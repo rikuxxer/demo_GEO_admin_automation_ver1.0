@@ -42,8 +42,22 @@ console.log('🌐 CORS設定:', {
 // ミドルウェア
 app.use(cors({
   origin: (origin, callback) => {
-    // originが未設定（同一オリジンリクエスト）の場合
+    // originが未設定（同一オリジンリクエスト、サーバー間通信、Postmanなど）の場合
     if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    // file:// からの fetch は "null" 文字列になることがある
+    if (origin === "null") {
+      callback(null, true);
+      return;
+    }
+    
+    // 開発環境またはテスト環境では、すべてのoriginを許可（オプション）
+    // 本番環境では削除または条件を追加してください
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    if (isDevelopment && process.env.ALLOW_ALL_ORIGINS === 'true') {
       callback(null, true);
       return;
     }
@@ -69,6 +83,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Preflight（OPTIONS）リクエストを確実に通す
+app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 
 // リクエストコンテキストミドルウェア（相関IDの生成・設定）

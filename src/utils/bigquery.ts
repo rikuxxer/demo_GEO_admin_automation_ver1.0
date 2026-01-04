@@ -1577,9 +1577,11 @@ class BigQueryService {
 
     // モック実装（localStorage）
     const users = await this.getUsers();
-    const normalizedEmail = email.trim().toLowerCase();
+    const inputEmail = email.trim().toLowerCase();
+    
+    // 登録されているユーザーを検索
     const user = users.find(u => 
-      u.email && u.email.trim().toLowerCase() === normalizedEmail
+      u.email && u.email.trim().toLowerCase() === inputEmail
     );
 
     if (!user) {
@@ -1588,6 +1590,9 @@ class BigQueryService {
       return;
     }
 
+    // 登録されているメールアドレスを取得（データベースに保存されている正確なメールアドレス）
+    const registeredEmail = user.email ? user.email.trim().toLowerCase() : inputEmail;
+
     // トークンを生成（簡易実装）
     const resetToken = `RESET-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const resetExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24時間後
@@ -1595,18 +1600,19 @@ class BigQueryService {
     // パスワードリセットトークンを保存（実際の実装では、別のテーブルやストレージに保存）
     const resetTokens = JSON.parse(localStorage.getItem('password_reset_tokens') || '[]');
     resetTokens.push({
-      email: normalizedEmail,
+      email: registeredEmail, // 登録されているメールアドレスを使用
       token: resetToken,
       expires_at: resetExpiry,
       created_at: new Date().toISOString()
     });
     localStorage.setItem('password_reset_tokens', JSON.stringify(resetTokens));
 
-    // 実際の実装では、ここでメールを送信する
+    // 実際の実装では、ここでメールを送信する（登録されているメールアドレスに送信）
     console.log('📧 パスワードリセットトークンを生成しました（モック）:', {
-      email: normalizedEmail,
+      inputEmail: inputEmail,
+      registeredEmail: registeredEmail, // 登録されているメールアドレス
       token: resetToken,
-      resetUrl: `${window.location.origin}/reset-password?token=${resetToken}`
+      resetUrl: `${window.location.origin}?token=${resetToken}`
     });
   }
 
