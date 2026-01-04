@@ -85,7 +85,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // 2. 登録済みユーザーでのログイン試行
     try {
-      const registeredUsers = await bigQueryService.getUsers();
+      let registeredUsers;
+      try {
+        registeredUsers = await bigQueryService.getUsers();
+      } catch (fetchError: any) {
+        // 拡張機能関連のエラーやネットワークエラーを処理
+        const errorMessage = fetchError?.message || String(fetchError);
+        if (errorMessage.includes('message channel closed') || 
+            errorMessage.includes('asynchronous response')) {
+          console.warn('⚠️ 拡張機能関連のエラーが発生しました。リトライします...');
+          // 少し待ってからリトライ
+          await new Promise(resolve => setTimeout(resolve, 100));
+          registeredUsers = await bigQueryService.getUsers();
+        } else {
+          throw fetchError;
+        }
+      }
+      
       // メールアドレスを小文字に変換して検索（承認時も小文字で保存されているため）
       const normalizedEmail = email.trim().toLowerCase();
       const registeredUser = registeredUsers.find(u => 
@@ -137,10 +153,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(true);
           localStorage.setItem('currentUser', JSON.stringify(user));
 
-          // 最終ログイン時刻を更新
-          await bigQueryService.updateUser(registeredUser.user_id, {
-            last_login: new Date().toISOString()
-          });
+          // 最終ログイン時刻を更新（エラーが発生してもログインは成功させる）
+          try {
+            await bigQueryService.updateUser(registeredUser.user_id, {
+              last_login: new Date().toISOString()
+            });
+          } catch (updateError: any) {
+            // 拡張機能関連のエラーやネットワークエラーは無視
+            const errorMessage = updateError?.message || String(updateError);
+            if (errorMessage.includes('message channel closed') || 
+                errorMessage.includes('asynchronous response')) {
+              // ブラウザ拡張機能関連のエラーは無視
+              console.warn('⚠️ 拡張機能関連のエラーを無視しました（ログインは成功）:', errorMessage);
+            } else {
+              // その他のエラーはログに記録するが、ログインは成功させる
+              console.warn('⚠️ ログイン時刻の更新に失敗しました（ログインは成功）:', updateError);
+            }
+          }
 
           // 初回ログイン判定（営業のみ）
           if (user.role === 'sales' && isFirstLogin(user.id)) {
