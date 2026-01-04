@@ -1108,7 +1108,11 @@ class BigQueryService {
 
   async getUserByEmail(email: string): Promise<any | null> {
     const users = await this.getUsers();
-    return users.find(u => u.email === email) || null;
+    // メールアドレスを小文字に正規化して検索
+    const normalizedEmail = email.trim().toLowerCase();
+    return users.find(u => 
+      u.email && u.email.trim().toLowerCase() === normalizedEmail
+    ) || null;
   }
 
   async createUser(userData: {
@@ -1333,8 +1337,8 @@ class BigQueryService {
 
     const newRequest = {
       user_id: `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: requestData.name,
-      email: requestData.email,
+      name: normalizedName,
+      email: normalizedEmail,
       password_hash: btoa(requestData.password), // 簡易エンコード
       requested_role: requestData.requested_role,
       department: requestData.department,

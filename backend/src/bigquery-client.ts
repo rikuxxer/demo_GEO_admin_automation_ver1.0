@@ -1040,14 +1040,16 @@ export class BigQueryService {
   async getUserByEmail(email: string): Promise<any> {
     const currentProjectId = validateProjectId();
       const cleanDatasetId = getCleanDatasetId();
+      // メールアドレスを小文字に正規化して検索
+      const normalizedEmail = email.trim().toLowerCase();
       const query = `
         SELECT *
         FROM \`${currentProjectId}.${cleanDatasetId}.users\`
-        WHERE email = @email
+        WHERE LOWER(TRIM(email)) = @email
       `;
     const [rows] = await initializeBigQueryClient().query({
       query,
-      params: { email },
+      params: { email: normalizedEmail },
       location: BQ_LOCATION,
     });
     return rows[0] || null;
@@ -1182,19 +1184,40 @@ export class BigQueryService {
     department?: string;
     reason?: string;
   }): Promise<any> {
+    // 名前とメールアドレスを正規化（前後の空白を除去、小文字化）
+    const normalizedName = requestData.name.trim();
+    const normalizedEmail = requestData.email.trim().toLowerCase();
+
     // メールアドレスの重複チェック（既存ユーザー）
-    const existingUser = await this.getUserByEmail(requestData.email);
+    const existingUser = await this.getUserByEmail(normalizedEmail);
     if (existingUser) {
       throw new Error('このメールアドレスは既に登録されています');
     }
 
-    // 既に申請済みかチェック
-    const existingRequests = await this.getUserRequests();
-    const existingRequest = existingRequests.find(r => 
-      r.email === requestData.email && r.status === 'pending'
+    // 名前の重複チェック（既存ユーザー）
+    const allUsers = await this.getUsers();
+    const existingUserByName = allUsers.find(u => 
+      u.name && u.name.trim() === normalizedName
     );
-    if (existingRequest) {
+    if (existingUserByName) {
+      throw new Error('この名前は既に登録されています。別の名前を使用するか、既存のアカウントをご利用ください。');
+    }
+
+    // 既に申請済みかチェック（メールアドレス）
+    const existingRequests = await this.getUserRequests();
+    const existingRequestByEmail = existingRequests.find(r => 
+      r.email && r.email.trim().toLowerCase() === normalizedEmail && r.status === 'pending'
+    );
+    if (existingRequestByEmail) {
       throw new Error('このメールアドレスで既に申請が行われています');
+    }
+
+    // 既に申請済みかチェック（名前）- pending または approved の申請をチェック
+    const existingRequestByName = existingRequests.find(r => 
+      r.name && r.name.trim() === normalizedName && (r.status === 'pending' || r.status === 'approved')
+    );
+    if (existingRequestByName) {
+      throw new Error('この名前で既に申請が行われています。別の名前を使用するか、既存の申請の承認をお待ちください。');
     }
 
     // パスワードハッシュ化（簡易実装 - 本番環境ではbcrypt等を使用）
@@ -1222,8 +1245,8 @@ export class BigQueryService {
 
     const cleanedRequest: any = {
       user_id: user_id.trim(),
-      name: requestData.name.trim(),
-      email: requestData.email.trim().toLowerCase(),
+      name: normalizedName,
+      email: normalizedEmail,
       password_hash: password_hash,
       requested_role: requestData.requested_role,
       status: 'pending',
