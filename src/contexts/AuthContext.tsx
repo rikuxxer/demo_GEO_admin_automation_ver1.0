@@ -86,26 +86,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 2. 登録済みユーザーでのログイン試行
     try {
       const registeredUsers = await bigQueryService.getUsers();
-      const registeredUser = registeredUsers.find(u => u.email === email);
+      // メールアドレスを小文字に変換して検索（承認時も小文字で保存されているため）
+      const normalizedEmail = email.trim().toLowerCase();
+      const registeredUser = registeredUsers.find(u => 
+        u.email && u.email.trim().toLowerCase() === normalizedEmail
+      );
       
       if (registeredUser) {
         // パスワードの検証（簡易エンコード）
         const passwordHash = btoa(password);
         
+        // is_activeフィールドを明示的にbooleanに変換（BigQueryから取得したデータの型を確実にする）
+        const isActive = registeredUser.is_active === true || 
+                        registeredUser.is_active === 'true' || 
+                        registeredUser.is_active === 1;
+        
         // デバッグ用ログ（開発環境のみ）
         if (import.meta.env.MODE === 'development') {
           console.log('🔐 ログイン試行:', {
-            email: registeredUser.email,
+            inputEmail: email,
+            normalizedEmail: normalizedEmail,
+            storedEmail: registeredUser.email,
+            emailMatch: registeredUser.email && registeredUser.email.trim().toLowerCase() === normalizedEmail,
             inputPasswordHash: passwordHash,
             storedPasswordHash: registeredUser.password_hash,
-            match: registeredUser.password_hash === passwordHash,
-            isActive: registeredUser.is_active
+            passwordMatch: registeredUser.password_hash === passwordHash,
+            isActive: isActive,
+            isActiveRaw: registeredUser.is_active,
+            isActiveType: typeof registeredUser.is_active
           });
         }
         
         if (registeredUser.password_hash === passwordHash) {
           // アクティブなユーザーのみログイン可能
-          if (!registeredUser.is_active) {
+          if (!isActive) {
             console.warn('このアカウントは無効化されています');
             return false;
           }

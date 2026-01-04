@@ -1341,10 +1341,20 @@ export class BigQueryService {
       user_id: cleanedUser.user_id,
       email: cleanedUser.email,
       role: cleanedUser.role,
+      is_active: cleanedUser.is_active,
+      password_hash_length: cleanedUser.password_hash?.length,
+      password_hash_preview: cleanedUser.password_hash?.substring(0, 20) + '...',
       allFields: Object.keys(cleanedUser),
     });
 
     await getDataset().table('users').insert([cleanedUser], { ignoreUnknownValues: true });
+    
+    console.log('✅ ユーザーを作成しました:', {
+      user_id: cleanedUser.user_id,
+      email: cleanedUser.email,
+      role: cleanedUser.role,
+      is_active: cleanedUser.is_active
+    });
 
     // 申請を承認済みに更新
     const currentProjectId = validateProjectId();

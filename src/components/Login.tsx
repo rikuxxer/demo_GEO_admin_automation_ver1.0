@@ -24,11 +24,21 @@ export function Login() {
     try {
       const success = await login(email, password);
       if (!success) {
-        // デバッグ用：登録済みユーザーを確認
+        // デバッグ用：登録済みユーザーを確認（メールアドレスを小文字に変換して検索）
         const users = await bigQueryService.getUsers();
-        const userExists = users.find(u => u.email === email);
+        const normalizedEmail = email.trim().toLowerCase();
+        const userExists = users.find(u => 
+          u.email && u.email.trim().toLowerCase() === normalizedEmail
+        );
         
-        if (userExists && !userExists.is_active) {
+        // is_activeフィールドを明示的にbooleanに変換
+        const isActive = userExists && (
+          userExists.is_active === true || 
+          userExists.is_active === 'true' || 
+          userExists.is_active === 1
+        );
+        
+        if (userExists && !isActive) {
           setError('このアカウントは無効化されています。管理者にお問い合わせください。');
         } else if (userExists) {
           setError('パスワードが正しくありません');
