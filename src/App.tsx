@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Plus, ChevronDown, HelpCircle } from "lucide-react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Login } from "./components/Login";
+import { PasswordReset } from "./components/PasswordReset";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { SummaryCards } from "./components/SummaryCards";
@@ -234,6 +235,14 @@ function AppContent() {
       // Error handled in hook
     }
   };
+
+  // URLパラメータからトークンを取得
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('token');
+
+  if (resetToken && resetToken.startsWith('RESET-')) {
+    return <PasswordReset token={resetToken} onBack={() => window.location.href = '/'} />;
+  }
 
   if (!isAuthenticated) {
     return <Login />;

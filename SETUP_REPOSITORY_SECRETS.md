@@ -110,3 +110,4 @@ Get-Content key.json | Set-Clipboard
 
 
 
+

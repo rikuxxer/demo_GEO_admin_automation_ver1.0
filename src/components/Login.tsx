@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Lock, Mail, AlertCircle, UserPlus } from 'lucide-react';
+import { Lock, Mail, AlertCircle, UserPlus, ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Alert } from './ui/alert';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRegistrationRequest } from './UserRegistrationRequest';
+import { PasswordResetRequest } from './PasswordResetRequest';
 import { bigQueryService } from '../utils/bigquery';
 
 export function Login() {
@@ -14,6 +15,7 @@ export function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +69,14 @@ export function Login() {
       throw error;
     }
   };
+
+  if (showPasswordReset) {
+    return (
+      <PasswordResetRequest
+        onBack={() => setShowPasswordReset(false)}
+      />
+    );
+  }
 
   if (showRegistration) {
     return (
@@ -122,7 +132,16 @@ export function Login() {
 
             {/* パスワード */}
             <div className="space-y-2">
-              <Label htmlFor="password">パスワード</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">パスワード</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordReset(true)}
+                  className="text-sm text-[#5b5fff] hover:underline"
+                >
+                  パスワードを忘れた場合
+                </button>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input

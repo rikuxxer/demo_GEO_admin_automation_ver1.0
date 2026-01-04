@@ -1321,23 +1321,26 @@ class BigQueryService {
     // モック実装（localStorage）
     const requests = await this.getUserRequests();
     
+    // メールアドレスを正規化（前後の空白を除去、小文字化）
+    const normalizedEmail = requestData.email.trim().toLowerCase();
+
     // メールアドレスの重複チェック（既存ユーザー）
-    const existingUser = await this.getUserByEmail(requestData.email);
+    const existingUser = await this.getUserByEmail(normalizedEmail);
     if (existingUser) {
       throw new Error('このメールアドレスは既に登録されています');
     }
 
-    // 既に申請済みかチェック
-    const existingRequest = requests.find(r => 
-      r.email === requestData.email && r.status === 'pending'
+    // 既に申請済みかチェック（メールアドレス）- pending または approved の申請をチェック
+    const existingRequestByEmail = requests.find(r => 
+      r.email && r.email.trim().toLowerCase() === normalizedEmail && (r.status === 'pending' || r.status === 'approved')
     );
-    if (existingRequest) {
-      throw new Error('このメールアドレスで既に申請が行われています');
+    if (existingRequestByEmail) {
+      throw new Error('このメールアドレスで既に申請が行われています。別のメールアドレスを使用するか、既存の申請の承認をお待ちください。');
     }
 
     const newRequest = {
       user_id: `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: normalizedName,
+      name: requestData.name.trim(),
       email: normalizedEmail,
       password_hash: btoa(requestData.password), // 簡易エンコード
       requested_role: requestData.requested_role,
@@ -1530,6 +1533,153 @@ class BigQueryService {
 
     localStorage.setItem(this.userRequestStorageKey, JSON.stringify(requests));
     console.log('✅ ユーザー登録申請却下:', requestId);
+  }
+
+  // パスワードリセット機能
+  async requestPasswordReset(email: string): Promise<void> {
+    // バックエンドAPIを使用する場合
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/password-reset/request`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        if (!response.ok) {
+          let errorMessage = 'パスワードリセット申請に失敗しました';
+          try {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const error = await response.json();
+              errorMessage = error.error || errorMessage;
+            } else {
+              const errorText = await response.text();
+              errorMessage = errorText || errorMessage;
+            }
+          } catch (parseError) {
+            console.error('エラーレスポンスのパースに失敗:', parseError);
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        await response.json();
+        console.log('✅ パスワードリセット申請を送信しました');
+      } catch (error) {
+        console.error('パスワードリセット申請APIエラー:', error);
+        throw error;
+      }
+      return;
+    }
+
+    // モック実装（localStorage）
+    const users = await this.getUsers();
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = users.find(u => 
+      u.email && u.email.trim().toLowerCase() === normalizedEmail
+    );
+
+    if (!user) {
+      // セキュリティ上の理由で、ユーザーが存在しない場合でも成功メッセージを返す
+      console.log('⚠️ ユーザーが見つかりませんでした（セキュリティ上の理由で成功メッセージを返します）');
+      return;
+    }
+
+    // トークンを生成（簡易実装）
+    const resetToken = `RESET-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const resetExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24時間後
+
+    // パスワードリセットトークンを保存（実際の実装では、別のテーブルやストレージに保存）
+    const resetTokens = JSON.parse(localStorage.getItem('password_reset_tokens') || '[]');
+    resetTokens.push({
+      email: normalizedEmail,
+      token: resetToken,
+      expires_at: resetExpiry,
+      created_at: new Date().toISOString()
+    });
+    localStorage.setItem('password_reset_tokens', JSON.stringify(resetTokens));
+
+    // 実際の実装では、ここでメールを送信する
+    console.log('📧 パスワードリセットトークンを生成しました（モック）:', {
+      email: normalizedEmail,
+      token: resetToken,
+      resetUrl: `${window.location.origin}/reset-password?token=${resetToken}`
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    // バックエンドAPIを使用する場合
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/password-reset/reset`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token, new_password: newPassword }),
+        });
+
+        if (!response.ok) {
+          let errorMessage = 'パスワードリセットに失敗しました';
+          try {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const error = await response.json();
+              errorMessage = error.error || errorMessage;
+            } else {
+              const errorText = await response.text();
+              errorMessage = errorText || errorMessage;
+            }
+          } catch (parseError) {
+            console.error('エラーレスポンスのパースに失敗:', parseError);
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        await response.json();
+        console.log('✅ パスワードをリセットしました');
+      } catch (error) {
+        console.error('パスワードリセットAPIエラー:', error);
+        throw error;
+      }
+      return;
+    }
+
+    // モック実装（localStorage）
+    const resetTokens = JSON.parse(localStorage.getItem('password_reset_tokens') || '[]');
+    const resetRequest = resetTokens.find((r: any) => r.token === token);
+
+    if (!resetRequest) {
+      throw new Error('無効なリセットトークンです');
+    }
+
+    if (new Date(resetRequest.expires_at) < new Date()) {
+      throw new Error('リセットトークンの有効期限が切れています');
+    }
+
+    // ユーザーのパスワードを更新
+    const users = await this.getUsers();
+    const userIndex = users.findIndex(u => 
+      u.email && u.email.trim().toLowerCase() === resetRequest.email
+    );
+
+    if (userIndex === -1) {
+      throw new Error('ユーザーが見つかりません');
+    }
+
+    users[userIndex].password_hash = btoa(newPassword);
+    users[userIndex].updated_at = new Date().toISOString();
+    localStorage.setItem(this.userStorageKey, JSON.stringify(users));
+
+    // 使用済みトークンを削除
+    const updatedTokens = resetTokens.filter((r: any) => r.token !== token);
+    localStorage.setItem('password_reset_tokens', JSON.stringify(updatedTokens));
+
+    console.log('✅ パスワードをリセットしました');
   }
 }
 

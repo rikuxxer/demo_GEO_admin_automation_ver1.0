@@ -1184,8 +1184,7 @@ export class BigQueryService {
     department?: string;
     reason?: string;
   }): Promise<any> {
-    // 名前とメールアドレスを正規化（前後の空白を除去、小文字化）
-    const normalizedName = requestData.name.trim();
+    // メールアドレスを正規化（前後の空白を除去、小文字化）
     const normalizedEmail = requestData.email.trim().toLowerCase();
 
     // メールアドレスの重複チェック（既存ユーザー）
@@ -1194,30 +1193,13 @@ export class BigQueryService {
       throw new Error('このメールアドレスは既に登録されています');
     }
 
-    // 名前の重複チェック（既存ユーザー）
-    const allUsers = await this.getUsers();
-    const existingUserByName = allUsers.find(u => 
-      u.name && u.name.trim() === normalizedName
-    );
-    if (existingUserByName) {
-      throw new Error('この名前は既に登録されています。別の名前を使用するか、既存のアカウントをご利用ください。');
-    }
-
-    // 既に申請済みかチェック（メールアドレス）
+    // 既に申請済みかチェック（メールアドレス）- pending または approved の申請をチェック
     const existingRequests = await this.getUserRequests();
     const existingRequestByEmail = existingRequests.find(r => 
-      r.email && r.email.trim().toLowerCase() === normalizedEmail && r.status === 'pending'
+      r.email && r.email.trim().toLowerCase() === normalizedEmail && (r.status === 'pending' || r.status === 'approved')
     );
     if (existingRequestByEmail) {
-      throw new Error('このメールアドレスで既に申請が行われています');
-    }
-
-    // 既に申請済みかチェック（名前）- pending または approved の申請をチェック
-    const existingRequestByName = existingRequests.find(r => 
-      r.name && r.name.trim() === normalizedName && (r.status === 'pending' || r.status === 'approved')
-    );
-    if (existingRequestByName) {
-      throw new Error('この名前で既に申請が行われています。別の名前を使用するか、既存の申請の承認をお待ちください。');
+      throw new Error('このメールアドレスで既に申請が行われています。別のメールアドレスを使用するか、既存の申請の承認をお待ちください。');
     }
 
     // パスワードハッシュ化（簡易実装 - 本番環境ではbcrypt等を使用）
@@ -1245,7 +1227,7 @@ export class BigQueryService {
 
     const cleanedRequest: any = {
       user_id: user_id.trim(),
-      name: normalizedName,
+      name: requestData.name.trim(),
       email: normalizedEmail,
       password_hash: password_hash,
       requested_role: requestData.requested_role,
@@ -1405,6 +1387,77 @@ export class BigQueryService {
       },
       location: BQ_LOCATION,
     });
+  }
+
+  // パスワードリセット機能
+  async requestPasswordReset(email: string): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
+    
+    // ユーザーが存在するか確認
+    const user = await this.getUserByEmail(normalizedEmail);
+    if (!user) {
+      // セキュリティ上の理由で、ユーザーが存在しない場合でも成功メッセージを返す
+      console.log('⚠️ パスワードリセット申請: ユーザーが見つかりませんでした（セキュリティ上の理由で成功メッセージを返します）');
+      return;
+    }
+
+    // リセットトークンを生成
+    const resetToken = `RESET-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const resetExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24時間後
+
+    // パスワードリセットトークンを保存（簡易実装）
+    // 注意: 本番環境では、password_reset_tokensテーブルを作成して使用することを推奨
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    
+    console.log('📧 パスワードリセットトークンを生成しました:', {
+      email: normalizedEmail,
+      user_id: user.user_id,
+      token: resetToken,
+      expires_at: formatTimestampForBigQuery(resetExpiry),
+      resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`
+    });
+
+    // TODO: 実際の実装では、password_reset_tokensテーブルに保存
+    // TODO: メール送信機能と統合して、ユーザーにリセットリンクを送信
+    // 現在はログ出力のみ
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    // トークンの検証（簡易実装）
+    if (!token.startsWith('RESET-')) {
+      throw new Error('無効なリセットトークンです');
+    }
+
+    // TODO: 実際の実装では、password_reset_tokensテーブルからトークンを検証
+    // 現在は簡易実装として、トークンが正しい形式であることを確認
+    
+    // 簡易実装: トークンから情報を抽出できないため、
+    // 実際の実装では、password_reset_tokensテーブルを使用する必要があります
+    // 以下のコードは、password_reset_tokensテーブルが作成された後に有効化してください
+    
+    throw new Error('パスワードリセット機能は、password_reset_tokensテーブルの作成が必要です。現在は簡易実装のため、フロントエンドのモック実装を使用してください。');
+
+    /* 以下のコードは、password_reset_tokensテーブルが作成された後に有効化
+    const resetRequest = await this.getPasswordResetToken(token);
+    if (!resetRequest) {
+      throw new Error('無効なリセットトークンです');
+    }
+
+    if (new Date(resetRequest.expires_at) < new Date()) {
+      throw new Error('リセットトークンの有効期限が切れています');
+    }
+
+    // パスワードを更新
+    const passwordHash = Buffer.from(newPassword).toString('base64');
+    await this.updateUser(resetRequest.user_id, {
+      password_hash: passwordHash,
+      updated_at: formatTimestampForBigQuery(new Date())
+    });
+
+    // 使用済みトークンを削除
+    await this.deletePasswordResetToken(token);
+    */
   }
 
   async rejectUserRequest(requestId: string, reviewedBy: string, comment: string): Promise<void> {
