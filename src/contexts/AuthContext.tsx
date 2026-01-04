@@ -104,41 +104,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // メールアドレスを小文字に変換して検索（承認時も小文字で保存されているため）
       const normalizedEmail = email.trim().toLowerCase();
+      
+      // デバッグ: 取得したユーザー一覧をログ出力
+      console.log('👥 取得したユーザー数:', registeredUsers.length);
+      if (registeredUsers.length > 0) {
+        console.log('📋 ユーザー一覧（メールアドレスのみ）:', 
+          registeredUsers.map(u => ({
+            email: u.email,
+            email_normalized: u.email ? u.email.trim().toLowerCase() : null,
+            user_id: u.user_id,
+            is_active: u.is_active
+          }))
+        );
+      }
+      
       const registeredUser = registeredUsers.find(u => 
         u.email && u.email.trim().toLowerCase() === normalizedEmail
       );
       
+      if (!registeredUser) {
+        console.warn('❌ ユーザーが見つかりません:', {
+          searchEmail: normalizedEmail,
+          availableEmails: registeredUsers.map(u => u.email).filter(Boolean)
+        });
+      }
+      
       if (registeredUser) {
         // パスワードの検証（簡易エンコード）
         const passwordHash = btoa(password);
+        
+        // パスワードハッシュを正規化（BigQueryから取得したデータが文字列でない場合に対応）
+        const storedPasswordHash = String(registeredUser.password_hash || '').trim();
+        const normalizedPasswordHash = String(passwordHash).trim();
         
         // is_activeフィールドを明示的にbooleanに変換（BigQueryから取得したデータの型を確実にする）
         const isActive = registeredUser.is_active === true || 
                         registeredUser.is_active === 'true' || 
                         registeredUser.is_active === 1;
         
-        // デバッグ用ログ（開発環境のみ）
-        if (import.meta.env.MODE === 'development') {
-          console.log('🔐 ログイン試行:', {
-            inputEmail: email,
-            normalizedEmail: normalizedEmail,
-            storedEmail: registeredUser.email,
-            emailMatch: registeredUser.email && registeredUser.email.trim().toLowerCase() === normalizedEmail,
-            inputPasswordHash: passwordHash,
-            storedPasswordHash: registeredUser.password_hash,
-            passwordMatch: registeredUser.password_hash === passwordHash,
-            isActive: isActive,
-            isActiveRaw: registeredUser.is_active,
-            isActiveType: typeof registeredUser.is_active
-          });
-        }
+        // デバッグ用ログ（常に出力して問題を特定しやすくする）
+        console.log('🔐 ログイン試行:', {
+          inputEmail: email,
+          normalizedEmail: normalizedEmail,
+          storedEmail: registeredUser.email,
+          emailMatch: registeredUser.email && registeredUser.email.trim().toLowerCase() === normalizedEmail,
+          inputPasswordHash: normalizedPasswordHash,
+          storedPasswordHash: storedPasswordHash,
+          storedPasswordHashLength: storedPasswordHash.length,
+          inputPasswordHashLength: normalizedPasswordHash.length,
+          passwordMatch: storedPasswordHash === normalizedPasswordHash,
+          isActive: isActive,
+          isActiveRaw: registeredUser.is_active,
+          isActiveType: typeof registeredUser.is_active,
+          user_id: registeredUser.user_id,
+          role: registeredUser.role
+        });
         
-        if (registeredUser.password_hash === passwordHash) {
+        if (storedPasswordHash === normalizedPasswordHash) {
           // アクティブなユーザーのみログイン可能
           if (!isActive) {
-            console.warn('このアカウントは無効化されています');
+            console.warn('❌ このアカウントは無効化されています:', {
+              user_id: registeredUser.user_id,
+              email: registeredUser.email,
+              is_active: registeredUser.is_active
+            });
             return false;
           }
+          
+          console.log('✅ パスワード一致、ログイン処理を続行');
 
           // Userオブジェクトに変換
           const user: User = {
@@ -177,10 +210,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           return true;
+        } else {
+          // パスワードが一致しない場合の詳細ログ
+          console.error('❌ パスワードが一致しません:', {
+            user_id: registeredUser.user_id,
+            email: registeredUser.email,
+            storedHash: storedPasswordHash.substring(0, 20) + '...',
+            inputHash: normalizedPasswordHash.substring(0, 20) + '...',
+            storedHashLength: storedPasswordHash.length,
+            inputHashLength: normalizedPasswordHash.length,
+            hashesEqual: storedPasswordHash === normalizedPasswordHash
+          });
         }
+      } else {
+        console.warn('⚠️ ユーザーが見つかりませんでした');
       }
     } catch (error) {
-      console.error('登録済みユーザーのログイン処理エラー:', error);
+      console.error('❌ 登録済みユーザーのログイン処理エラー:', error);
+      // エラーの詳細を出力
+      if (error instanceof Error) {
+        console.error('エラー詳細:', {
+          message: error.message,
+          stack: error.stack
+        });
+      }
     }
     
     return false;

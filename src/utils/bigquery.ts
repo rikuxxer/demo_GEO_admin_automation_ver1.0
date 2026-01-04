@@ -1078,6 +1078,30 @@ class BigQueryService {
   }
   // ユーザー管理
   async getUsers(): Promise<any[]> {
+    // バックエンドAPIを使用する場合
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`ユーザー取得に失敗しました: ${response.status} ${response.statusText}`);
+        }
+
+        const users = await response.json();
+        console.log('📥 APIからユーザーを取得:', users.length, '件');
+        return users || [];
+      } catch (error) {
+        console.error('ユーザー取得APIエラー:', error);
+        throw error;
+      }
+    }
+
+    // モック実装（localStorage）
     const data = localStorage.getItem(this.userStorageKey);
     return data ? JSON.parse(data) : [];
   }
