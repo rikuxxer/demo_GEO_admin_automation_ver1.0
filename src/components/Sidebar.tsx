@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Settings,
   ListChecks,
-  Database,
   FileEdit,
   Lightbulb,
   UserCog,
@@ -72,13 +71,6 @@ export function Sidebar({ isCollapsed, onToggle, currentPage = 'projects', onPag
       label: 'ユーザー登録申請', 
       count: null, 
       page: 'user-approval',
-      permission: 'canViewAdminDashboard' as const
-    },
-    { 
-      icon: Database, 
-      label: 'データ管理', 
-      count: null, 
-      page: 'data-management',
       permission: 'canViewAdminDashboard' as const
     },
   ];

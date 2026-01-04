@@ -79,3 +79,6 @@ Error: spawn ENOMEM
 - エラーが発生したステップ（例: `npm ci`、`npm run build` など）
 - エラーの前後数行のコンテキスト
 
+
+
+

@@ -118,10 +118,7 @@ chmod +x deploy.sh
 | [QUICKSTART.md](./QUICKSTART.md) | 5ステップでデプロイ |
 | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | 詳細なデプロイ手順 |
 | [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md) | Google Sheets API設定 |
-| [QUICK_TEST.md](./QUICK_TEST.md) | Sheets出力テスト（3分） |
-| [TEST_SHEETS_OUTPUT.md](./TEST_SHEETS_OUTPUT.md) | Sheets出力テスト詳細 |
 | [BIGQUERY_SETUP.md](./BIGQUERY_SETUP.md) | BigQuery接続設定 |
-| [DATA_MANAGEMENT.md](./DATA_MANAGEMENT.md) | データ管理・削除方法 |
 | [env.example](./env.example) | 環境変数テンプレート |
 
 ---

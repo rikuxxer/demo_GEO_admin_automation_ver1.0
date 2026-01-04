@@ -91,3 +91,5 @@ gcloud run deploy universegeo-backend \
 
 GitHubのEnvironment secretsを使用することで、環境変数をGitHubで一元管理でき、デプロイ時に自動的にCloud Runに設定されます。
 
+
+

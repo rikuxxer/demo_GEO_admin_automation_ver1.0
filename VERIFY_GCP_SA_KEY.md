@@ -138,3 +138,6 @@ gcloud bq query --use_legacy_sql=false "SELECT 1"
    - 前後の空白がないか
    - 改行が含まれているか
 
+
+
+

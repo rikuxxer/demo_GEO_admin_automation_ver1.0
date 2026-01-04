@@ -75,3 +75,6 @@ git push -u origin main
 - インストール後は必ずPowerShellを再起動してください
 - それでも認識されない場合は、PCを再起動してください
 
+
+
+

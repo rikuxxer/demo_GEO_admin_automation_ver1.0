@@ -1365,6 +1365,11 @@ export class BigQueryService {
         reviewed_by: reviewedBy,
         review_comment: comment || null
       },
+      types: {
+        user_id: 'STRING',
+        reviewed_by: 'STRING',
+        review_comment: 'STRING'  // NULL値でも型を指定する必要がある
+      },
       location: BQ_LOCATION,
     });
   }
@@ -1399,6 +1404,11 @@ export class BigQueryService {
         user_id: requestId,
         reviewed_by: reviewedBy,
         review_comment: comment
+      },
+      types: {
+        user_id: 'STRING',
+        reviewed_by: 'STRING',
+        review_comment: 'STRING'
       },
       location: BQ_LOCATION,
     });

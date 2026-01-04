@@ -105,3 +105,5 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 2. エラーメッセージに基づいて適切な対処を実施
 3. `/api/projects`エンドポイントに再度アクセスして動作確認
 
+
+

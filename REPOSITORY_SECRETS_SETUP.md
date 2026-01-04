@@ -103,3 +103,6 @@ Repository secretsに以下が設定されているか確認してください�
 
 - Repository secrets: `https://github.com/rikuxxer/demo_GEO_admin_automation_ver1.0/settings/secrets/actions`
 
+
+
+

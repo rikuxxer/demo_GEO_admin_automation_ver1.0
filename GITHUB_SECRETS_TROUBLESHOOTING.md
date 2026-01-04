@@ -82,3 +82,6 @@ Get-Content key.json | Set-Clipboard
 - Environment secretsよりも確実に動作する
 - 複数のEnvironmentで同じSecretを使える
 
+
+
+

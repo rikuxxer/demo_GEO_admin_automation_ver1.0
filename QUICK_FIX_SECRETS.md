@@ -94,3 +94,6 @@ Settings > Environments > production > Environment secrets
 - ✅ 複数のEnvironmentで同じSecretを使える
 - ✅ 設定場所が明確
 
+
+
+

@@ -69,9 +69,16 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
     request_id,
   };
 
-  // 開発環境または4xxエラーの場合は詳細情報を含める
-  if (process.env.NODE_ENV !== "production" || status < 500) {
-    // BigQueryエラーの詳細（4xxの場合は含める）
+  // 開発環境、4xxエラー、またはBigQueryエラーの場合は詳細情報を含める
+  const shouldIncludeDetails = 
+    process.env.NODE_ENV !== "production" || 
+    status < 500 || 
+    err?.code || 
+    err?.errors || 
+    err?.name === "BigQueryError";
+  
+  if (shouldIncludeDetails) {
+    // BigQueryエラーの詳細
     if (err?.errors) {
       errorResponse.errors = err.errors;
       
@@ -90,6 +97,12 @@ export function errorHandler(err: any, req: Request, res: Response, _next: NextF
     // ヒント
     if (err?.hint) {
       errorResponse.hint = err.hint;
+    }
+    
+    // BigQueryエラーの場合、より詳細なメッセージを返す
+    if (err?.name === "BigQueryError" || err?.code) {
+      errorResponse.error = err.message || errorResponse.error;
+      errorResponse.type = err.name || "BigQueryError";
     }
   }
 

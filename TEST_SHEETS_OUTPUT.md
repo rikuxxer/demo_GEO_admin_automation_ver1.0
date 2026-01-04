@@ -368,3 +368,6 @@ location.reload();
 4. [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md) を再確認
 
 
+
+
+

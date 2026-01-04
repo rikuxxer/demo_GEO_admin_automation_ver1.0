@@ -108,3 +108,6 @@ Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c
 3. GitHub Actionsでデプロイを再実行
 4. 「Debug Secrets」ステップのログを確認
 
+
+
+

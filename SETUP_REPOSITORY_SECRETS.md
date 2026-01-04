@@ -107,3 +107,6 @@ Get-Content key.json | Set-Clipboard
 - [ ] `BACKEND_SERVICE_ACCOUNT` が設定されている
 - [ ] すべて **Repository secrets** に設定されている（Environment secrets ではない）
 
+
+
+

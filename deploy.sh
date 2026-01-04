@@ -21,7 +21,7 @@ if [ -z "$VITE_API_BASE_URL" ]; then
   echo "続行しますか？ (y/n)"
   read -r response
   if [ "$response" != "y" ]; then
-    exit 1
+  exit 1
   fi
 fi
 

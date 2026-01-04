@@ -98,3 +98,5 @@ gcloud run services describe universegeo-backend \
 2. `/health`エンドポイントにアクセスして環境変数が正しく設定されているか確認
 3. `/api/projects`エンドポイントにアクセスしてエラーが解消されているか確認
 
+
+

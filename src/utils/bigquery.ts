@@ -1257,8 +1257,18 @@ class BigQueryService {
           
           // エラーメッセージにmissingColumns情報を追加
           if (errorDetails?.missingColumns && errorDetails.missingColumns.length > 0) {
-            errorMessage += ` (欠けている列: ${errorDetails.missingColumns.join(', ')})`;
+            errorMessage = `${errorMessage}\n\nBigQueryスキーマに以下の列が欠けています: ${errorDetails.missingColumns.join(', ')}\n\n解決方法: UPDATE_BIGQUERY_SCHEMA.mdのaddfieldコマンドで追加してください。`;
           }
+          
+          // エラーの詳細情報をコンソールに出力（デバッグ用）
+          console.error('📋 エラー詳細:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorDetails: errorDetails,
+            missingColumns: errorDetails?.missingColumns,
+            hint: errorDetails?.hint,
+            errors: errorDetails?.errors,
+          });
           
           throw new Error(errorMessage);
         }

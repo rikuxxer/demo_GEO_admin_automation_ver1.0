@@ -103,3 +103,6 @@ Environment secretsを使う場合：
 2. **Secretsの確認**: デプロイ前にすべてのSecretsが設定されているか確認
 3. **ログの確認**: デプロイ時に「Verify Secrets」ステップのログを確認
 
+
+
+

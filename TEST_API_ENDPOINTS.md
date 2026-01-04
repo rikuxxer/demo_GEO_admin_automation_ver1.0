@@ -123,3 +123,5 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
   --format="table(timestamp,severity,textPayload,jsonPayload.message)"
 ```
 
+
+

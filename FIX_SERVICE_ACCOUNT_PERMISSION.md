@@ -87,3 +87,6 @@ gcloud iam service-accounts get-iam-policy $BACKEND_SA \
 
 **方法1（サービスアカウントに権限を付与）**を推奨します。これにより、Cloud Runサービスで適切なサービスアカウントを使用できます。
 
+
+
+

@@ -19,7 +19,6 @@ import { ChatBot } from "./components/ChatBot";
 import { FeatureRequestList } from "./components/FeatureRequestList";
 import { UserManagement } from "./components/UserManagement";
 import { UserApprovalManagement } from "./components/UserApprovalManagement";
-import { DataManagement } from "./components/DataManagement";
 import { Button } from "./components/ui/button";
 import {
   DropdownMenu,
@@ -443,10 +442,6 @@ function AppContent() {
               onApprove={handleUserRequestApprove}
               onReject={handleUserRequestReject}
             />
-          )}
-
-          {currentPage === "data-management" && hasPermission('canViewAdminDashboard') && (
-            <DataManagement />
           )}
 
           {currentPage === "data-sync" && (

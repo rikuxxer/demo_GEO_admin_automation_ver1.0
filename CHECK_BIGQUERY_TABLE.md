@@ -83,3 +83,5 @@ gcloud projects get-iam-policy univere-geo-demo \
 3. プロジェクト作成APIを再度実行
 4. プロジェクト一覧を確認
 
+
+
