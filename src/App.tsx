@@ -236,12 +236,16 @@ function AppContent() {
     }
   };
 
-  // URLパラメータからトークンを取得
+  // URLパラメータからトークンを取得（パスワードリセット用）
   const urlParams = new URLSearchParams(window.location.search);
   const resetToken = urlParams.get('token');
 
   if (resetToken && resetToken.startsWith('RESET-')) {
-    return <PasswordReset token={resetToken} onBack={() => window.location.href = '/'} />;
+    return <PasswordReset token={resetToken} onBack={() => {
+      // URLパラメータをクリアしてログイン画面に戻る
+      window.history.replaceState({}, '', '/');
+      window.location.reload();
+    }} />;
   }
 
   if (!isAuthenticated) {

@@ -291,6 +291,22 @@ EOF
 bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/visit_measurement_groups_schema.json "${DATASET_ID}.visit_measurement_groups" 2>/dev/null && echo "    ✅ visit_measurement_groups" || echo "    ⚠️  visit_measurement_groups (既に存在)"
 echo ""
 
+# 11. password_reset_tokensテーブル
+echo "  11. password_reset_tokensテーブルを作成中..."
+cat > /tmp/password_reset_tokens_schema.json << 'EOF'
+[
+  {"name": "token_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "user_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "email", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "token", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "expires_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+  {"name": "used", "type": "BOOL", "mode": "NULLABLE"},
+  {"name": "created_at", "type": "TIMESTAMP", "mode": "NULLABLE"}
+]
+EOF
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/password_reset_tokens_schema.json "${DATASET_ID}.password_reset_tokens" 2>/dev/null && echo "    ✅ password_reset_tokens" || echo "    ⚠️  password_reset_tokens (既に存在)"
+echo ""
+
 echo "=========================================="
 echo "🎉 データセットと全テーブルの作成が完了しました！"
 echo "=========================================="
@@ -319,7 +335,7 @@ echo "作成済みテーブル一覧:"
 bq ls --project_id="${PROJECT_ID}" "${DATASET_ID}" 2>&1 | tail -n +3
 
 echo ""
-echo "期待されるテーブル数: 10個"
+echo "期待されるテーブル数: 11個"
 echo "作成済みテーブル数: $(bq ls --project_id="${PROJECT_ID}" "${DATASET_ID}" 2>&1 | tail -n +3 | wc -l)個"
 ```
 
@@ -329,7 +345,7 @@ echo "作成済みテーブル数: $(bq ls --project_id="${PROJECT_ID}" "${DATAS
 
 1. データセットを作成（上記のコマンドを実行）
 2. 全テーブルを作成（上記のコマンドで自動的に作成されます）
-3. テーブル一覧を確認（10個すべてが表示されることを確認）
+3. テーブル一覧を確認（11個すべてが表示されることを確認）
 4. ブラウザのキャッシュをクリア
 5. ユーザー登録申請を再試行
 6. エラーが解消されたか確認

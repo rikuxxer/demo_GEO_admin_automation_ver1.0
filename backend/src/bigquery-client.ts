@@ -1401,50 +1401,61 @@ export class BigQueryService {
       return;
     }
 
+    // 既存の有効なトークンを無効化
+    await this.invalidatePasswordResetTokens(normalizedEmail);
+
     // リセットトークンを生成
+    const tokenId = `TOKEN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const resetToken = `RESET-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const resetExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24時間後
 
-    // パスワードリセットトークンを保存（簡易実装）
-    // 注意: 本番環境では、password_reset_tokensテーブルを作成して使用することを推奨
+    // パスワードリセットトークンを保存
     const currentProjectId = validateProjectId();
     const cleanDatasetId = getCleanDatasetId();
+    
+    const tokenData = {
+      token_id: tokenId,
+      user_id: user.user_id,
+      email: normalizedEmail,
+      token: resetToken,
+      expires_at: formatTimestampForBigQuery(resetExpiry),
+      used: formatBoolForBigQuery(false),
+      created_at: formatTimestampForBigQuery(new Date()),
+    };
+
+    await getDataset().table('password_reset_tokens').insert([tokenData], { ignoreUnknownValues: true });
+
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}?token=${resetToken}`;
     
     console.log('📧 パスワードリセットトークンを生成しました:', {
       email: normalizedEmail,
       user_id: user.user_id,
       token: resetToken,
       expires_at: formatTimestampForBigQuery(resetExpiry),
-      resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`
+      resetUrl: resetUrl
     });
 
-    // TODO: 実際の実装では、password_reset_tokensテーブルに保存
-    // TODO: メール送信機能と統合して、ユーザーにリセットリンクを送信
-    // 現在はログ出力のみ
+    // メール送信
+    await this.sendPasswordResetEmail(normalizedEmail, user.name, resetUrl);
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    // トークンの検証（簡易実装）
     if (!token.startsWith('RESET-')) {
       throw new Error('無効なリセットトークンです');
     }
 
-    // TODO: 実際の実装では、password_reset_tokensテーブルからトークンを検証
-    // 現在は簡易実装として、トークンが正しい形式であることを確認
-    
-    // 簡易実装: トークンから情報を抽出できないため、
-    // 実際の実装では、password_reset_tokensテーブルを使用する必要があります
-    // 以下のコードは、password_reset_tokensテーブルが作成された後に有効化してください
-    
-    throw new Error('パスワードリセット機能は、password_reset_tokensテーブルの作成が必要です。現在は簡易実装のため、フロントエンドのモック実装を使用してください。');
-
-    /* 以下のコードは、password_reset_tokensテーブルが作成された後に有効化
+    // トークンを検証
     const resetRequest = await this.getPasswordResetToken(token);
     if (!resetRequest) {
       throw new Error('無効なリセットトークンです');
     }
 
-    if (new Date(resetRequest.expires_at) < new Date()) {
+    if (resetRequest.used === true || resetRequest.used === 'true' || resetRequest.used === 1) {
+      throw new Error('このリセットトークンは既に使用されています');
+    }
+
+    const expiresAt = new Date(resetRequest.expires_at);
+    if (expiresAt < new Date()) {
       throw new Error('リセットトークンの有効期限が切れています');
     }
 
@@ -1455,9 +1466,185 @@ export class BigQueryService {
       updated_at: formatTimestampForBigQuery(new Date())
     });
 
-    // 使用済みトークンを削除
-    await this.deletePasswordResetToken(token);
-    */
+    // 使用済みトークンをマーク
+    await this.markPasswordResetTokenAsUsed(resetRequest.token_id);
+  }
+
+  private async getPasswordResetToken(token: string): Promise<any | null> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const query = `
+      SELECT *
+      FROM \`${currentProjectId}.${cleanDatasetId}.password_reset_tokens\`
+      WHERE token = @token
+      LIMIT 1
+    `;
+    const [rows] = await initializeBigQueryClient().query({
+      query,
+      params: { token },
+      location: BQ_LOCATION,
+    });
+    return rows[0] || null;
+  }
+
+  private async invalidatePasswordResetTokens(email: string): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const query = `
+      UPDATE \`${currentProjectId}.${cleanDatasetId}.password_reset_tokens\`
+      SET used = TRUE
+      WHERE email = @email AND used = FALSE
+    `;
+    await initializeBigQueryClient().query({
+      query,
+      params: { email },
+      location: BQ_LOCATION,
+    });
+  }
+
+  private async markPasswordResetTokenAsUsed(tokenId: string): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const query = `
+      UPDATE \`${currentProjectId}.${cleanDatasetId}.password_reset_tokens\`
+      SET used = TRUE
+      WHERE token_id = @token_id
+    `;
+    await initializeBigQueryClient().query({
+      query,
+      params: { token_id: tokenId },
+      location: BQ_LOCATION,
+    });
+  }
+
+  private async sendPasswordResetEmail(email: string, userName: string, resetUrl: string): Promise<void> {
+    // メール送信機能の実装
+    // Gmail APIまたはSendGridを使用
+    const emailService = process.env.EMAIL_SERVICE || 'gmail';
+    
+    if (emailService === 'gmail') {
+      await this.sendEmailViaGmail(email, userName, resetUrl);
+    } else if (emailService === 'sendgrid') {
+      await this.sendEmailViaSendGrid(email, userName, resetUrl);
+    } else {
+      // 開発環境ではログ出力のみ
+      console.log('📧 メール送信（開発モード）:', {
+        to: email,
+        subject: 'パスワードリセットのご案内',
+        resetUrl: resetUrl
+      });
+    }
+  }
+
+  private async sendEmailViaGmail(to: string, userName: string, resetUrl: string): Promise<void> {
+    // Gmail APIを使用したメール送信
+    // 実装にはGmail APIの認証が必要
+    try {
+      const { google } = require('googleapis');
+      const auth = new google.auth.GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/gmail.send'],
+      });
+      const gmail = google.gmail({ version: 'v1', auth });
+
+      const emailContent = `
+パスワードリセットのご案内
+
+${userName} 様
+
+UNIVERSEGEO案件管理システムのパスワードリセット申請を受け付けました。
+
+以下のリンクからパスワードを再設定してください。
+このリンクは24時間有効です。
+
+${resetUrl}
+
+※このメールに心当たりがない場合は、無視してください。
+
+--
+UNIVERSEGEO案件管理システム
+      `.trim();
+
+      const message = [
+        `To: ${to}`,
+        `Subject: =?UTF-8?B?${Buffer.from('パスワードリセットのご案内', 'utf-8').toString('base64')}?=`,
+        'Content-Type: text/plain; charset=utf-8',
+        '',
+        emailContent
+      ].join('\n');
+
+      const encodedMessage = Buffer.from(message)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage,
+        },
+      });
+
+      console.log('✅ Gmail API経由でメールを送信しました:', to);
+    } catch (error) {
+      console.error('❌ Gmail API経由のメール送信に失敗しました:', error);
+      // エラーが発生しても処理は続行（ログ出力のみ）
+    }
+  }
+
+  private async sendEmailViaSendGrid(to: string, userName: string, resetUrl: string): Promise<void> {
+    // SendGridを使用したメール送信
+    try {
+      const sgMail = require('@sendgrid/mail');
+      const apiKey = process.env.SENDGRID_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error('SENDGRID_API_KEY環境変数が設定されていません');
+      }
+
+      sgMail.setApiKey(apiKey);
+
+      const msg = {
+        to: to,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@universegeo.com',
+        subject: 'パスワードリセットのご案内',
+        text: `
+パスワードリセットのご案内
+
+${userName} 様
+
+UNIVERSEGEO案件管理システムのパスワードリセット申請を受け付けました。
+
+以下のリンクからパスワードを再設定してください。
+このリンクは24時間有効です。
+
+${resetUrl}
+
+※このメールに心当たりがない場合は、無視してください。
+
+--
+UNIVERSEGEO案件管理システム
+        `.trim(),
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>パスワードリセットのご案内</h2>
+            <p>${userName} 様</p>
+            <p>UNIVERSEGEO案件管理システムのパスワードリセット申請を受け付けました。</p>
+            <p>以下のリンクからパスワードを再設定してください。<br>このリンクは24時間有効です。</p>
+            <p><a href="${resetUrl}" style="background-color: #5b5fff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">パスワードをリセット</a></p>
+            <p style="color: #666; font-size: 12px;">※このメールに心当たりがない場合は、無視してください。</p>
+            <hr>
+            <p style="color: #666; font-size: 12px;">UNIVERSEGEO案件管理システム</p>
+          </div>
+        `,
+      };
+
+      await sgMail.send(msg);
+      console.log('✅ SendGrid経由でメールを送信しました:', to);
+    } catch (error) {
+      console.error('❌ SendGrid経由のメール送信に失敗しました:', error);
+      // エラーが発生しても処理は続行（ログ出力のみ）
+    }
   }
 
   async rejectUserRequest(requestId: string, reviewedBy: string, comment: string): Promise<void> {
