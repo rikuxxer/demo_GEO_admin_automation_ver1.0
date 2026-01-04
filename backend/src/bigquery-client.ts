@@ -1851,13 +1851,12 @@ UNIVERSEGEO案件管理システム
     rowsAdded?: number;
   }> {
     const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
-    const API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
     const SHEET_NAME = process.env.GOOGLE_SHEET_NAME || 'シート1';
 
-    if (!SPREADSHEET_ID || !API_KEY) {
+    if (!SPREADSHEET_ID) {
       return {
         success: false,
-        message: 'Google Sheets API が設定されていません。環境変数（GOOGLE_SPREADSHEET_ID, GOOGLE_SHEETS_API_KEY）を確認してください。',
+        message: 'Google Sheets API が設定されていません。環境変数（GOOGLE_SPREADSHEET_ID）を確認してください。',
       };
     }
 
@@ -1876,30 +1875,32 @@ UNIVERSEGEO案件管理システム
         row.created || new Date().toISOString().split('T')[0],
       ]);
 
-      // Google Sheets API v4 - append リクエスト
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}:append?valueInputOption=USER_ENTERED&key=${API_KEY}`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          values,
-        }),
+      // Google Sheets API v4 をサービスアカウント認証で使用
+      // Cloud Runでは、サービスアカウントが自動的に認証に使用される
+      const { google } = require('googleapis');
+      const auth = new google.auth.GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Google Sheets API error: ${response.status} - ${errorText}`);
-      }
+      const sheets = google.sheets({ version: 'v4', auth });
+      
+      const response = await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A:J`, // 列AからJまで
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        resource: {
+          values,
+        },
+      });
 
-      const result = await response.json() as {
-        updates?: {
-          updatedRows?: number;
-        };
-      };
-      const rowsAdded = result.updates?.updatedRows || rows.length;
+      const rowsAdded = response.data.updates?.updatedRows || rows.length;
+
+      console.log('✅ Google Sheets API経由でデータを追加しました:', {
+        spreadsheetId: SPREADSHEET_ID,
+        sheetName: SHEET_NAME,
+        rowsAdded,
+      });
 
       return {
         success: true,
@@ -1907,10 +1908,25 @@ UNIVERSEGEO案件管理システム
         rowsAdded,
       };
     } catch (error) {
-      console.error('Google Sheets API エラー:', error);
+      console.error('❌ Google Sheets API エラー:', error);
+      
+      let errorMessage = 'スプレッドシートへの出力に失敗しました';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // より詳細なエラーメッセージを提供
+        if (error.message.includes('PERMISSION_DENIED') || error.message.includes('403')) {
+          errorMessage = 'スプレッドシートへのアクセス権限がありません。サービスアカウントにスプレッドシートへの共有権限を付与してください。';
+        } else if (error.message.includes('NOT_FOUND') || error.message.includes('404')) {
+          errorMessage = 'スプレッドシートが見つかりません。スプレッドシートIDが正しいか確認してください。';
+        } else if (error.message.includes('UNAUTHENTICATED') || error.message.includes('401')) {
+          errorMessage = '認証に失敗しました。サービスアカウントの権限を確認してください。';
+        }
+      }
+
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'スプレッドシートへの出力に失敗しました',
+        message: errorMessage,
       };
     }
   }

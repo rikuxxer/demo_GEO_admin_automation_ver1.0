@@ -641,7 +641,8 @@ try {
     console.log(`  GCP_PROJECT_ID: ${process.env.GCP_PROJECT_ID ? '✅ SET' : '❌ NOT SET'}`);
     console.log(`  BQ_DATASET: ${process.env.BQ_DATASET ? '✅ SET' : '❌ NOT SET'}`);
     console.log(`  GOOGLE_SPREADSHEET_ID: ${process.env.GOOGLE_SPREADSHEET_ID ? '✅ SET' : '❌ NOT SET'}`);
-    console.log(`  GOOGLE_SHEETS_API_KEY: ${process.env.GOOGLE_SHEETS_API_KEY ? '✅ SET' : '❌ NOT SET'}`);
+    console.log(`  GOOGLE_SHEET_NAME: ${process.env.GOOGLE_SHEET_NAME || 'シート1 (デフォルト)'}`);
+    console.log(`  ⚠️ 注意: Google Sheets APIはサービスアカウント認証を使用します（APIキーは不要）`);
     
     // 環境変数が設定されていない場合の警告
     if (!process.env.GCP_PROJECT_ID) {
