@@ -220,6 +220,9 @@ jobs:
           GOOGLE_SHEETS_API_KEY_VAL="${{ secrets.GOOGLE_SHEETS_API_KEY }}"
           GOOGLE_SHEET_NAME_VAL="${{ secrets.GOOGLE_SHEET_NAME }}"
           FRONTEND_URL_VAL="${{ secrets.FRONTEND_URL }}"
+          EMAIL_SERVICE_VAL="${{ secrets.EMAIL_SERVICE }}"
+          SENDGRID_API_KEY_VAL="${{ secrets.SENDGRID_API_KEY }}"
+          SENDGRID_FROM_EMAIL_VAL="${{ secrets.SENDGRID_FROM_EMAIL }}"
           
           # 必須環境変数の確認
           if [ -z "$GCP_PROJECT_ID_VAL" ]; then
@@ -257,6 +260,19 @@ jobs:
             ENV_VARS="$ENV_VARS,FRONTEND_URL=http://localhost:5173"
           fi
           
+          # パスワードリセット機能用の環境変数
+          if [ -n "$EMAIL_SERVICE_VAL" ]; then
+            ENV_VARS="$ENV_VARS,EMAIL_SERVICE=$EMAIL_SERVICE_VAL"
+          fi
+          
+          if [ -n "$SENDGRID_API_KEY_VAL" ]; then
+            ENV_VARS="$ENV_VARS,SENDGRID_API_KEY=$SENDGRID_API_KEY_VAL"
+          fi
+          
+          if [ -n "$SENDGRID_FROM_EMAIL_VAL" ]; then
+            ENV_VARS="$ENV_VARS,SENDGRID_FROM_EMAIL=$SENDGRID_FROM_EMAIL_VAL"
+          fi
+          
           echo "📋 設定する環境変数:"
           echo "  GCP_PROJECT_ID: $GCP_PROJECT_ID_VAL"
           echo "  BQ_DATASET: $BQ_DATASET_VAL"
@@ -264,6 +280,9 @@ jobs:
           echo "  GOOGLE_SHEETS_API_KEY: $([ -n "$GOOGLE_SHEETS_API_KEY_VAL" ] && echo 'SET' || echo 'NOT SET')"
           echo "  GOOGLE_SHEET_NAME: ${GOOGLE_SHEET_NAME_VAL:-シート1}"
           echo "  FRONTEND_URL: ${FRONTEND_URL_VAL:-http://localhost:5173}"
+          echo "  EMAIL_SERVICE: $([ -n "$EMAIL_SERVICE_VAL" ] && echo "$EMAIL_SERVICE_VAL" || echo 'NOT SET')"
+          echo "  SENDGRID_API_KEY: $([ -n "$SENDGRID_API_KEY_VAL" ] && echo 'SET' || echo 'NOT SET')"
+          echo "  SENDGRID_FROM_EMAIL: $([ -n "$SENDGRID_FROM_EMAIL_VAL" ] && echo "$SENDGRID_FROM_EMAIL_VAL" || echo 'NOT SET')"
           echo ""
           echo "📋 環境変数文字列（最初の100文字）:"
           echo "${ENV_VARS:0:100}..."
