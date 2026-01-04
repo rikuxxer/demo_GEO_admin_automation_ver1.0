@@ -464,11 +464,11 @@ jobs:
             echo "📋 環境変数を設定中..."
             echo "ENV_VARS: ${ENV_VARS:0:100}..."
             
-            # 環境変数を設定（--update-env-varsを使用して既存の環境変数とマージ）
+            # 環境変数を設定（--set-env-varsを使用）
             gcloud run services update ${{ env.SERVICE_NAME }} \
               --region "$REGION_VALUE" \
               --project ${{ env.PROJECT_ID }} \
-              --update-env-vars "$ENV_VARS" \
+              --set-env-vars "$ENV_VARS" \
               --quiet
             
             echo "✅ 環境変数の設定が完了しました"
