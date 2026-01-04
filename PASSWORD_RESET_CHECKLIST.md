@@ -78,9 +78,16 @@ gcloud run services update universegeo-backend \
 1. [GitHub Repository Settings](https://github.com/rikuxxer/demo_GEO_admin_automation_ver1.0/settings/environments)を開く
 2. **Environment secrets**（または`production`環境）を選択
 3. 以下のSecretsを追加：
-   - `EMAIL_SERVICE`: `sendgrid` または `gmail`
-   - `SENDGRID_API_KEY`: （SendGrid使用時のみ）
-   - `SENDGRID_FROM_EMAIL`: （SendGrid使用時のみ）
+
+   **Gmail APIを使用する場合:**
+   - `EMAIL_SERVICE`: `gmail`
+   - `FRONTEND_URL`: フロントエンドのURL（既に設定済みの可能性あり）
+   - **注意**: Gmail API用の追加のSecretは不要です
+
+   **SendGridを使用する場合:**
+   - `EMAIL_SERVICE`: `sendgrid`
+   - `SENDGRID_API_KEY`: SendGridのAPIキー
+   - `SENDGRID_FROM_EMAIL`: 送信者メールアドレス
    - `FRONTEND_URL`: フロントエンドのURL（既に設定済みの可能性あり）
 
 ### 4. デプロイワークフローの更新

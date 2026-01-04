@@ -36,19 +36,55 @@ echo "✅ password_reset_tokensテーブルを作成しました"
 
 パスワードリセットメールを送信するために、以下のいずれかを設定します。
 
+### 💰 料金比較
+
+| サービス | 無料枠 | パスワードリセット用途での費用 |
+|---------|--------|---------------------------|
+| **Gmail API** | 毎日1億件まで無料 | **完全に無料**（通常の利用では無料枠内） |
+| **SendGrid** | 1日100通まで無料 | **無料**（1日100通以内の場合） |
+
+**推奨:**
+- 利用頻度が低い場合（1日100通以下）: **SendGrid**（設定が簡単）
+- 既にGCPを使用している場合: **Gmail API**（追加設定不要、完全無料）
+
 ### オプションA: Gmail APIを使用
 
-1. **Gmail APIを有効化**
-   - Google Cloud ConsoleでGmail APIを有効化
-   - サービスアカウントにGmail送信権限を付与
+**💰 料金について:**
+- Gmail APIは**無料枠**が非常に大きいです
+- 毎日**1億件のリクエストまで無料**
+- パスワードリセット機能のような用途では、通常は**完全に無料**で利用できます
+- 無料枠を超える大量のリクエスト（1日1億件超）の場合のみ料金が発生します
 
-2. **環境変数の設定**
+1. **Gmail APIを有効化**
+   ```bash
+   # Cloud Shellで実行
+   gcloud services enable gmail-api.googleapis.com --project=univere-geo-demo
+   ```
+
+2. **サービスアカウントにGmail送信権限を付与**
+   - Google Cloud Console > IAM & Admin > Service Accounts
+   - Cloud Runで使用しているサービスアカウントを選択
+   - 「権限を付与」> Gmail APIの権限を追加
+   - または、サービスアカウントに「Gmail API ユーザー」ロールを付与
+
+3. **GitHub Environment Secretsの設定**
+   - `EMAIL_SERVICE`: `gmail` を設定
+   - `FRONTEND_URL`: フロントエンドのURL（既に設定済みの可能性あり）
+   - **注意**: Gmail API用の追加のSecret（APIキーなど）は**不要**です
+   - Cloud Runのサービスアカウントが自動的に認証に使用されます
+
+4. **環境変数の確認**
    ```env
    EMAIL_SERVICE=gmail
    FRONTEND_URL=https://your-frontend-url.com
    ```
 
-### オプションB: SendGridを使用（推奨）
+### オプションB: SendGridを使用
+
+**💰 料金について:**
+- SendGridは**無料プラン**があります（1日100通まで）
+- パスワードリセット機能のような用途では、通常は無料プランで十分です
+- 無料プランを超える場合は有料プランが必要です
 
 1. **SendGridアカウントの作成**
    - [SendGrid](https://sendgrid.com/)でアカウントを作成
