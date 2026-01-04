@@ -1,11 +1,22 @@
 # Gmail API 有効化エラーの解決方法
 
-## 🚨 エラー内容
+## ✅ 解決済み
+
+正しいサービス名は `gmail.googleapis.com` です（`gmail-api.googleapis.com` ではありません）。
+
+```bash
+# 正しいコマンド
+gcloud services enable gmail.googleapis.com --project=univere-geo-demo
+```
+
+## 🚨 エラー内容（過去のエラー）
 
 ```
 ERROR: (gcloud.services.enable) PERMISSION_DENIED: Not found or permission denied for service(s): gmail-api.googleapis.com.
 SERVICE_CONFIG_NOT_FOUND_OR_PERMISSION_DENIED
 ```
+
+**原因**: サービス名が間違っていました（`gmail-api.googleapis.com` → `gmail.googleapis.com`）
 
 ## 🔍 原因
 

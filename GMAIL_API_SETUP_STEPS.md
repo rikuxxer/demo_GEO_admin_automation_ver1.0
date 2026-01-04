@@ -18,7 +18,8 @@ Cloud ShellまたはGoogle Cloud Consoleで実行：
 # https://console.cloud.google.com/cloudshell
 
 # Gmail APIを有効化
-gcloud services enable gmail-api.googleapis.com --project=univere-geo-demo
+# 注意: サービス名は gmail.googleapis.com です（gmail-api.googleapis.com ではありません）
+gcloud services enable gmail.googleapis.com --project=univere-geo-demo
 
 # 有効化の確認
 gcloud services list --enabled --project=univere-geo-demo | grep gmail

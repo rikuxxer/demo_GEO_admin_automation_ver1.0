@@ -58,7 +58,8 @@ echo "✅ password_reset_tokensテーブルを作成しました"
 1. **Gmail APIを有効化**
    ```bash
    # Cloud Shellで実行
-   gcloud services enable gmail-api.googleapis.com --project=univere-geo-demo
+   # 注意: サービス名は gmail.googleapis.com です（gmail-api.googleapis.com ではありません）
+   gcloud services enable gmail.googleapis.com --project=univere-geo-demo
    ```
 
 2. **サービスアカウントにGmail送信権限を付与**
