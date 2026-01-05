@@ -4,6 +4,7 @@
  */
 
 import type { PoiInfo, Project, Segment } from '../types/schema';
+import { calculateDataCoordinationDate } from './dataCoordinationDate';
 
 // 環境変数から取得（.envファイルで設定）
 const SPREADSHEET_ID = import.meta.env.VITE_GOOGLE_SPREADSHEET_ID || '';
@@ -13,7 +14,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const USE_BACKEND_API = !!API_BASE_URL;
 
 interface SheetRow {
-  半径: string;
+  category_id: string; // 99000000（00には指定半径の広さ）
+  brand_id: string; // 空の可能性がある
   brand_name: string;
   poi_id: string;
   poi_name: string;
@@ -21,8 +23,10 @@ interface SheetRow {
   longitude: number | string;
   prefecture: string;
   city: string;
+  radius: string; // 半径の数値（m単位）
+  polygon: string; // 空の可能性がある
   setting_flag: string;
-  created: string;
+  created: string; // YYYY/MM/DD形式
 }
 
 /**
@@ -30,6 +34,34 @@ interface SheetRow {
  */
 export function isGoogleSheetsAvailable(): boolean {
   return !!SPREADSHEET_ID && !!API_KEY;
+}
+
+/**
+ * 指定半径を数値に変換（m単位）
+ */
+function parseRadius(radius: string | undefined): number {
+  if (!radius) return 0;
+  // "50m" -> 50
+  const match = radius.match(/^(\d+)m?$/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+/**
+ * 日付をYYYY/MM/DD形式に変換
+ */
+function formatDateToYYYYMMDD(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}/${month}/${day}`;
+  }
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
 }
 
 /**
@@ -64,8 +96,36 @@ export function convertPoiToSheetRow(
     city = poi.cities[0];
   }
 
+  // 半径を数値に変換
+  const radiusValue = parseRadius(poi.designated_radius || segment?.designated_radius);
+  
+  // category_id: 99000000（00には指定半径の広さ）
+  // 例: 半径50m -> 99000050, 半径100m -> 99000100
+  const categoryId = `9900${String(radiusValue).padStart(4, '0')}`;
+
+  // データ連携予定日のロジックを使用してcreatedを計算
+  // poi.createdが存在する場合はそれを使用、なければ現在日時を使用
+  let requestDateTime: string;
+  if (poi.created) {
+    const createdDate = new Date(poi.created);
+    if (isNaN(createdDate.getTime())) {
+      requestDateTime = new Date().toISOString();
+    } else {
+      requestDateTime = poi.created;
+    }
+  } else {
+    requestDateTime = new Date().toISOString();
+  }
+
+  // データ連携予定日を計算（YYYY-MM-DD形式）
+  const coordinationDate = calculateDataCoordinationDate(requestDateTime);
+  
+  // YYYY-MM-DD形式をYYYY/MM/DD形式に変換
+  const createdDateFormatted = formatDateToYYYYMMDD(coordinationDate);
+
   return {
-    半径: poi.designated_radius || segment?.designated_radius || '',
+    category_id: categoryId,
+    brand_id: '', // 空
     brand_name: project.advertiser_name || '',
     poi_id: poi.location_id || poi.poi_id || poi.segment_id || '',
     poi_name: poi.poi_name,
@@ -73,8 +133,10 @@ export function convertPoiToSheetRow(
     longitude: poi.longitude !== undefined ? poi.longitude : '',
     prefecture,
     city,
-    setting_flag: poi.setting_flag || '1',
-    created: new Date().toISOString().split('T')[0], // YYYY-MM-DD形式
+    radius: radiusValue > 0 ? String(radiusValue) : '',
+    polygon: '', // 空
+    setting_flag: poi.setting_flag || '2',
+    created: createdDateFormatted, // YYYY/MM/DD形式
   };
 }
 
@@ -134,9 +196,10 @@ export async function appendRowsToSheet(rows: SheetRow[]): Promise<{
   }
 
   try {
-    // データを2次元配列に変換
+    // データを2次元配列に変換（新しい形式）
     const values = rows.map(row => [
-      row.半径,
+      row.category_id,
+      row.brand_id,
       row.brand_name,
       row.poi_id,
       row.poi_name,
@@ -144,6 +207,8 @@ export async function appendRowsToSheet(rows: SheetRow[]): Promise<{
       row.longitude,
       row.prefecture,
       row.city,
+      row.radius,
+      row.polygon,
       row.setting_flag,
       row.created,
     ]);
@@ -213,15 +278,15 @@ export async function ensureHeaderRow(): Promise<boolean> {
   }
 
   try {
-    // シートの最初の行を取得
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A1:J1?key=${API_KEY}`;
+    // シートの最初の行を取得（新しい形式: 13列）
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A1:M1?key=${API_KEY}`;
     
     const response = await fetch(url);
     const data = await response.json();
 
     // ヘッダーが存在しない、または空の場合
     if (!data.values || data.values.length === 0 || data.values[0].length === 0) {
-      // ヘッダー行を追加
+      // ヘッダー行を追加（新しい形式）
       const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A1:append?valueInputOption=USER_ENTERED&key=${API_KEY}`;
       
       await fetch(headerUrl, {
@@ -231,7 +296,8 @@ export async function ensureHeaderRow(): Promise<boolean> {
         },
         body: JSON.stringify({
           values: [[
-            '半径',
+            'category_id',
+            'brand_id',
             'brand_name',
             'poi_id',
             'poi_name',
@@ -239,6 +305,8 @@ export async function ensureHeaderRow(): Promise<boolean> {
             'longitude',
             'prefecture',
             'city',
+            'radius',
+            'polygon',
             'setting_flag',
             'created',
           ]],

@@ -2045,9 +2045,10 @@ UNIVERSEGEO案件管理システム
     }
 
     try {
-      // データを2次元配列に変換
+      // データを2次元配列に変換（新しい形式）
       const values = rows.map(row => [
-        row.半径 || row.designated_radius || '',
+        row.category_id || '',
+        row.brand_id || '',
         row.brand_name || '',
         row.poi_id || '',
         row.poi_name || '',
@@ -2055,8 +2056,10 @@ UNIVERSEGEO案件管理システム
         row.longitude || '',
         row.prefecture || '',
         row.city || '',
-        row.setting_flag || '1',
-        row.created || new Date().toISOString().split('T')[0],
+        row.radius || '',
+        row.polygon || '',
+        row.setting_flag || '2',
+        row.created || new Date().toISOString().split('T')[0].replace(/-/g, '/'),
       ]);
 
       // Google Sheets API v4 をサービスアカウント認証で使用
@@ -2091,7 +2094,7 @@ UNIVERSEGEO案件管理システム
       
       const response = await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A:J`, // 列AからJまで
+        range: `${SHEET_NAME}!A:M`, // 列AからMまで（13列）
         valueInputOption: 'USER_ENTERED',
         insertDataOption: 'INSERT_ROWS',
         resource: {
