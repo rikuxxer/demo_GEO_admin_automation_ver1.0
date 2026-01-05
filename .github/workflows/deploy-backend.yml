@@ -348,24 +348,37 @@ jobs:
           echo "📋 設定されているすべての環境変数:"
           echo "----------------------------------------"
           # 環境変数が反映されるまで少し長めに待機
-          sleep 5
+          echo "⏳ 環境変数が反映されるまで待機中（20秒）..."
+          sleep 20
           
-          # 環境変数を取得（より確実な方法）
-          ENV_OUTPUT=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region "$REGION_VALUE" \
-            --project ${{ env.PROJECT_ID }} \
-            --format='json(spec.template.spec.containers[0].env)' 2>/dev/null || echo '[]')
+          # 環境変数を取得（jqを使用する方法、またはフォールバック）
+          if command -v jq &> /dev/null; then
+            # jqが利用可能な場合
+            ENV_OUTPUT=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+              --region "$REGION_VALUE" \
+              --project ${{ env.PROJECT_ID }} \
+              --format='json(spec.template.spec.containers[0].env)' 2>/dev/null || echo '[]')
+            
+            VERIFIED_GCP_PROJECT_ID=$(echo "$ENV_OUTPUT" | jq -r '.[] | select(.name=="GCP_PROJECT_ID") | .value' 2>/dev/null || echo '')
+            VERIFIED_BQ_DATASET=$(echo "$ENV_OUTPUT" | jq -r '.[] | select(.name=="BQ_DATASET") | .value' 2>/dev/null || echo '')
+            VERIFIED_FRONTEND_URL=$(echo "$ENV_OUTPUT" | jq -r '.[] | select(.name=="FRONTEND_URL") | .value' 2>/dev/null || echo '')
+            VERIFIED_GOOGLE_SPREADSHEET_ID=$(echo "$ENV_OUTPUT" | jq -r '.[] | select(.name=="GOOGLE_SPREADSHEET_ID") | .value' 2>/dev/null || echo '')
+          else
+            # jqが利用できない場合、Pythonを使用
+            ENV_OUTPUT=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+              --region "$REGION_VALUE" \
+              --project ${{ env.PROJECT_ID }} \
+              --format='json(spec.template.spec.containers[0].env)' 2>/dev/null || echo '[]')
+            
+            VERIFIED_GCP_PROJECT_ID=$(python3 -c "import json, sys; data=json.load(sys.stdin); print(next((e['value'] for e in data if e.get('name')=='GCP_PROJECT_ID'), ''))" <<< "$ENV_OUTPUT" 2>/dev/null || echo '')
+            VERIFIED_BQ_DATASET=$(python3 -c "import json, sys; data=json.load(sys.stdin); print(next((e['value'] for e in data if e.get('name')=='BQ_DATASET'), ''))" <<< "$ENV_OUTPUT" 2>/dev/null || echo '')
+            VERIFIED_FRONTEND_URL=$(python3 -c "import json, sys; data=json.load(sys.stdin); print(next((e['value'] for e in data if e.get('name')=='FRONTEND_URL'), ''))" <<< "$ENV_OUTPUT" 2>/dev/null || echo '')
+            VERIFIED_GOOGLE_SPREADSHEET_ID=$(python3 -c "import json, sys; data=json.load(sys.stdin); print(next((e['value'] for e in data if e.get('name')=='GOOGLE_SPREADSHEET_ID'), ''))" <<< "$ENV_OUTPUT" 2>/dev/null || echo '')
+          fi
           
-          VERIFIED_GCP_PROJECT_ID=$(echo "$ENV_OUTPUT" | grep -o '"name":"GCP_PROJECT_ID"[^}]*"value":"[^"]*"' | grep -o '"value":"[^"]*"' | cut -d'"' -f4 || echo '')
           echo "GCP_PROJECT_ID: ${VERIFIED_GCP_PROJECT_ID:-NOT SET}"
-          
-          VERIFIED_BQ_DATASET=$(echo "$ENV_OUTPUT" | grep -o '"name":"BQ_DATASET"[^}]*"value":"[^"]*"' | grep -o '"value":"[^"]*"' | cut -d'"' -f4 || echo '')
           echo "BQ_DATASET: ${VERIFIED_BQ_DATASET:-NOT SET}"
-          
-          VERIFIED_FRONTEND_URL=$(echo "$ENV_OUTPUT" | grep -o '"name":"FRONTEND_URL"[^}]*"value":"[^"]*"' | grep -o '"value":"[^"]*"' | cut -d'"' -f4 || echo '')
           echo "FRONTEND_URL: ${VERIFIED_FRONTEND_URL:-NOT SET}"
-          
-          VERIFIED_GOOGLE_SPREADSHEET_ID=$(echo "$ENV_OUTPUT" | grep -o '"name":"GOOGLE_SPREADSHEET_ID"[^}]*"value":"[^"]*"' | grep -o '"value":"[^"]*"' | cut -d'"' -f4 || echo '')
           echo "GOOGLE_SPREADSHEET_ID: ${VERIFIED_GOOGLE_SPREADSHEET_ID:-NOT SET}"
           echo "----------------------------------------"
           echo ""
