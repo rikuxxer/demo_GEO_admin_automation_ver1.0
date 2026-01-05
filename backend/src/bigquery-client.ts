@@ -2045,22 +2045,36 @@ UNIVERSEGEO案件管理システム
     }
 
     try {
-      // データを2次元配列に変換（新しい形式）
-      const values = rows.map(row => [
-        row.category_id || '',
-        row.brand_id || '',
-        row.brand_name || '',
-        row.poi_id || '',
-        row.poi_name || '',
-        row.latitude || '',
-        row.longitude || '',
-        row.prefecture || '',
-        row.city || '',
-        row.radius || '',
-        row.polygon || '',
-        row.setting_flag || '2',
-        row.created || new Date().toISOString().split('T')[0].replace(/-/g, '/'),
-      ]);
+      // データを2次元配列に変換（13列形式: category_id, brand_id, brand_name, poi_id, poi_name, latitude, longitude, prefecture, city, radius, polygon, setting_flag, created）
+      const values = rows.map(row => {
+        // createdフィールドがYYYY/MM/DD形式でない場合は変換
+        let createdValue = row.created || '';
+        if (createdValue && !createdValue.includes('/')) {
+          // YYYY-MM-DD形式をYYYY/MM/DD形式に変換
+          createdValue = createdValue.replace(/-/g, '/');
+        }
+        if (!createdValue) {
+          // デフォルト値として現在日時をYYYY/MM/DD形式で設定
+          const now = new Date();
+          createdValue = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+        }
+        
+        return [
+          row.category_id || '',
+          row.brand_id || '', // 空
+          row.brand_name || '',
+          row.poi_id || '',
+          row.poi_name || '',
+          row.latitude !== undefined && row.latitude !== null ? String(row.latitude) : '',
+          row.longitude !== undefined && row.longitude !== null ? String(row.longitude) : '',
+          row.prefecture || '',
+          row.city || '',
+          row.radius || '',
+          row.polygon || '', // 空
+          row.setting_flag || '2',
+          createdValue, // YYYY/MM/DD形式
+        ];
+      });
 
       // Google Sheets API v4 をサービスアカウント認証で使用
       // Cloud Runでは、サービスアカウントが自動的に認証に使用される
