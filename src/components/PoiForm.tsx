@@ -878,6 +878,15 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       setErrorMessage('指定半径は必須項目です');
       return;
     }
+    
+    // 半径のバリデーション（0-10000の範囲）
+    if (formData.designated_radius) {
+      const radiusNum = parseInt(formData.designated_radius.replace('m', ''));
+      if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+        setErrorMessage('指定半径は0-10000の範囲で入力してください');
+        return;
+      }
+    }
     if (!formData.extraction_period && formData.extraction_period_type === 'preset') {
       setErrorMessage('抽出期間は必須項目です');
       return;
@@ -2257,9 +2266,9 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         </button>
                       ))}
                     </div>
-                    <div className="mt-2">
+                    <div className="mt-2 space-y-2">
                       <select
-                        value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? '' : formData.designated_radius}
+                        value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? formData.designated_radius : ''}
                         onChange={(e) => e.target.value && handleChange('designated_radius', e.target.value)}
                         className="w-full p-2 border border-gray-300 rounded-md text-sm"
                       >
@@ -2268,6 +2277,36 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </select>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="10000"
+                          step="1"
+                          placeholder="0-10000の範囲で自由入力（m単位）"
+                          value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? '' : (formData.designated_radius || '')}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
+                              handleChange('designated_radius', value);
+                            }
+                          }}
+                          className="flex-1"
+                        />
+                        <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+                      </div>
+                      {formData.designated_radius && (() => {
+                        const radiusNum = parseInt(formData.designated_radius.replace('m', ''));
+                        if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+                          return (
+                            <p className="text-sm text-red-600 flex items-center gap-1">
+                              <AlertCircle className="w-4 h-4" />
+                              半径は0-10000の範囲で入力してください
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
                 )}

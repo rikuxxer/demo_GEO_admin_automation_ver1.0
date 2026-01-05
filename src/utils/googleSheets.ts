@@ -334,6 +334,7 @@ export async function exportPoisToSheet(
   success: boolean;
   message: string;
   rowsAdded?: number;
+  validationErrors?: Array<{ index: number; errors: Array<{ field: string; message: string }> }>;
 }> {
   try {
     // ヘッダー行を確保
@@ -345,8 +346,26 @@ export async function exportPoisToSheet(
       return convertPoiToSheetRow(poi, project, segment);
     });
 
+    // バリデーション
+    const { validateSheetRows } = await import('./spreadsheetValidation');
+    const { valid, errors } = validateSheetRows(rows);
+
+    if (errors.length > 0) {
+      const errorMessages = errors.map(({ index, errors: errs }) => {
+        const poi = pois[index];
+        const errorList = errs.map(e => `  - ${e.field}: ${e.message}`).join('\n');
+        return `地点「${poi.poi_name || poi.poi_id}」 (${index + 1}行目):\n${errorList}`;
+      }).join('\n\n');
+
+      return {
+        success: false,
+        message: `バリデーションエラーが発生しました:\n\n${errorMessages}`,
+        validationErrors: errors,
+      };
+    }
+
     // スプレッドシートに追加
-    return await appendRowsToSheet(rows);
+    return await appendRowsToSheet(valid);
   } catch (error) {
     console.error('❌ POI出力エラー:', error);
     return {
