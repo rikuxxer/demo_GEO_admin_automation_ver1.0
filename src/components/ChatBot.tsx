@@ -230,7 +230,6 @@ export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }:
                           return '-';
                         }
                       })()}
-                      })}
                     </p>
                   </div>
                   {message.role === 'user' && (
