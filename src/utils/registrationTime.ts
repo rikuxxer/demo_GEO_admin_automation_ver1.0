@@ -94,12 +94,31 @@ export function formatRegistrationTime(project: Project): string | null {
 export function calculateAverageRegistrationTime(projects: Project[]): number | null {
   const times = projects
     .map(getRegistrationTimeInMinutes)
-    .filter((time): time is number => time !== null);
+    .filter((time): time is number => {
+      // nullでない、かつ有効な範囲内（0分以上、24時間未満）の値のみを集計
+      return time !== null && time >= 0 && time < 1440; // 1440分 = 24時間
+    });
 
-  if (times.length === 0) return null;
+  if (times.length === 0) {
+    console.warn('⚠️ calculateAverageRegistrationTime: 有効な登録時間データがありません');
+    return null;
+  }
+
+  // 異常値（24時間以上）を除外した件数をログ出力
+  const allTimes = projects
+    .map(getRegistrationTimeInMinutes)
+    .filter((time): time is number => time !== null);
+  const excludedCount = allTimes.length - times.length;
+  if (excludedCount > 0) {
+    console.warn(`⚠️ calculateAverageRegistrationTime: ${excludedCount}件の異常値（24時間以上または負の値）を除外しました`);
+  }
 
   const sum = times.reduce((acc, time) => acc + time, 0);
-  return Math.round((sum / times.length) * 100) / 100; // 小数点第2位まで
+  const average = Math.round((sum / times.length) * 100) / 100; // 小数点第2位まで
+  
+  console.log(`📊 平均登録時間の計算: ${times.length}件のデータから平均 ${average}分を算出`);
+  
+  return average;
 }
 
 /**
