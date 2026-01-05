@@ -70,10 +70,12 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
       // 数値型の変換
       const latValue = editForm.latitude;
       const lngValue = editForm.longitude;
+      const latStr = latValue !== undefined && latValue !== null ? String(latValue).trim() : '';
+      const lngStr = lngValue !== undefined && lngValue !== null ? String(lngValue).trim() : '';
       const updates = {
         ...editForm,
-        latitude: (latValue !== undefined && latValue !== null && latValue !== '' && String(latValue).trim() !== '') ? Number(latValue) : undefined,
-        longitude: (lngValue !== undefined && lngValue !== null && lngValue !== '' && String(lngValue).trim() !== '') ? Number(lngValue) : undefined,
+        latitude: latStr !== '' ? Number(latValue) : undefined,
+        longitude: lngStr !== '' ? Number(lngValue) : undefined,
         detection_count: editForm.detection_count ? Number(editForm.detection_count) : 1,
       };
 
