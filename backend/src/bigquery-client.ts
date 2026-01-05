@@ -345,11 +345,11 @@ export class BigQueryService {
       const [rows] = await initializeBigQueryClient().query(queryOptions);
       console.log('✅ BigQuery query successful, rows:', rows.length);
       
-      // DATE型フィールドをYYYY-MM-DD形式の文字列に変換
+      // DATE型フィールドとTIMESTAMP型フィールドを適切な形式の文字列に変換
       const formattedRows = rows.map((row: any) => {
         const formattedRow = { ...row };
         
-        // delivery_start_dateとdelivery_end_dateを変換
+        // delivery_start_dateとdelivery_end_dateを変換（DATE型）
         if (formattedRow.delivery_start_date) {
           if (formattedRow.delivery_start_date instanceof Date) {
             formattedRow.delivery_start_date = formattedRow.delivery_start_date.toISOString().split('T')[0];
@@ -380,6 +380,40 @@ export class BigQueryService {
           }
         }
         
+        // TIMESTAMP型フィールドをISO形式の文字列に変換
+        // project_registration_started_at, _register_datetime, created_at, updated_at
+        const timestampFields = ['project_registration_started_at', '_register_datetime', 'created_at', 'updated_at'];
+        timestampFields.forEach(field => {
+          if (formattedRow[field]) {
+            if (formattedRow[field] instanceof Date) {
+              formattedRow[field] = formattedRow[field].toISOString();
+            } else if (typeof formattedRow[field] === 'string') {
+              // 既にISO形式の場合はそのまま
+              if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(formattedRow[field])) {
+                // 他の形式の場合は変換を試みる
+                const date = new Date(formattedRow[field]);
+                if (!isNaN(date.getTime())) {
+                  formattedRow[field] = date.toISOString();
+                }
+              }
+            } else if (typeof formattedRow[field] === 'object') {
+              // オブジェクトの場合（BigQueryから返された可能性）
+              if ('value' in formattedRow[field]) {
+                formattedRow[field] = String(formattedRow[field].value);
+              } else {
+                try {
+                  const date = new Date(formattedRow[field]);
+                  if (!isNaN(date.getTime())) {
+                    formattedRow[field] = date.toISOString();
+                  }
+                } catch (e) {
+                  console.warn(`⚠️ ${field}の変換エラー:`, formattedRow[field], e);
+                }
+              }
+            }
+          }
+        });
+        
         return formattedRow;
       });
       
@@ -391,6 +425,10 @@ export class BigQueryService {
           delivery_start_date_type: typeof formattedRows[0].delivery_start_date,
           delivery_end_date: formattedRows[0].delivery_end_date,
           delivery_end_date_type: typeof formattedRows[0].delivery_end_date,
+          project_registration_started_at: formattedRows[0].project_registration_started_at,
+          project_registration_started_at_type: typeof formattedRows[0].project_registration_started_at,
+          _register_datetime: formattedRows[0]._register_datetime,
+          _register_datetime_type: typeof formattedRows[0]._register_datetime,
         });
       }
       

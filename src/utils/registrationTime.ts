@@ -1,4 +1,5 @@
 import type { Project } from '../types/schema';
+import { safeParseDate } from './dateUtils';
 
 /**
  * 案件登録にかかった時間を計算（ミリ秒）
@@ -6,12 +7,35 @@ import type { Project } from '../types/schema';
  * @returns 登録時間（ミリ秒）、開始時点が記録されていない場合はnull
  */
 export function calculateRegistrationTime(project: Project): number | null {
-  if (!project.project_registration_started_at) {
+  if (!project.project_registration_started_at || !project._register_datetime) {
     return null;
   }
 
-  const startTime = new Date(project.project_registration_started_at).getTime();
-  const endTime = new Date(project._register_datetime).getTime();
+  // オブジェクト形式の日付に対応するため、safeParseDateを使用
+  const startDate = safeParseDate(project.project_registration_started_at);
+  const endDate = safeParseDate(project._register_datetime);
+  
+  if (!startDate || !endDate) {
+    console.warn('⚠️ calculateRegistrationTime: 無効な日付', {
+      project_id: project.project_id,
+      project_registration_started_at: project.project_registration_started_at,
+      _register_datetime: project._register_datetime,
+    });
+    return null;
+  }
+
+  const startTime = startDate.getTime();
+  const endTime = endDate.getTime();
+  
+  // 開始時刻が終了時刻より後の場合は無効
+  if (startTime > endTime) {
+    console.warn('⚠️ calculateRegistrationTime: 開始時刻が終了時刻より後', {
+      project_id: project.project_id,
+      startTime: new Date(startTime).toISOString(),
+      endTime: new Date(endTime).toISOString(),
+    });
+    return null;
+  }
   
   return endTime - startTime;
 }
@@ -103,8 +127,9 @@ export function getRegistrationTimeTrend(
   validProjects.forEach((project) => {
     if (!project._register_datetime) return;
     
-    const registerDate = new Date(project._register_datetime);
-    if (isNaN(registerDate.getTime()) || registerDate < startDate) return;
+    // オブジェクト形式の日付に対応するため、safeParseDateを使用
+    const registerDate = safeParseDate(project._register_datetime);
+    if (!registerDate || registerDate < startDate) return;
 
     let dateKey: string;
     try {
@@ -116,7 +141,7 @@ export function getRegistrationTimeTrend(
     
     const timeMinutes = getRegistrationTimeInMinutes(project);
     
-    if (timeMinutes !== null) {
+    if (timeMinutes !== null && timeMinutes > 0) {
       if (!dateMap.has(dateKey)) {
         dateMap.set(dateKey, []);
       }
