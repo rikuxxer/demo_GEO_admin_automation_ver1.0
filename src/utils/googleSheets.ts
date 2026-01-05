@@ -123,6 +123,10 @@ export function convertPoiToSheetRow(
   // YYYY-MM-DD形式をYYYY/MM/DD形式に変換
   const createdDateFormatted = formatDateToYYYYMMDD(coordinationDate);
 
+  // 半径が設定されている場合（0より大きい場合）はsetting_flag=4（任意半径で指定）
+  // 半径が設定されていない場合はsetting_flag=2（弊社のPOIマスタに存在しない）
+  const settingFlag = radiusValue > 0 ? '4' : (poi.setting_flag || '2');
+
   return {
     category_id: categoryId,
     brand_id: '', // 空
@@ -133,9 +137,9 @@ export function convertPoiToSheetRow(
     longitude: poi.longitude !== undefined && poi.longitude !== null ? String(poi.longitude) : '',
     prefecture: prefecture || '', // 空の場合は空文字列
     city: city || '', // 空の場合は空文字列
-    radius: radiusValue > 0 ? String(radiusValue) : '', // 0以下の場合は空文字列
+    radius: radiusValue > 0 ? String(radiusValue) : '', // 0より大きい場合のみ設定（J列）
     polygon: '', // 空
-    setting_flag: poi.setting_flag || '2',
+    setting_flag: settingFlag, // 半径が設定されている場合は4、それ以外は2
     created: createdDateFormatted, // YYYY/MM/DD形式
   };
 }
