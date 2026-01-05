@@ -40,15 +40,36 @@ jobs:
       - name: Verify required secrets
         run: |
           echo "🔍 必須Secretsの確認中..."
-          test -n "${{ secrets.GCP_SA_KEY }}" || (echo "❌ GCP_SA_KEY is missing" && exit 1)
-          test -n "${{ secrets.BQ_DATASET }}" || (echo "❌ BQ_DATASET is missing" && exit 1)
-          test -n "${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }}" || (echo "❌ GCP_PROJECT_ID is missing" && exit 1)
+          echo "  Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "  ⚠️ 注意: environmentが設定されている場合、Secretsは環境スコープから取得されます"
+          echo ""
+          
+          # 環境スコープのSecretsを確認（environmentが設定されている場合、自動的に環境スコープから取得される）
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "❌ GCP_SA_KEY is missing"
+            echo "   環境スコープのSecretsに GCP_SA_KEY が設定されているか確認してください"
+            echo "   Settings > Environments > ${{ github.event.inputs.environment || 'production' }} > Secrets"
+            exit 1
+          fi
+          
+          if [ -z "${{ secrets.BQ_DATASET }}" ]; then
+            echo "❌ BQ_DATASET is missing"
+            echo "   環境スコープのSecretsに BQ_DATASET が設定されているか確認してください"
+            exit 1
+          fi
+          
+          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ] && [ -z "${{ vars.GCP_PROJECT_ID }}" ]; then
+            echo "❌ GCP_PROJECT_ID is missing"
+            echo "   環境スコープのSecretsまたはVarsに GCP_PROJECT_ID が設定されているか確認してください"
+            exit 1
+          fi
+          
           echo "✅ 必須Secretsが設定されています"
           echo ""
           echo "📋 環境変数の確認:"
-          echo "  Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "  GCP_SA_KEY: ✅ SET"
           echo "  GCP_PROJECT_ID: $([ -n "${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }}" ] && echo '✅ SET' || echo '❌ NOT SET')"
-          echo "  BQ_DATASET: $([ -n "${{ secrets.BQ_DATASET }}" ] && echo '✅ SET' || echo '❌ NOT SET')"
+          echo "  BQ_DATASET: ✅ SET"
           echo "  GOOGLE_SPREADSHEET_ID: $([ -n "${{ secrets.GOOGLE_SPREADSHEET_ID }}" ] && echo '✅ SET' || echo '⚠️ NOT SET')"
           echo "  FRONTEND_URL: $([ -n "${{ secrets.FRONTEND_URL }}" ] && echo '✅ SET' || echo '⚠️ NOT SET')"
 
