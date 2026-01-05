@@ -144,10 +144,48 @@ export function ProjectDetail({
     loadUnreadCount();
   }, [project.project_id, user, activeTab, onUnreadCountUpdate]);
 
-  const formatDate = (dateStr?: string | null) => {
+  const formatDate = (dateStr?: string | null | Date | any) => {
     // null、undefined、空文字列の場合は「-」を返す
     if (!dateStr || (typeof dateStr === 'string' && dateStr.trim() === '')) {
       return '-';
+    }
+    
+    // Dateオブジェクトの場合は直接処理
+    if (dateStr instanceof Date) {
+      if (isNaN(dateStr.getTime())) {
+        console.warn('⚠️ formatDate: 無効なDateオブジェクト', dateStr);
+        return '-';
+      }
+      try {
+        return dateStr.toLocaleDateString('ja-JP');
+      } catch (e) {
+        console.warn('⚠️ formatDate() toLocaleDateString failed:', dateStr, e);
+        return '-';
+      }
+    }
+    
+    // オブジェクトの場合（BigQueryから返された可能性）
+    if (typeof dateStr === 'object' && dateStr !== null) {
+      // valueプロパティがある場合（BigQueryのDATE型がオブジェクトとして返される場合）
+      if ('value' in dateStr && typeof dateStr.value === 'string') {
+        dateStr = dateStr.value;
+      } else if ('toString' in dateStr && typeof dateStr.toString === 'function') {
+        // toString()メソッドがある場合は試行
+        try {
+          const str = dateStr.toString();
+          if (str === '[object Object]') {
+            console.warn('⚠️ formatDate: オブジェクトを文字列に変換できませんでした', dateStr);
+            return '-';
+          }
+          dateStr = str;
+        } catch (e) {
+          console.warn('⚠️ formatDate: オブジェクトの変換に失敗', dateStr, e);
+          return '-';
+        }
+      } else {
+        console.warn('⚠️ formatDate: 未対応のオブジェクト形式', dateStr);
+        return '-';
+      }
     }
     
     // BigQueryのDATE型はYYYY-MM-DD形式で返される

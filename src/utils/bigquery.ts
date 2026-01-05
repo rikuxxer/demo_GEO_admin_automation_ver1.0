@@ -226,10 +226,87 @@ class BigQueryService {
         const data = await response.json();
         console.log('✅ プロジェクト取得成功:', data.length, '件');
         
+        // 日付フィールドを正規化（オブジェクトやDateオブジェクトをYYYY-MM-DD形式の文字列に変換）
+        const normalizedData = data.map((project: any) => {
+          const normalized = { ...project };
+          
+          // delivery_start_dateを正規化
+          if (normalized.delivery_start_date) {
+            if (normalized.delivery_start_date instanceof Date) {
+              normalized.delivery_start_date = normalized.delivery_start_date.toISOString().split('T')[0];
+            } else if (typeof normalized.delivery_start_date === 'object') {
+              // オブジェクトの場合（BigQueryから返された可能性）
+              if ('value' in normalized.delivery_start_date) {
+                normalized.delivery_start_date = String(normalized.delivery_start_date.value);
+              } else {
+                // オブジェクトを文字列に変換を試行
+                try {
+                  const date = new Date(normalized.delivery_start_date);
+                  if (!isNaN(date.getTime())) {
+                    normalized.delivery_start_date = date.toISOString().split('T')[0];
+                  } else {
+                    console.warn('⚠️ delivery_start_dateの変換に失敗:', normalized.delivery_start_date);
+                    normalized.delivery_start_date = null;
+                  }
+                } catch (e) {
+                  console.warn('⚠️ delivery_start_dateの変換エラー:', normalized.delivery_start_date, e);
+                  normalized.delivery_start_date = null;
+                }
+              }
+            } else if (typeof normalized.delivery_start_date === 'string') {
+              // 既に文字列の場合はそのまま（YYYY-MM-DD形式であることを期待）
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized.delivery_start_date)) {
+                // YYYY-MM-DD形式でない場合は変換を試行
+                const date = new Date(normalized.delivery_start_date);
+                if (!isNaN(date.getTime())) {
+                  normalized.delivery_start_date = date.toISOString().split('T')[0];
+                }
+              }
+            }
+          }
+          
+          // delivery_end_dateを正規化
+          if (normalized.delivery_end_date) {
+            if (normalized.delivery_end_date instanceof Date) {
+              normalized.delivery_end_date = normalized.delivery_end_date.toISOString().split('T')[0];
+            } else if (typeof normalized.delivery_end_date === 'object') {
+              // オブジェクトの場合（BigQueryから返された可能性）
+              if ('value' in normalized.delivery_end_date) {
+                normalized.delivery_end_date = String(normalized.delivery_end_date.value);
+              } else {
+                // オブジェクトを文字列に変換を試行
+                try {
+                  const date = new Date(normalized.delivery_end_date);
+                  if (!isNaN(date.getTime())) {
+                    normalized.delivery_end_date = date.toISOString().split('T')[0];
+                  } else {
+                    console.warn('⚠️ delivery_end_dateの変換に失敗:', normalized.delivery_end_date);
+                    normalized.delivery_end_date = null;
+                  }
+                } catch (e) {
+                  console.warn('⚠️ delivery_end_dateの変換エラー:', normalized.delivery_end_date, e);
+                  normalized.delivery_end_date = null;
+                }
+              }
+            } else if (typeof normalized.delivery_end_date === 'string') {
+              // 既に文字列の場合はそのまま（YYYY-MM-DD形式であることを期待）
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized.delivery_end_date)) {
+                // YYYY-MM-DD形式でない場合は変換を試行
+                const date = new Date(normalized.delivery_end_date);
+                if (!isNaN(date.getTime())) {
+                  normalized.delivery_end_date = date.toISOString().split('T')[0];
+                }
+              }
+            }
+          }
+          
+          return normalized;
+        });
+        
         // デバッグ: 最初のプロジェクトの日付フィールドを確認
-        if (data.length > 0 && process.env.NODE_ENV === 'development') {
-          const firstProject = data[0];
-          console.log('🔍 最初のプロジェクトの日付フィールド:', {
+        if (normalizedData.length > 0) {
+          const firstProject = normalizedData[0];
+          console.log('🔍 正規化後の最初のプロジェクトの日付フィールド:', {
             project_id: firstProject.project_id,
             delivery_start_date: firstProject.delivery_start_date,
             delivery_start_date_type: typeof firstProject.delivery_start_date,
@@ -238,9 +315,7 @@ class BigQueryService {
           });
         }
         
-        // 日付フィールドを正規化（空文字列やnullの場合はそのまま）
-        // BigQueryのDATE型はYYYY-MM-DD形式で返されるはず
-        return data;
+        return normalizedData;
       } catch (error) {
         console.error('❌ プロジェクト取得APIエラー:', error);
         if (error instanceof TypeError && error.message.includes('fetch')) {
