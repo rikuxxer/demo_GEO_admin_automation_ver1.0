@@ -413,8 +413,29 @@ function parseSegmentRow(row: any[], rowNum: number, errors: ExcelParseError[], 
     errors.push({ section: sectionName, row: rowNum, field: '配信範囲', message: '配信範囲は必須です' });
   } else {
     const rStr = String(radius).trim();
-    if (/^\d+m$/.test(rStr)) segment.designated_radius = rStr;
-    else errors.push({ section: sectionName, row: rowNum, field: '配信範囲', message: '「50m」のような形式で入力してください' });
+    // 数値のみ（例: "500"）または "数値m"形式（例: "500m"）を許可
+    const numMatch = rStr.match(/^(\d+)$/);
+    const mMatch = rStr.match(/^(\d+)m$/);
+    
+    if (numMatch) {
+      // 数値のみの場合（例: "500"）
+      const radiusValue = parseInt(numMatch[1], 10);
+      if (radiusValue >= 0 && radiusValue <= 10000) {
+        segment.designated_radius = `${radiusValue}m`; // "m"を付けて保存
+      } else {
+        errors.push({ section: sectionName, row: rowNum, field: '配信範囲', message: '配信範囲は0-10000の範囲で入力してください' });
+      }
+    } else if (mMatch) {
+      // "数値m"形式の場合（例: "500m"）
+      const radiusValue = parseInt(mMatch[1], 10);
+      if (radiusValue >= 0 && radiusValue <= 10000) {
+        segment.designated_radius = rStr;
+      } else {
+        errors.push({ section: sectionName, row: rowNum, field: '配信範囲', message: '配信範囲は0-10000の範囲で入力してください' });
+      }
+    } else {
+      errors.push({ section: sectionName, row: rowNum, field: '配信範囲', message: '配信範囲は0-10000の数値、または「500m」のような形式で入力してください' });
+    }
   }
 
   // D: 抽出期間

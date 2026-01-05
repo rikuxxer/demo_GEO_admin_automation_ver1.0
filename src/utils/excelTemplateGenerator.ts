@@ -204,8 +204,18 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
     row.getCell(1).dataValidation = { type: 'textLength', operator: 'lessThanOrEqual', formulae: [100], showErrorMessage: true, error: '100文字以内' };
     // 2. 配信先 (Option Col A)
     row.getCell(2).dataValidation = { type: 'list', allowBlank: true, formulae: [`'${optionsSheetName}'!$A$1:$A$2`] };
-    // 3. 配信範囲 (ASCIIなので直接記述でもOKだが、念のため) -> ASCIIなので直接でOK
-    row.getCell(3).dataValidation = { type: 'list', allowBlank: true, formulae: ['"50m,100m,150m,200m,250m,300m,350m,400m,450m,500m,550m,600m,650m,700m,750m,800m,850m,900m,950m,1000m,1500m,2000m,3000m,5000m,10000m"'] };
+    // 3. 配信範囲 (0-10000の範囲で自由入力可能)
+    // 数値入力規則: 0-10000の範囲
+    // テキスト形式（"500m"など）もパーサー側で処理可能
+    row.getCell(3).dataValidation = {
+      type: 'whole',
+      operator: 'between',
+      formulae: [0, 10000],
+      allowBlank: true,
+      showErrorMessage: true,
+      error: '0-10000の範囲で入力してください（例: 500 または 500m）',
+      errorStyle: 'warning'
+    };
     // 4. 抽出期間 (Option Col B - 日本語あり)
     // プルダウンで選択可能（対象者が「居住者」等の場合はパーサー側で「直近3ヶ月」に強制変換）
     row.getCell(4).dataValidation = { type: 'list', allowBlank: true, formulae: [`'${optionsSheetName}'!$B$1:$B$7`] };
