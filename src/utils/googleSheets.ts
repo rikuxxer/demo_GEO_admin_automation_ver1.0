@@ -128,12 +128,12 @@ export function convertPoiToSheetRow(
     brand_id: '', // 空
     brand_name: project.advertiser_name || '',
     poi_id: poi.location_id || poi.poi_id || poi.segment_id || '',
-    poi_name: poi.poi_name,
-    latitude: poi.latitude !== undefined ? poi.latitude : '',
-    longitude: poi.longitude !== undefined ? poi.longitude : '',
-    prefecture,
-    city,
-    radius: radiusValue > 0 ? String(radiusValue) : '',
+    poi_name: poi.poi_name || '',
+    latitude: poi.latitude !== undefined && poi.latitude !== null ? String(poi.latitude) : '',
+    longitude: poi.longitude !== undefined && poi.longitude !== null ? String(poi.longitude) : '',
+    prefecture: prefecture || '', // 空の場合は空文字列
+    city: city || '', // 空の場合は空文字列
+    radius: radiusValue > 0 ? String(radiusValue) : '', // 0以下の場合は空文字列
     polygon: '', // 空
     setting_flag: poi.setting_flag || '2',
     created: createdDateFormatted, // YYYY/MM/DD形式
