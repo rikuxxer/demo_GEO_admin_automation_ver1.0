@@ -48,12 +48,28 @@ export function fixSampleDataRegistrationTime(): void {
     for (const project of sampleProjects) {
       if (!project.project_registration_started_at) continue;
       
-      const start = new Date(project.project_registration_started_at).getTime();
-      const end = new Date(project._register_datetime).getTime();
+      if (!project._register_datetime) continue;
+      
+      const startDate = new Date(project.project_registration_started_at);
+      const endDate = new Date(project._register_datetime);
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.warn('⚠️ Invalid date in fixSampleDataRegistrationTime:', project.project_id);
+        continue; // 無効な日付の場合はスキップ
+      }
+      
+      const start = startDate.getTime();
+      const end = endDate.getTime();
       const minutes = Math.round((end - start) / (1000 * 60));
       
       // 日付をキーとして使用（YYYY-MM-DD形式）
-      const dateKey = new Date(project._register_datetime).toISOString().split('T')[0];
+      let dateKey: string;
+      try {
+        dateKey = endDate.toISOString().split('T')[0];
+      } catch (e) {
+        console.warn('⚠️ toISOString() failed in fixSampleDataRegistrationTime:', project.project_id, e);
+        continue; // エラーの場合はスキップ
+      }
       
       if (!projectsByDate.has(dateKey)) {
         projectsByDate.set(dateKey, []);
@@ -118,7 +134,25 @@ export function fixSampleDataRegistrationTime(): void {
       
       for (const update of adjustedUpdates) {
         // dateKeyを直接使用（計算ミスを防ぐ）
-        const dateKey = update.dateKey || new Date(update.project._register_datetime).toISOString().split('T')[0];
+        let dateKey: string;
+        if (update.dateKey) {
+          dateKey = update.dateKey;
+        } else if (update.project._register_datetime) {
+          const date = new Date(update.project._register_datetime);
+          if (isNaN(date.getTime())) {
+            console.warn('⚠️ Invalid date in adjustedUpdates:', update.project.project_id);
+            continue; // 無効な日付の場合はスキップ
+          }
+          try {
+            dateKey = date.toISOString().split('T')[0];
+          } catch (e) {
+            console.warn('⚠️ toISOString() failed in adjustedUpdates:', update.project.project_id, e);
+            continue; // エラーの場合はスキップ
+          }
+        } else {
+          console.warn('⚠️ Missing _register_datetime in adjustedUpdates:', update.project.project_id);
+          continue; // 日付がない場合はスキップ
+        }
         if (!adjustedByDate.has(dateKey)) {
           adjustedByDate.set(dateKey, []);
         }
@@ -135,7 +169,25 @@ export function fixSampleDataRegistrationTime(): void {
           // この日のデータをさらにスケールダウン
           const additionalScale = 55 / dateAverage;
           adjustedUpdates = adjustedUpdates.map(u => {
-            const uDateKey = u.dateKey || new Date(u.project._register_datetime).toISOString().split('T')[0];
+            let uDateKey: string;
+            if (u.dateKey) {
+              uDateKey = u.dateKey;
+            } else if (u.project._register_datetime) {
+              const date = new Date(u.project._register_datetime);
+              if (isNaN(date.getTime())) {
+                console.warn('⚠️ Invalid date in adjustedUpdates map:', u.project.project_id);
+                return u; // 無効な日付の場合はそのまま返す
+              }
+              try {
+                uDateKey = date.toISOString().split('T')[0];
+              } catch (e) {
+                console.warn('⚠️ toISOString() failed in adjustedUpdates map:', u.project.project_id, e);
+                return u; // エラーの場合はそのまま返す
+              }
+            } else {
+              console.warn('⚠️ Missing _register_datetime in adjustedUpdates map:', u.project.project_id);
+              return u; // 日付がない場合はそのまま返す
+            }
             if (uDateKey === date) {
               const oldMinutes = u.newMinutes;
               const newMinutes = Math.max(5, Math.min(60, Math.round(u.newMinutes * additionalScale)));
@@ -171,12 +223,34 @@ export function fixSampleDataRegistrationTime(): void {
       }
 
       // 新しい開始時点を計算
-      const end = new Date(project._register_datetime).getTime();
+      if (!project._register_datetime) {
+        return project; // 無効な日付の場合はスキップ
+      }
+      
+      const endDate = new Date(project._register_datetime);
+      if (isNaN(endDate.getTime())) {
+        console.warn('⚠️ Invalid _register_datetime in fixSampleDataRegistrationTime:', project.project_id);
+        return project; // 無効な日付の場合はスキップ
+      }
+      
+      const end = endDate.getTime();
       const newStartTime = new Date(end - update.newMinutes * 60 * 1000);
+      
+      let projectRegistrationStartedAt: string;
+      if (isNaN(newStartTime.getTime())) {
+        console.warn('⚠️ Invalid newStartTime in fixSampleDataRegistrationTime:', project.project_id);
+        return project; // 無効な日付の場合はスキップ
+      }
+      try {
+        projectRegistrationStartedAt = newStartTime.toISOString();
+      } catch (e) {
+        console.warn('⚠️ toISOString() failed in fixSampleDataRegistrationTime:', project.project_id, e);
+        return project; // エラーの場合はスキップ
+      }
 
       return {
         ...project,
-        project_registration_started_at: newStartTime.toISOString(),
+        project_registration_started_at: projectRegistrationStartedAt,
       };
     });
 
@@ -187,13 +261,28 @@ export function fixSampleDataRegistrationTime(): void {
     const updatedByDate = new Map<string, number[]>();
     
     for (const project of updatedSampleProjects) {
-      if (!project.project_registration_started_at) continue;
+      if (!project.project_registration_started_at || !project._register_datetime) continue;
       
-      const start = new Date(project.project_registration_started_at).getTime();
-      const end = new Date(project._register_datetime).getTime();
+      const startDate = new Date(project.project_registration_started_at);
+      const endDate = new Date(project._register_datetime);
+      
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.warn('⚠️ Invalid date in fixSampleDataRegistrationTime stats:', project.project_id);
+        continue; // 無効な日付の場合はスキップ
+      }
+      
+      const start = startDate.getTime();
+      const end = endDate.getTime();
       const minutes = Math.round((end - start) / (1000 * 60));
       
-      const dateKey = new Date(project._register_datetime).toISOString().split('T')[0];
+      let dateKey: string;
+      try {
+        dateKey = endDate.toISOString().split('T')[0];
+      } catch (e) {
+        console.warn('⚠️ toISOString() failed in fixSampleDataRegistrationTime stats:', project.project_id, e);
+        continue; // エラーの場合はスキップ
+      }
+      
       if (!updatedByDate.has(dateKey)) {
         updatedByDate.set(dateKey, []);
       }

@@ -101,10 +101,19 @@ export function getRegistrationTimeTrend(
   const dateMap = new Map<string, number[]>();
 
   validProjects.forEach((project) => {
+    if (!project._register_datetime) return;
+    
     const registerDate = new Date(project._register_datetime);
-    if (registerDate < startDate) return;
+    if (isNaN(registerDate.getTime()) || registerDate < startDate) return;
 
-    const dateKey = registerDate.toISOString().split('T')[0]; // YYYY-MM-DD形式
+    let dateKey: string;
+    try {
+      dateKey = registerDate.toISOString().split('T')[0]; // YYYY-MM-DD形式
+    } catch (e) {
+      console.warn('⚠️ toISOString() failed in registrationTime forEach:', project._register_datetime, e);
+      return; // 無効な日付の場合はスキップ
+    }
+    
     const timeMinutes = getRegistrationTimeInMinutes(project);
     
     if (timeMinutes !== null) {
@@ -121,7 +130,18 @@ export function getRegistrationTimeTrend(
   for (let i = 0; i < days; i++) {
     const date = new Date(startDate);
     date.setDate(date.getDate() + i);
-    const dateKey = date.toISOString().split('T')[0];
+    
+    let dateKey: string;
+    if (isNaN(date.getTime())) {
+      console.warn('⚠️ Invalid date in registrationTime trend calculation');
+      continue; // 無効な日付の場合はスキップ
+    }
+    try {
+      dateKey = date.toISOString().split('T')[0];
+    } catch (e) {
+      console.warn('⚠️ toISOString() failed in registrationTime trend:', e);
+      continue; // エラーの場合はスキップ
+    }
     
     const times = dateMap.get(dateKey) || [];
     const averageTime = times.length > 0
