@@ -77,6 +77,13 @@ export function calculateExportScheduledDate(requestDateTime: string | Date): st
     ? new Date(requestDateTime) 
     : requestDateTime;
   
+  // 無効な日付の場合は現在日時を使用
+  if (isNaN(requestDate.getTime())) {
+    console.warn('⚠️ Invalid date in calculateExportScheduledDate, using current date');
+    const now = new Date();
+    requestDate.setTime(now.getTime());
+  }
+  
   const hour = requestDate.getHours();
   const day = requestDate.getDay();
   
@@ -104,12 +111,30 @@ export function calculateExportScheduledDate(requestDateTime: string | Date): st
   // 次の月・水・金を見つける（当日が月・水・金で20:00までなら当日を返す）
   const exportDate = getNextMonWedFri(baseDate, includeToday);
   
-  // YYYY-MM-DD形式で返す
-  const year = exportDate.getFullYear();
-  const month = String(exportDate.getMonth() + 1).padStart(2, '0');
-  const dayStr = String(exportDate.getDate()).padStart(2, '0');
+  // 無効な日付の場合は現在日時を使用
+  if (isNaN(exportDate.getTime())) {
+    console.warn('⚠️ Invalid exportDate in calculateExportScheduledDate, using current date');
+    const fallbackDate = new Date();
+    const year = fallbackDate.getFullYear();
+    const month = String(fallbackDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(fallbackDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${dayStr}`;
+  }
   
-  return `${year}-${month}-${dayStr}`;
+  // YYYY-MM-DD形式で返す
+  try {
+    const year = exportDate.getFullYear();
+    const month = String(exportDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(exportDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${dayStr}`;
+  } catch (e) {
+    console.warn('⚠️ Failed to format exportDate:', e);
+    const fallbackDate = new Date();
+    const year = fallbackDate.getFullYear();
+    const month = String(fallbackDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(fallbackDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${dayStr}`;
+  }
 }
 
 /**
@@ -174,7 +199,19 @@ export function convertPoiToSpreadsheetRow(
   
   // エクスポート予定日を計算（地点登録日時から次の月・水・金を計算）
   // poi.createdが存在する場合はそれを使用、なければ現在日時を使用
-  const requestDateTime = poi.created || new Date().toISOString();
+  let requestDateTime: string | Date;
+  if (poi.created) {
+    const createdDate = new Date(poi.created);
+    // 無効な日付の場合は現在日時を使用
+    if (isNaN(createdDate.getTime())) {
+      console.warn('⚠️ Invalid poi.created date, using current date:', poi.created);
+      requestDateTime = new Date();
+    } else {
+      requestDateTime = poi.created;
+    }
+  } else {
+    requestDateTime = new Date();
+  }
   const createdDate = calculateExportScheduledDate(requestDateTime);
   
   return {

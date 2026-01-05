@@ -324,7 +324,22 @@ export function useProjectSystem() {
       // 有効期限を6ヶ月後に設定
       const expireDate = new Date();
       expireDate.setMonth(expireDate.getMonth() + 6);
-      const expireDateString = expireDate.toISOString().split('T')[0];
+      let expireDateString: string;
+      if (isNaN(expireDate.getTime())) {
+        console.warn('⚠️ Invalid expireDate, using current date + 6 months');
+        const fallbackDate = new Date();
+        fallbackDate.setMonth(fallbackDate.getMonth() + 6);
+        expireDateString = fallbackDate.toISOString().split('T')[0];
+      } else {
+        try {
+          expireDateString = expireDate.toISOString().split('T')[0];
+        } catch (e) {
+          console.warn('⚠️ toISOString() failed for expireDate:', e);
+          const fallbackDate = new Date();
+          fallbackDate.setMonth(fallbackDate.getMonth() + 6);
+          expireDateString = fallbackDate.toISOString().split('T')[0];
+        }
+      }
 
       const updated = await bigQueryService.updateSegment(segmentId, { 
         segment_expire_date: expireDateString 

@@ -549,7 +549,17 @@ class BigQueryService {
       }
     }
     
-    return date.toISOString().split('T')[0];
+    // 安全にISO文字列に変換
+    if (isNaN(date.getTime())) {
+      console.warn('⚠️ Invalid date in calculateScheduledDate, using current date');
+      return new Date().toISOString().split('T')[0];
+    }
+    try {
+      return date.toISOString().split('T')[0];
+    } catch (e) {
+      console.warn('⚠️ toISOString() failed in calculateScheduledDate:', e);
+      return new Date().toISOString().split('T')[0];
+    }
   }
 
   async deleteSegmentsByProject(projectId: string): Promise<boolean> {
