@@ -344,7 +344,57 @@ export class BigQueryService {
       
       const [rows] = await initializeBigQueryClient().query(queryOptions);
       console.log('✅ BigQuery query successful, rows:', rows.length);
-      return rows;
+      
+      // DATE型フィールドをYYYY-MM-DD形式の文字列に変換
+      const formattedRows = rows.map((row: any) => {
+        const formattedRow = { ...row };
+        
+        // delivery_start_dateとdelivery_end_dateを変換
+        if (formattedRow.delivery_start_date) {
+          if (formattedRow.delivery_start_date instanceof Date) {
+            formattedRow.delivery_start_date = formattedRow.delivery_start_date.toISOString().split('T')[0];
+          } else if (typeof formattedRow.delivery_start_date === 'string') {
+            // 既にYYYY-MM-DD形式の場合はそのまま
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(formattedRow.delivery_start_date)) {
+              // 他の形式の場合は変換を試みる
+              const date = new Date(formattedRow.delivery_start_date);
+              if (!isNaN(date.getTime())) {
+                formattedRow.delivery_start_date = date.toISOString().split('T')[0];
+              }
+            }
+          }
+        }
+        
+        if (formattedRow.delivery_end_date) {
+          if (formattedRow.delivery_end_date instanceof Date) {
+            formattedRow.delivery_end_date = formattedRow.delivery_end_date.toISOString().split('T')[0];
+          } else if (typeof formattedRow.delivery_end_date === 'string') {
+            // 既にYYYY-MM-DD形式の場合はそのまま
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(formattedRow.delivery_end_date)) {
+              // 他の形式の場合は変換を試みる
+              const date = new Date(formattedRow.delivery_end_date);
+              if (!isNaN(date.getTime())) {
+                formattedRow.delivery_end_date = date.toISOString().split('T')[0];
+              }
+            }
+          }
+        }
+        
+        return formattedRow;
+      });
+      
+      // デバッグ: 最初のプロジェクトの日付フィールドをログ出力
+      if (formattedRows.length > 0) {
+        console.log('📅 最初のプロジェクトの日付フィールド:', {
+          project_id: formattedRows[0].project_id,
+          delivery_start_date: formattedRows[0].delivery_start_date,
+          delivery_start_date_type: typeof formattedRows[0].delivery_start_date,
+          delivery_end_date: formattedRows[0].delivery_end_date,
+          delivery_end_date_type: typeof formattedRows[0].delivery_end_date,
+        });
+      }
+      
+      return formattedRows;
     } catch (error: any) {
       console.error('❌ BigQuery getProjects error:', error);
       console.error('Error details:', {
@@ -380,7 +430,45 @@ export class BigQueryService {
       params: { project_id },
       location: BQ_LOCATION,
     });
-    return rows[0] || null;
+    
+    if (!rows || rows.length === 0) {
+      return null;
+    }
+    
+    const project = rows[0];
+    
+    // DATE型フィールドをYYYY-MM-DD形式の文字列に変換
+    if (project.delivery_start_date) {
+      if (project.delivery_start_date instanceof Date) {
+        project.delivery_start_date = project.delivery_start_date.toISOString().split('T')[0];
+      } else if (typeof project.delivery_start_date === 'string') {
+        // 既にYYYY-MM-DD形式の場合はそのまま
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(project.delivery_start_date)) {
+          // 他の形式の場合は変換を試みる
+          const date = new Date(project.delivery_start_date);
+          if (!isNaN(date.getTime())) {
+            project.delivery_start_date = date.toISOString().split('T')[0];
+          }
+        }
+      }
+    }
+    
+    if (project.delivery_end_date) {
+      if (project.delivery_end_date instanceof Date) {
+        project.delivery_end_date = project.delivery_end_date.toISOString().split('T')[0];
+      } else if (typeof project.delivery_end_date === 'string') {
+        // 既にYYYY-MM-DD形式の場合はそのまま
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(project.delivery_end_date)) {
+          // 他の形式の場合は変換を試みる
+          const date = new Date(project.delivery_end_date);
+          if (!isNaN(date.getTime())) {
+            project.delivery_end_date = date.toISOString().split('T')[0];
+          }
+        }
+      }
+    }
+    
+    return project;
   }
 
   async createProject(project: any): Promise<void> {
