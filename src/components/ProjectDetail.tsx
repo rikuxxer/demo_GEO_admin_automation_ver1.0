@@ -144,14 +144,49 @@ export function ProjectDetail({
     loadUnreadCount();
   }, [project.project_id, user, activeTab, onUnreadCountUpdate]);
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return '-';
+  const formatDate = (dateStr?: string | null) => {
+    // null、undefined、空文字列の場合は「-」を返す
+    if (!dateStr || (typeof dateStr === 'string' && dateStr.trim() === '')) {
+      return '-';
+    }
+    
+    // BigQueryのDATE型はYYYY-MM-DD形式で返される
+    // 文字列として処理
+    const dateString = String(dateStr).trim();
+    
+    // YYYY-MM-DD形式の文字列を直接処理（タイムゾーン問題を回避）
+    const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
+      const yearNum = parseInt(year, 10);
+      const monthNum = parseInt(month, 10) - 1; // 月は0ベース
+      const dayNum = parseInt(day, 10);
+      
+      // 有効な日付かチェック
+      if (yearNum >= 1900 && yearNum <= 2100 && monthNum >= 0 && monthNum <= 11 && dayNum >= 1 && dayNum <= 31) {
+        const date = new Date(yearNum, monthNum, dayNum);
+        // 作成した日付が有効か確認（例: 2025-02-30は無効）
+        if (date.getFullYear() === yearNum && date.getMonth() === monthNum && date.getDate() === dayNum) {
+          try {
+            return date.toLocaleDateString('ja-JP');
+          } catch (e) {
+            console.warn('⚠️ formatDate() toLocaleDateString failed:', dateString, e);
+            return '-';
+          }
+        }
+      }
+    }
+    
+    // YYYY-MM-DD形式でない場合は、Dateオブジェクトとして試行
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      console.warn('⚠️ formatDate: 無効な日付値', dateString);
+      return '-';
+    }
     try {
       return date.toLocaleDateString('ja-JP');
     } catch (e) {
-      console.warn('⚠️ formatDate() failed:', dateStr, e);
+      console.warn('⚠️ formatDate() failed:', dateString, e);
       return '-';
     }
   };

@@ -225,6 +225,21 @@ class BigQueryService {
 
         const data = await response.json();
         console.log('✅ プロジェクト取得成功:', data.length, '件');
+        
+        // デバッグ: 最初のプロジェクトの日付フィールドを確認
+        if (data.length > 0 && process.env.NODE_ENV === 'development') {
+          const firstProject = data[0];
+          console.log('🔍 最初のプロジェクトの日付フィールド:', {
+            project_id: firstProject.project_id,
+            delivery_start_date: firstProject.delivery_start_date,
+            delivery_start_date_type: typeof firstProject.delivery_start_date,
+            delivery_end_date: firstProject.delivery_end_date,
+            delivery_end_date_type: typeof firstProject.delivery_end_date,
+          });
+        }
+        
+        // 日付フィールドを正規化（空文字列やnullの場合はそのまま）
+        // BigQueryのDATE型はYYYY-MM-DD形式で返されるはず
         return data;
       } catch (error) {
         console.error('❌ プロジェクト取得APIエラー:', error);
