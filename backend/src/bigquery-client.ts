@@ -472,10 +472,26 @@ export class BigQueryService {
 
       // 許可されたフィールドのみをコピー
       for (const field of allowedFields) {
-        if (field in project && project[field] !== undefined && project[field] !== null) {
+        // フィールドが存在し、undefinedでない場合のみ処理
+        if (field in project && project[field] !== undefined) {
           if (field === 'delivery_start_date' || field === 'delivery_end_date') {
             // DATE型フィールドをYYYY-MM-DD形式に変換
-            cleanedProject[field] = formatDateForBigQuery(project[field]);
+            // 空文字列やnullの場合はnullとして保存（BigQueryのNULLABLEフィールド）
+            const formattedDate = formatDateForBigQuery(project[field]);
+            if (formattedDate !== null) {
+              cleanedProject[field] = formattedDate;
+            } else {
+              // 無効な日付の場合はnullとして保存（またはフィールドを除外）
+              // BigQueryのNULLABLEフィールドなので、nullを明示的に設定することも可能
+              // ただし、空文字列の場合はnullとして扱う
+              if (project[field] === null || project[field] === '') {
+                cleanedProject[field] = null;
+              }
+              // それ以外（無効な形式）の場合は警告を出して除外
+              if (project[field] && project[field] !== null && project[field] !== '') {
+                console.warn(`⚠️ 無効な日付形式のため、${field}を除外します:`, project[field]);
+              }
+            }
           } else {
             cleanedProject[field] = project[field];
           }
