@@ -2066,6 +2066,27 @@ UNIVERSEGEO案件管理システム
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
 
+      // 認証情報を取得してサービスアカウントのメールアドレスを確認
+      const authClient = await auth.getClient();
+      const projectId = await auth.getProjectId();
+      let serviceAccountEmail = 'unknown';
+      
+      if (authClient && 'email' in authClient) {
+        serviceAccountEmail = (authClient as any).email || 'unknown';
+      } else if (authClient && 'credentials' in authClient) {
+        const credentials = (authClient as any).credentials;
+        if (credentials && credentials.client_email) {
+          serviceAccountEmail = credentials.client_email;
+        }
+      }
+      
+      console.log('🔐 Google Sheets API認証情報:', {
+        projectId,
+        serviceAccountEmail,
+        spreadsheetId: SPREADSHEET_ID,
+        sheetName: SHEET_NAME,
+      });
+
       const sheets = google.sheets({ version: 'v4', auth });
       
       const response = await sheets.spreadsheets.values.append({
@@ -2091,26 +2112,53 @@ UNIVERSEGEO案件管理システム
         message: `${rowsAdded}件のデータをスプレッドシートに追加しました`,
         rowsAdded,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Google Sheets API エラー:', error);
+      console.error('エラー詳細:', {
+        message: error?.message,
+        code: error?.code,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+      });
       
       let errorMessage = 'スプレッドシートへの出力に失敗しました';
+      let detailedMessage = '';
+      
       if (error instanceof Error) {
         errorMessage = error.message;
         
         // より詳細なエラーメッセージを提供
-        if (error.message.includes('PERMISSION_DENIED') || error.message.includes('403')) {
-          errorMessage = 'スプレッドシートへのアクセス権限がありません。サービスアカウントにスプレッドシートへの共有権限を付与してください。';
+        if (error.message.includes('PERMISSION_DENIED') || 
+            error.message.includes('403') || 
+            error.message.includes('does not have permission') ||
+            error.message.includes('The caller does not have permission')) {
+          errorMessage = 'スプレッドシートへのアクセス権限がありません。';
+          detailedMessage = `
+以下の手順でサービスアカウントにスプレッドシートへの共有権限を付与してください：
+
+1. Googleスプレッドシートを開く
+2. 右上の「共有」ボタンをクリック
+3. サービスアカウントのメールアドレスを入力（バックエンドのログで確認できます）
+4. 権限を「編集者」に設定
+5. 「送信」をクリック
+
+サービスアカウントの確認方法:
+- Cloud Runの設定から確認
+- または、バックエンドのログで「Google Sheets API認証情報」を確認
+          `.trim();
         } else if (error.message.includes('NOT_FOUND') || error.message.includes('404')) {
-          errorMessage = 'スプレッドシートが見つかりません。スプレッドシートIDが正しいか確認してください。';
+          errorMessage = 'スプレッドシートが見つかりません。';
+          detailedMessage = 'スプレッドシートID（GOOGLE_SPREADSHEET_ID）が正しいか確認してください。';
         } else if (error.message.includes('UNAUTHENTICATED') || error.message.includes('401')) {
-          errorMessage = '認証に失敗しました。サービスアカウントの権限を確認してください。';
+          errorMessage = '認証に失敗しました。';
+          detailedMessage = 'サービスアカウントの権限を確認してください。';
         }
       }
 
       return {
         success: false,
-        message: errorMessage,
+        message: errorMessage + (detailedMessage ? '\n\n' + detailedMessage : ''),
       };
     }
   }
