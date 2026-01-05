@@ -207,22 +207,47 @@ jobs:
           echo "🔧 GitHub Secretsから環境変数をCloud Runに設定中..."
           echo ""
           
+          # デバッグ: Environment secretsの確認
+          echo "🔍 Environment secrets確認:"
+          echo "  Environment name: Environment secrets"
+          echo "  Job environment: ${{ job.environment }}"
+          echo ""
+          
           # リージョンの値を明示的に設定
           REGION_VALUE="${{ env.REGION }}"
           if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
             REGION_VALUE="asia-northeast1"
           fi
           
-          # 環境変数の値を変数に保存
+          # 環境変数の値を変数に保存（デバッグ情報付き）
+          echo "📋 Secrets取得確認:"
           GCP_PROJECT_ID_VAL="${{ secrets.GCP_PROJECT_ID }}"
+          echo "  GCP_PROJECT_ID: $([ -n "$GCP_PROJECT_ID_VAL" ] && echo '✅ 取得成功' || echo '❌ 取得失敗')"
+          
           BQ_DATASET_VAL="${{ secrets.BQ_DATASET }}"
+          echo "  BQ_DATASET: $([ -n "$BQ_DATASET_VAL" ] && echo '✅ 取得成功' || echo '❌ 取得失敗')"
+          
           GOOGLE_SPREADSHEET_ID_VAL="${{ secrets.GOOGLE_SPREADSHEET_ID }}"
+          echo "  GOOGLE_SPREADSHEET_ID: $([ -n "$GOOGLE_SPREADSHEET_ID_VAL" ] && echo '✅ 取得成功' || echo '❌ 取得失敗')"
+          
           GOOGLE_SHEETS_API_KEY_VAL="${{ secrets.GOOGLE_SHEETS_API_KEY }}"
+          echo "  GOOGLE_SHEETS_API_KEY: $([ -n "$GOOGLE_SHEETS_API_KEY_VAL" ] && echo '✅ 取得成功' || echo '❌ 取得失敗（不要）')"
+          
           GOOGLE_SHEET_NAME_VAL="${{ secrets.GOOGLE_SHEET_NAME }}"
+          echo "  GOOGLE_SHEET_NAME: $([ -n "$GOOGLE_SHEET_NAME_VAL" ] && echo '✅ 取得成功' || echo '⚠️ 未設定（デフォルト使用）')"
+          
           FRONTEND_URL_VAL="${{ secrets.FRONTEND_URL }}"
+          echo "  FRONTEND_URL: $([ -n "$FRONTEND_URL_VAL" ] && echo '✅ 取得成功' || echo '❌ 取得失敗')"
+          
           EMAIL_SERVICE_VAL="${{ secrets.EMAIL_SERVICE }}"
+          echo "  EMAIL_SERVICE: $([ -n "$EMAIL_SERVICE_VAL" ] && echo '✅ 取得成功' || echo '⚠️ 未設定')"
+          
           SENDGRID_API_KEY_VAL="${{ secrets.SENDGRID_API_KEY }}"
+          echo "  SENDGRID_API_KEY: $([ -n "$SENDGRID_API_KEY_VAL" ] && echo '✅ 取得成功' || echo '⚠️ 未設定（SendGrid未使用時は不要）')"
+          
           SENDGRID_FROM_EMAIL_VAL="${{ secrets.SENDGRID_FROM_EMAIL }}"
+          echo "  SENDGRID_FROM_EMAIL: $([ -n "$SENDGRID_FROM_EMAIL_VAL" ] && echo '✅ 取得成功' || echo '⚠️ 未設定（SendGrid未使用時は不要）')"
+          echo ""
           
           # 必須環境変数の確認
           if [ -z "$GCP_PROJECT_ID_VAL" ]; then
