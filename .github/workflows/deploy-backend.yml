@@ -49,6 +49,15 @@ jobs:
             echo "❌ GCP_SA_KEY is missing"
             echo "   環境スコープのSecretsに GCP_SA_KEY が設定されているか確認してください"
             echo "   Settings > Environments > ${{ github.event.inputs.environment || 'production' }} > Secrets"
+            echo ""
+            echo "📝 設定手順:"
+            echo "1. https://github.com/${{ github.repository }}/settings/environments/${{ github.event.inputs.environment || 'production' }} を開く"
+            echo "2. Secrets セクションで「Add secret」をクリック"
+            echo "3. Name: GCP_SA_KEY（大文字・小文字を正確に）"
+            echo "4. Secret: サービスアカウントキー（JSON）の内容全体を貼り付け"
+            echo "5. 「Add secret」をクリック"
+            echo ""
+            echo "詳細は GCP_SA_KEY_SETUP.md を参照してください"
             exit 1
           fi
           
