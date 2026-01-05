@@ -27,20 +27,52 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
           <Target className="w-4 h-4 text-purple-600" />
           指定半径 <span className="text-red-600">*</span>
         </Label>
-        <select
-          id="designated_radius"
-          value={formData.designated_radius || ''}
-          onChange={(e) => onChange('designated_radius', e.target.value)}
-          className="w-full px-3 py-2 border border-purple-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          required
-        >
-          <option value="">選択してください</option>
-          {RADIUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-2">
+          <select
+            id="designated_radius"
+            value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? formData.designated_radius : ''}
+            onChange={(e) => e.target.value && onChange('designated_radius', e.target.value)}
+            className="w-full px-3 py-2 border border-purple-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            required
+          >
+            <option value="">選択してください</option>
+            {RADIUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min="0"
+              max="10000"
+              step="1"
+              placeholder="0-10000の範囲で自由入力（m単位）"
+              value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? '' : (formData.designated_radius || '')}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
+                  onChange('designated_radius', value);
+                }
+              }}
+              className="flex-1"
+            />
+            <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+          </div>
+          {formData.designated_radius && (() => {
+            const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
+            if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+              return (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠️</span>
+                  半径は0-10000の範囲で入力してください
+                </p>
+              );
+            }
+            return null;
+          })()}
+        </div>
       </div>
 
       {/* 抽出期間 */}

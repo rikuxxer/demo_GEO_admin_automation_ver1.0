@@ -62,8 +62,8 @@ export function validateSheetRow(row: SheetRow): ValidationError[] {
       errors.push({ field: 'radius', message: '半径は必須です（setting_flag=4の場合）' });
     } else {
       const radiusNum = parseInt(row.radius);
-      if (isNaN(radiusNum) || radiusNum < 1 || radiusNum > 10000) {
-        errors.push({ field: 'radius', message: '半径は1-10000の範囲で入力してください（setting_flag=4の場合）' });
+      if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+        errors.push({ field: 'radius', message: '半径は0-10000の範囲で入力してください（setting_flag=4の場合）' });
       }
     }
   }
@@ -100,8 +100,8 @@ export function validateSheetRow(row: SheetRow): ValidationError[] {
       errors.push({ field: 'radius', message: '半径は必須です（setting_flag=7の場合）' });
     } else {
       const radiusNum = parseInt(row.radius);
-      if (isNaN(radiusNum) || radiusNum < 1 || radiusNum > 10000) {
-        errors.push({ field: 'radius', message: '半径は1-10000の範囲で入力してください（setting_flag=7の場合）' });
+      if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+        errors.push({ field: 'radius', message: '半径は0-10000の範囲で入力してください（setting_flag=7の場合）' });
       }
     }
   }
@@ -118,8 +118,8 @@ export function validateSheetRow(row: SheetRow): ValidationError[] {
       errors.push({ field: 'radius', message: '半径は必須です（setting_flag=8の場合）' });
     } else {
       const radiusNum = parseInt(row.radius);
-      if (isNaN(radiusNum) || radiusNum < 1 || radiusNum > 10000) {
-        errors.push({ field: 'radius', message: '半径は1-10000の範囲で入力してください（setting_flag=8の場合）' });
+      if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+        errors.push({ field: 'radius', message: '半径は0-10000の範囲で入力してください（setting_flag=8の場合）' });
       }
     }
   }

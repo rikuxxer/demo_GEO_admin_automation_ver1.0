@@ -1911,9 +1911,9 @@ export function ProjectDetail({
                       </button>
                     ))}
                   </div>
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-2">
                     <select
-                      value={RADIUS_OPTIONS.find(r => r.value === extractionConditionsFormData.designated_radius) ? '' : extractionConditionsFormData.designated_radius || ''}
+                      value={RADIUS_OPTIONS.find(r => r.value === extractionConditionsFormData.designated_radius) ? extractionConditionsFormData.designated_radius : ''}
                       onChange={(e) => e.target.value && setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: e.target.value }))}
                       className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
                     >
@@ -1922,6 +1922,36 @@ export function ProjectDetail({
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="10000"
+                        step="1"
+                        placeholder="0-10000の範囲で自由入力（m単位）"
+                        value={RADIUS_OPTIONS.find(r => r.value === extractionConditionsFormData.designated_radius) ? '' : (extractionConditionsFormData.designated_radius || '')}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
+                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: value }));
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                      <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+                    </div>
+                    {extractionConditionsFormData.designated_radius && (() => {
+                      const radiusNum = parseInt(String(extractionConditionsFormData.designated_radius).replace('m', ''));
+                      if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+                        return (
+                          <p className="text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-4 h-4" />
+                            半径は0-10000の範囲で入力してください
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
 

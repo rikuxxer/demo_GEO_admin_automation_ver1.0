@@ -203,16 +203,45 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   {/* 指定半径 */}
                   <td className="px-4 py-4 align-top">
                     {isEditing ? (
-                      <select
-                        value={editForm.designated_radius || ''}
-                        onChange={(e) => handleInputChange('designated_radius', e.target.value)}
-                        className="h-8 text-sm w-24 px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="">選択</option>
-                        {RADIUS_OPTIONS.map(option => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
+                      <div className="space-y-1">
+                        <select
+                          value={RADIUS_OPTIONS.find(r => r.value === editForm.designated_radius) ? editForm.designated_radius : ''}
+                          onChange={(e) => e.target.value && handleInputChange('designated_radius', e.target.value)}
+                          className="h-8 text-sm w-full px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="">選択</option>
+                          {RADIUS_OPTIONS.map(option => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            max="10000"
+                            step="1"
+                            placeholder="0-10000"
+                            value={RADIUS_OPTIONS.find(r => r.value === editForm.designated_radius) ? '' : (editForm.designated_radius || '')}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
+                                handleInputChange('designated_radius', value);
+                              }
+                            }}
+                            className="h-8 text-sm w-20 px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <span className="text-xs text-gray-500">m</span>
+                        </div>
+                        {editForm.designated_radius && (() => {
+                          const radiusNum = parseInt(String(editForm.designated_radius).replace('m', ''));
+                          if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+                            return (
+                              <p className="text-xs text-red-600">0-10000の範囲で入力</p>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     ) : (
                       <div className="text-sm text-gray-900">
                         {poi.poi_type === 'prefecture' 

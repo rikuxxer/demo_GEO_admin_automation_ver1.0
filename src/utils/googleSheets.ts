@@ -13,7 +13,7 @@ const SHEET_NAME = 'シート1';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const USE_BACKEND_API = !!API_BASE_URL;
 
-interface SheetRow {
+export interface SheetRow {
   category_id: string; // 99000000（00には指定半径の広さ）
   brand_id: string; // 空の可能性がある
   brand_name: string;
