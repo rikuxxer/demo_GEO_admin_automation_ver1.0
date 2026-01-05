@@ -160,9 +160,27 @@ export function ProjectStatusManager({ projects, onStatusChange }: ProjectStatus
                       </td>
                       <td className="px-4 py-3 text-gray-700">
                         <div className="text-sm">
-                          <div>{new Date(project.delivery_start_date).toLocaleDateString('ja-JP')}</div>
+                          <div>{(() => {
+                            if (!project.delivery_start_date) return '（日付不明）';
+                            const date = new Date(project.delivery_start_date);
+                            if (isNaN(date.getTime())) return '（日付不明）';
+                            try {
+                              return date.toLocaleDateString('ja-JP');
+                            } catch (e) {
+                              return '（日付不明）';
+                            }
+                          })()}</div>
                           <div className="text-muted-foreground">
-                            ~ {new Date(project.delivery_end_date).toLocaleDateString('ja-JP')}
+                            ~ {(() => {
+                              if (!project.delivery_end_date) return '（日付不明）';
+                              const date = new Date(project.delivery_end_date);
+                              if (isNaN(date.getTime())) return '（日付不明）';
+                              try {
+                                return date.toLocaleDateString('ja-JP');
+                              } catch (e) {
+                                return '（日付不明）';
+                              }
+                            })()}
                           </div>
                         </div>
                       </td>

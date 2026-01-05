@@ -271,9 +271,16 @@ export function StatusManager({
                           </td>
                           <td className="px-3 py-2 text-gray-700">
                             <div className="text-xs">
-                              {projectStartDate 
-                                ? new Date(projectStartDate).toLocaleDateString('ja-JP')
-                                : '-'}
+                              {(() => {
+                                if (!projectStartDate) return '-';
+                                const date = new Date(projectStartDate);
+                                if (isNaN(date.getTime())) return '-';
+                                try {
+                                  return date.toLocaleDateString('ja-JP');
+                                } catch (e) {
+                                  return '-';
+                                }
+                              })()}
                             </div>
                           </td>
                           <td className="px-3 py-2 text-gray-700">
@@ -288,10 +295,28 @@ export function StatusManager({
                           </td>
                         <td className="px-3 py-2 text-gray-700">
                           <div className="text-xs">
-                            {new Date(segment.segment_registered_at).toLocaleDateString('ja-JP')}
+                            {(() => {
+                              if (!segment.segment_registered_at) return '（日付不明）';
+                              const date = new Date(segment.segment_registered_at);
+                              if (isNaN(date.getTime())) return '（日付不明）';
+                              try {
+                                return date.toLocaleDateString('ja-JP');
+                              } catch (e) {
+                                return '（日付不明）';
+                              }
+                            })()}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(segment.segment_registered_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                            {(() => {
+                              if (!segment.segment_registered_at) return '（時刻不明）';
+                              const date = new Date(segment.segment_registered_at);
+                              if (isNaN(date.getTime())) return '（時刻不明）';
+                              try {
+                                return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                              } catch (e) {
+                                return '（時刻不明）';
+                              }
+                            })()}
                           </div>
                         </td>
                         <td className="px-3 py-2">
@@ -305,7 +330,15 @@ export function StatusManager({
                           </Badge>
                           {segment.data_link_request_date && (
                             <div className="text-xs text-muted-foreground mt-0.5">
-                              依頼: {new Date(segment.data_link_request_date).toLocaleDateString('ja-JP')}
+                              依頼: {(() => {
+                                const date = new Date(segment.data_link_request_date);
+                                if (isNaN(date.getTime())) return '（日付不明）';
+                                try {
+                                  return date.toLocaleDateString('ja-JP');
+                                } catch (e) {
+                                  return '（日付不明）';
+                                }
+                              })()}
                             </div>
                           )}
                         </td>

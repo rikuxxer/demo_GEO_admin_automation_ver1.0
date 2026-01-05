@@ -146,12 +146,26 @@ export function ProjectDetail({
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('ja-JP');
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    try {
+      return date.toLocaleDateString('ja-JP');
+    } catch (e) {
+      console.warn('⚠️ formatDate() failed:', dateStr, e);
+      return '-';
+    }
   };
 
   const formatDateTime = (dateTimeStr?: string) => {
     if (!dateTimeStr) return '-';
-    return new Date(dateTimeStr).toLocaleString('ja-JP');
+    const date = new Date(dateTimeStr);
+    if (isNaN(date.getTime())) return '-';
+    try {
+      return date.toLocaleString('ja-JP');
+    } catch (e) {
+      console.warn('⚠️ formatDateTime() failed:', dateTimeStr, e);
+      return '-';
+    }
   };
 
   const handleSegmentFormSubmit = (segmentData: Partial<Segment>) => {
@@ -977,7 +991,17 @@ export function ProjectDetail({
               <div className="space-y-4">
                 {editRequests
                   .filter(r => r.project_id === project.project_id)
-                  .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime())
+                  .sort((a, b) => {
+                    const timeA = a.requested_at ? (() => {
+                      const date = new Date(a.requested_at);
+                      return isNaN(date.getTime()) ? 0 : date.getTime();
+                    })() : 0;
+                    const timeB = b.requested_at ? (() => {
+                      const date = new Date(b.requested_at);
+                      return isNaN(date.getTime()) ? 0 : date.getTime();
+                    })() : 0;
+                    return timeB - timeA;
+                  })
                   .map((request, index) => {
                     const statusColor = 
                       request.status === 'pending' ? 'bg-orange-100 text-orange-700 border-orange-200' :

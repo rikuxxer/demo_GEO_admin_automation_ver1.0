@@ -127,11 +127,19 @@ export function FeatureRequestList({ isAdmin = false, showFormOnly = false }: Fe
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('ja-JP', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    try {
+      return date.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (e) {
+      console.warn('⚠️ formatDate() failed:', dateStr, e);
+      return '-';
+    }
   };
 
   // 営業でフォームのみ表示の場合

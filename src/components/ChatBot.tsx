@@ -217,9 +217,19 @@ export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }:
                       </div>
                     )}
                     <p className="text-xs mt-1 opacity-70">
-                      {message.timestamp.toLocaleTimeString('ja-JP', {
-                        hour: '2-digit',
-                        minute: '2-digit',
+                      {(() => {
+                        if (!message.timestamp) return '-';
+                        const date = message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp);
+                        if (isNaN(date.getTime())) return '-';
+                        try {
+                          return date.toLocaleTimeString('ja-JP', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          });
+                        } catch (e) {
+                          return '-';
+                        }
+                      })()}
                       })}
                     </p>
                   </div>

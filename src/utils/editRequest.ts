@@ -400,13 +400,13 @@ export function canDirectEdit(
  * 
  * @param user ユーザー情報
  * @param project 案件情報
- * @param projectStatus 案件ステータス ('draft' | 'in_progress' | 'linked')
+ * @param projectStatus 案件ステータス (AutoProjectStatus型)
  * @returns 閲覧権限がある場合true
  */
 export function canViewProject(
   user: { role: string; name: string } | null,
   project: Project,
-  projectStatus: 'draft' | 'in_progress' | 'linked'
+  projectStatus: string
 ): boolean {
   // 管理者は常に閲覧可能
   if (user?.role === 'admin') {

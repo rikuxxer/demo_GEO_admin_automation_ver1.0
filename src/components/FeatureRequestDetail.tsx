@@ -52,13 +52,21 @@ export function FeatureRequestDetail({
   };
 
   const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    try {
+      return date.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (e) {
+      console.warn('⚠️ formatDateTime() failed:', dateStr, e);
+      return '-';
+    }
   };
 
   const handleStatusUpdate = () => {

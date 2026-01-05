@@ -77,13 +77,20 @@ export function Notifications({ projects, onProjectClick, onUnreadCountUpdate }:
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
+    if (isNaN(date.getTime())) return '-';
     
-    if (diffHours < 24) {
-      return date.toLocaleString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    } else {
-      return date.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric' });
+    try {
+      const diffMs = now.getTime() - date.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      
+      if (diffHours < 24) {
+        return date.toLocaleString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      } else {
+        return date.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric' });
+      }
+    } catch (e) {
+      console.warn('⚠️ formatRelativeTime() failed:', dateStr, e);
+      return '-';
     }
   };
 
@@ -96,7 +103,17 @@ export function Notifications({ projects, onProjectClick, onUnreadCountUpdate }:
 
     return [...list].sort((a, b) => {
       const dateDiff =
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        (() => {
+          const timeA = a.created_at ? (() => {
+            const date = new Date(a.created_at);
+            return isNaN(date.getTime()) ? 0 : date.getTime();
+          })() : 0;
+          const timeB = b.created_at ? (() => {
+            const date = new Date(b.created_at);
+            return isNaN(date.getTime()) ? 0 : date.getTime();
+          })() : 0;
+          return timeB - timeA;
+        })();
 
       if (sortMode === 'latest') return dateDiff;
       if (sortMode === 'oldest') return -dateDiff;

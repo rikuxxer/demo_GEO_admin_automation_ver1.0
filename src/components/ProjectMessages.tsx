@@ -103,12 +103,20 @@ export function ProjectMessages({ project, onMessageSent, onUnreadCountUpdate }:
   };
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('ja-JP', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    try {
+      return date.toLocaleString('ja-JP', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.warn('⚠️ formatTime() failed:', dateStr, e);
+      return '-';
+    }
   };
 
   if (isLoading) {

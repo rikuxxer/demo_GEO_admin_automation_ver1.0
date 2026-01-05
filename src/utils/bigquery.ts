@@ -829,7 +829,17 @@ class BigQueryService {
       const messages: ProjectMessage[] = data ? JSON.parse(data) : [];
       return messages
         .filter(m => m.project_id === projectId)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        .sort((a, b) => {
+          const timeA = a.created_at ? (() => {
+            const date = new Date(a.created_at);
+            return isNaN(date.getTime()) ? 0 : date.getTime();
+          })() : 0;
+          const timeB = b.created_at ? (() => {
+            const date = new Date(b.created_at);
+            return isNaN(date.getTime()) ? 0 : date.getTime();
+          })() : 0;
+          return timeA - timeB;
+        });
     } catch (error) {
       console.error('Error fetching project messages:', error);
       return [];

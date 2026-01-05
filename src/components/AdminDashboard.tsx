@@ -527,12 +527,19 @@ export function AdminDashboard({
                     return [value, name];
                   }}
                   labelFormatter={(label) => {
+                    if (!label) return '-';
                     const date = new Date(label);
-                    return date.toLocaleDateString('ja-JP', { 
-                      month: 'long', 
-                      day: 'numeric',
-                      weekday: 'short'
-                    });
+                    if (isNaN(date.getTime())) return '-';
+                    try {
+                      return date.toLocaleDateString('ja-JP', { 
+                        month: 'long', 
+                        day: 'numeric',
+                        weekday: 'short'
+                      });
+                    } catch (e) {
+                      console.warn('⚠️ labelFormatter() failed:', label, e);
+                      return '-';
+                    }
                   }}
                 />
                 <Legend />

@@ -166,10 +166,28 @@ export function SegmentStatusManager({ segments, projects, onStatusChange }: Seg
                     </td>
                     <td className="px-4 py-3 text-gray-700">
                       <div className="text-sm">
-                        {new Date(segment.segment_registered_at).toLocaleDateString('ja-JP')}
+                        {(() => {
+                          if (!segment.segment_registered_at) return '（日付不明）';
+                          const date = new Date(segment.segment_registered_at);
+                          if (isNaN(date.getTime())) return '（日付不明）';
+                          try {
+                            return date.toLocaleDateString('ja-JP');
+                          } catch (e) {
+                            return '（日付不明）';
+                          }
+                        })()}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {new Date(segment.segment_registered_at).toLocaleTimeString('ja-JP')}
+                        {(() => {
+                          if (!segment.segment_registered_at) return '（時刻不明）';
+                          const date = new Date(segment.segment_registered_at);
+                          if (isNaN(date.getTime())) return '（時刻不明）';
+                          try {
+                            return date.toLocaleTimeString('ja-JP');
+                          } catch (e) {
+                            return '（時刻不明）';
+                          }
+                        })()}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -178,7 +196,15 @@ export function SegmentStatusManager({ segments, projects, onStatusChange }: Seg
                       </Badge>
                       {segment.data_link_request_date && (
                         <div className="text-xs text-muted-foreground mt-1">
-                          依頼日: {new Date(segment.data_link_request_date).toLocaleDateString('ja-JP')}
+                          依頼日: {(() => {
+                            const date = new Date(segment.data_link_request_date);
+                            if (isNaN(date.getTime())) return '（日付不明）';
+                            try {
+                              return date.toLocaleDateString('ja-JP');
+                            } catch (e) {
+                              return '（日付不明）';
+                            }
+                          })()}
                         </div>
                       )}
                     </td>

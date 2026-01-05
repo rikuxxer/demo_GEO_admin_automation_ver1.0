@@ -99,14 +99,21 @@ export function EditRequestList({
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
     const date = new Date(dateString);
-    return date.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    if (isNaN(date.getTime())) return '-';
+    try {
+      return date.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (e) {
+      console.warn('⚠️ formatDate() failed:', dateString, e);
+      return '-';
+    }
   };
 
   return (

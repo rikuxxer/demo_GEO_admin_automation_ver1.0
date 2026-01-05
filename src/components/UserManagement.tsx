@@ -255,7 +255,16 @@ export function UserManagement({
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
-                        {new Date(user.created_at).toLocaleDateString('ja-JP')}
+                        {(() => {
+                          if (!user.created_at) return '-';
+                          const date = new Date(user.created_at);
+                          if (isNaN(date.getTime())) return '-';
+                          try {
+                            return date.toLocaleDateString('ja-JP');
+                          } catch (e) {
+                            return '-';
+                          }
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <DropdownMenu>

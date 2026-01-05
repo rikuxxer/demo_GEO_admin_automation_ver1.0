@@ -175,8 +175,16 @@ export function ProjectTable({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentProjects = filteredProjects.slice(startIndex, startIndex + itemsPerPage);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('ja-JP');
+  const formatDate = (dateStr: string | undefined | null) => {
+    if (!dateStr) return '（日付不明）';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '（日付不明）';
+    try {
+      return date.toLocaleDateString('ja-JP');
+    } catch (e) {
+      console.warn('⚠️ formatDate() failed:', dateStr, e);
+      return '（日付不明）';
+    }
   };
 
   const handleRowClick = (project: Project) => {
@@ -306,12 +314,35 @@ export function ProjectTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {currentProjects.map((project) => (
-              <tr 
-                key={project.project_id} 
-                className="hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => handleRowClick(project)}
-              >
+            {currentProjects.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <FileEdit className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-gray-900 mb-1">
+                        {showMyProjectsOnly && user?.role === 'sales' 
+                          ? '自分の案件がありません' 
+                          : '表示する案件がありません'}
+                      </p>
+                      {showMyProjectsOnly && user?.role === 'sales' && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          新規案件を登録すると、ここに表示されます
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              currentProjects.map((project) => (
+                <tr 
+                  key={project.project_id} 
+                  className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => handleRowClick(project)}
+                >
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <Checkbox className="w-4 h-4" />
                 </td>
@@ -358,7 +389,8 @@ export function ProjectTable({
                   })()}
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>

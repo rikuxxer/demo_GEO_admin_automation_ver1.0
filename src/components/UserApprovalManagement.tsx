@@ -258,7 +258,16 @@ export function UserApprovalManagement({
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Calendar className="w-3 h-3" />
-                      申請日時: {new Date(request.requested_at).toLocaleString('ja-JP')}
+                      申請日時: {(() => {
+                        if (!request.requested_at) return '-';
+                        const date = new Date(request.requested_at);
+                        if (isNaN(date.getTime())) return '-';
+                        try {
+                          return date.toLocaleString('ja-JP');
+                        } catch (e) {
+                          return '-';
+                        }
+                      })()}
                     </div>
                   </div>
 
@@ -309,7 +318,16 @@ export function UserApprovalManagement({
                   </div>
                   <div className="text-xs text-muted-foreground text-right">
                     <p>処理日時:</p>
-                    <p>{request.reviewed_at ? new Date(request.reviewed_at).toLocaleString('ja-JP') : '-'}</p>
+                    <p>{(() => {
+                      if (!request.reviewed_at) return '-';
+                      const date = new Date(request.reviewed_at);
+                      if (isNaN(date.getTime())) return '-';
+                      try {
+                        return date.toLocaleString('ja-JP');
+                      } catch (e) {
+                        return '-';
+                      }
+                    })()}</p>
                   </div>
                 </div>
               </Card>

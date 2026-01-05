@@ -16,9 +16,17 @@ export function ProjectChangeHistory({ project, segments }: ProjectChangeHistory
   // この案件に関連する変更履歴をフィルタリング
   const projectHistories = histories.filter((h: ChangeHistory) => 
     h.project_id === project.project_id
-  ).sort((a: ChangeHistory, b: ChangeHistory) => 
-    new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
-  );
+  ).sort((a: ChangeHistory, b: ChangeHistory) => {
+    const timeA = a.changed_at ? (() => {
+      const date = new Date(a.changed_at);
+      return isNaN(date.getTime()) ? 0 : date.getTime();
+    })() : 0;
+    const timeB = b.changed_at ? (() => {
+      const date = new Date(b.changed_at);
+      return isNaN(date.getTime()) ? 0 : date.getTime();
+    })() : 0;
+    return timeB - timeA;
+  });
 
   // ステータス変更履歴をフィルタリング（特にdata_link_statusの変更）
   const statusChangeHistories = projectHistories.filter((h: ChangeHistory) => {
@@ -141,7 +149,16 @@ export function ProjectChangeHistory({ project, segments }: ProjectChangeHistory
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          <span>{new Date(history.changed_at).toLocaleString('ja-JP')}</span>
+                          <span>{(() => {
+                            if (!history.changed_at) return '-';
+                            const date = new Date(history.changed_at);
+                            if (isNaN(date.getTime())) return '-';
+                            try {
+                              return date.toLocaleString('ja-JP');
+                            } catch (e) {
+                              return '-';
+                            }
+                          })()}</span>
                         </div>
                       </div>
                     </div>
@@ -202,7 +219,16 @@ export function ProjectChangeHistory({ project, segments }: ProjectChangeHistory
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        <span>{new Date(history.changed_at).toLocaleString('ja-JP')}</span>
+                        <span>{(() => {
+                          if (!history.changed_at) return '-';
+                          const date = new Date(history.changed_at);
+                          if (isNaN(date.getTime())) return '-';
+                          try {
+                            return date.toLocaleString('ja-JP');
+                          } catch (e) {
+                            return '-';
+                          }
+                        })()}</span>
                       </div>
                     </div>
                   </div>
