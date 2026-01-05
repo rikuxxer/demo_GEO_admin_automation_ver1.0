@@ -160,7 +160,8 @@ export function getRegistrationTimeTrend(
     
     const timeMinutes = getRegistrationTimeInMinutes(project);
     
-    if (timeMinutes !== null && timeMinutes > 0) {
+    // 有効な範囲内（0分以上、24時間未満）の値のみを集計
+    if (timeMinutes !== null && timeMinutes >= 0 && timeMinutes < 1440) {
       if (!dateMap.has(dateKey)) {
         dateMap.set(dateKey, []);
       }
