@@ -35,7 +35,13 @@ export function StatusManager({
     return project ? project.advertiser_name : projectId;
   };
 
-  const getMediaLabel = (mediaId: string) => {
+  const getMediaLabel = (mediaId: string | string[]) => {
+    if (Array.isArray(mediaId)) {
+      return mediaId.map(id => {
+        const media = MEDIA_OPTIONS.find(m => m.value === id);
+        return media ? media.label : id;
+      }).join(', ');
+    }
     const media = MEDIA_OPTIONS.find(m => m.value === mediaId);
     return media ? media.label : mediaId;
   };
@@ -273,7 +279,25 @@ export function StatusManager({
                             <div className="text-xs">
                               {(() => {
                                 if (!projectStartDate) return '-';
-                                const date = new Date(projectStartDate);
+                                // オブジェクト形式の日付に対応
+                                let dateValue: any = projectStartDate;
+                                if (typeof dateValue === 'object' && dateValue !== null) {
+                                  if ('value' in dateValue) {
+                                    dateValue = (dateValue as any).value;
+                                  } else if (dateValue instanceof Date) {
+                                    // Dateオブジェクトの場合はそのまま使用
+                                  } else {
+                                    try {
+                                      dateValue = String(dateValue);
+                                      if (dateValue === '[object Object]') {
+                                        return '-';
+                                      }
+                                    } catch (e) {
+                                      return '-';
+                                    }
+                                  }
+                                }
+                                const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
                                 if (isNaN(date.getTime())) return '-';
                                 try {
                                   return date.toLocaleDateString('ja-JP');

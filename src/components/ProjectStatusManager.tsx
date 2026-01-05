@@ -162,7 +162,25 @@ export function ProjectStatusManager({ projects, onStatusChange }: ProjectStatus
                         <div className="text-sm">
                           <div>{(() => {
                             if (!project.delivery_start_date) return '（日付不明）';
-                            const date = new Date(project.delivery_start_date);
+                            // オブジェクト形式の日付に対応
+                            let dateValue: any = project.delivery_start_date;
+                            if (typeof dateValue === 'object' && dateValue !== null) {
+                              if ('value' in dateValue) {
+                                dateValue = (dateValue as any).value;
+                              } else if (dateValue instanceof Date) {
+                                // Dateオブジェクトの場合はそのまま使用
+                              } else {
+                                try {
+                                  dateValue = String(dateValue);
+                                  if (dateValue === '[object Object]') {
+                                    return '（日付不明）';
+                                  }
+                                } catch (e) {
+                                  return '（日付不明）';
+                                }
+                              }
+                            }
+                            const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
                             if (isNaN(date.getTime())) return '（日付不明）';
                             try {
                               return date.toLocaleDateString('ja-JP');
@@ -173,7 +191,25 @@ export function ProjectStatusManager({ projects, onStatusChange }: ProjectStatus
                           <div className="text-muted-foreground">
                             ~ {(() => {
                               if (!project.delivery_end_date) return '（日付不明）';
-                              const date = new Date(project.delivery_end_date);
+                              // オブジェクト形式の日付に対応
+                              let dateValue: any = project.delivery_end_date;
+                              if (typeof dateValue === 'object' && dateValue !== null) {
+                                if ('value' in dateValue) {
+                                  dateValue = (dateValue as any).value;
+                                } else if (dateValue instanceof Date) {
+                                  // Dateオブジェクトの場合はそのまま使用
+                                } else {
+                                  try {
+                                    dateValue = String(dateValue);
+                                    if (dateValue === '[object Object]') {
+                                      return '（日付不明）';
+                                    }
+                                  } catch (e) {
+                                    return '（日付不明）';
+                                  }
+                                }
+                              }
+                              const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
                               if (isNaN(date.getTime())) return '（日付不明）';
                               try {
                                 return date.toLocaleDateString('ja-JP');

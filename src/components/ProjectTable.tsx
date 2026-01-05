@@ -175,14 +175,85 @@ export function ProjectTable({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentProjects = filteredProjects.slice(startIndex, startIndex + itemsPerPage);
 
-  const formatDate = (dateStr: string | undefined | null) => {
-    if (!dateStr) return '（日付不明）';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return '（日付不明）';
+  const formatDate = (dateStr: string | undefined | null | Date | any) => {
+    // null、undefined、空文字列の場合は「（日付不明）」を返す
+    if (!dateStr || (typeof dateStr === 'string' && dateStr.trim() === '')) {
+      return '（日付不明）';
+    }
+    
+    // Dateオブジェクトの場合は直接処理
+    if (dateStr instanceof Date) {
+      if (isNaN(dateStr.getTime())) {
+        return '（日付不明）';
+      }
+      try {
+        return dateStr.toLocaleDateString('ja-JP');
+      } catch (e) {
+        console.warn('⚠️ formatDate() toLocaleDateString failed:', dateStr, e);
+        return '（日付不明）';
+      }
+    }
+    
+    // オブジェクトの場合（BigQueryから返された可能性）
+    if (typeof dateStr === 'object' && dateStr !== null) {
+      // valueプロパティがある場合（BigQueryのDATE型がオブジェクトとして返される場合）
+      if ('value' in dateStr && typeof dateStr.value === 'string') {
+        dateStr = dateStr.value;
+      } else if ('toString' in dateStr && typeof dateStr.toString === 'function') {
+        // toString()メソッドがある場合は試行
+        try {
+          const str = dateStr.toString();
+          if (str === '[object Object]') {
+            console.warn('⚠️ formatDate: オブジェクトを文字列に変換できませんでした', dateStr);
+            return '（日付不明）';
+          }
+          dateStr = str;
+        } catch (e) {
+          console.warn('⚠️ formatDate: オブジェクトの変換に失敗', dateStr, e);
+          return '（日付不明）';
+        }
+      } else {
+        console.warn('⚠️ formatDate: 未対応のオブジェクト形式', dateStr);
+        return '（日付不明）';
+      }
+    }
+    
+    // 文字列として処理
+    const dateString = String(dateStr).trim();
+    
+    // YYYY-MM-DD形式の文字列を直接処理（タイムゾーン問題を回避）
+    const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
+      const yearNum = parseInt(year, 10);
+      const monthNum = parseInt(month, 10) - 1; // 月は0ベース
+      const dayNum = parseInt(day, 10);
+      
+      // 有効な日付かチェック
+      if (yearNum >= 1900 && yearNum <= 2100 && monthNum >= 0 && monthNum <= 11 && dayNum >= 1 && dayNum <= 31) {
+        const date = new Date(yearNum, monthNum, dayNum);
+        // 作成した日付が有効か確認（例: 2025-02-30は無効）
+        if (date.getFullYear() === yearNum && date.getMonth() === monthNum && date.getDate() === dayNum) {
+          try {
+            return date.toLocaleDateString('ja-JP');
+          } catch (e) {
+            console.warn('⚠️ formatDate() toLocaleDateString failed:', dateString, e);
+            return '（日付不明）';
+          }
+        }
+      }
+    }
+    
+    // YYYY-MM-DD形式でない場合は、Dateオブジェクトとして試行
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      console.warn('⚠️ formatDate: 無効な日付値', dateString);
+      return '（日付不明）';
+    }
     try {
       return date.toLocaleDateString('ja-JP');
     } catch (e) {
-      console.warn('⚠️ formatDate() failed:', dateStr, e);
+      console.warn('⚠️ formatDate() failed:', dateString, e);
       return '（日付不明）';
     }
   };

@@ -441,6 +441,25 @@ export class BigQueryService {
     if (project.delivery_start_date) {
       if (project.delivery_start_date instanceof Date) {
         project.delivery_start_date = project.delivery_start_date.toISOString().split('T')[0];
+      } else if (typeof project.delivery_start_date === 'object') {
+        // オブジェクトの場合（BigQueryから返された可能性）
+        if ('value' in project.delivery_start_date) {
+          project.delivery_start_date = String(project.delivery_start_date.value);
+        } else {
+          // オブジェクトを文字列に変換を試行
+          try {
+            const date = new Date(project.delivery_start_date);
+            if (!isNaN(date.getTime())) {
+              project.delivery_start_date = date.toISOString().split('T')[0];
+            } else {
+              console.warn('⚠️ delivery_start_dateの変換に失敗:', project.delivery_start_date);
+              project.delivery_start_date = null;
+            }
+          } catch (e) {
+            console.warn('⚠️ delivery_start_dateの変換エラー:', project.delivery_start_date, e);
+            project.delivery_start_date = null;
+          }
+        }
       } else if (typeof project.delivery_start_date === 'string') {
         // 既にYYYY-MM-DD形式の場合はそのまま
         if (!/^\d{4}-\d{2}-\d{2}$/.test(project.delivery_start_date)) {
@@ -456,6 +475,25 @@ export class BigQueryService {
     if (project.delivery_end_date) {
       if (project.delivery_end_date instanceof Date) {
         project.delivery_end_date = project.delivery_end_date.toISOString().split('T')[0];
+      } else if (typeof project.delivery_end_date === 'object') {
+        // オブジェクトの場合（BigQueryから返された可能性）
+        if ('value' in project.delivery_end_date) {
+          project.delivery_end_date = String(project.delivery_end_date.value);
+        } else {
+          // オブジェクトを文字列に変換を試行
+          try {
+            const date = new Date(project.delivery_end_date);
+            if (!isNaN(date.getTime())) {
+              project.delivery_end_date = date.toISOString().split('T')[0];
+            } else {
+              console.warn('⚠️ delivery_end_dateの変換に失敗:', project.delivery_end_date);
+              project.delivery_end_date = null;
+            }
+          } catch (e) {
+            console.warn('⚠️ delivery_end_dateの変換エラー:', project.delivery_end_date, e);
+            project.delivery_end_date = null;
+          }
+        }
       } else if (typeof project.delivery_end_date === 'string') {
         // 既にYYYY-MM-DD形式の場合はそのまま
         if (!/^\d{4}-\d{2}-\d{2}$/.test(project.delivery_end_date)) {
