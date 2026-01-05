@@ -2114,13 +2114,28 @@ UNIVERSEGEO案件管理システム
       };
     } catch (error: any) {
       console.error('❌ Google Sheets API エラー:', error);
-      console.error('エラー詳細:', {
+      
+      // Google APIのエラー詳細を詳細にログ出力
+      const errorDetails: any = {
         message: error?.message,
         code: error?.code,
         status: error?.response?.status,
         statusText: error?.response?.statusText,
-        data: error?.response?.data,
-      });
+      };
+      
+      // error.response.data の詳細を出力（SheetsかDriveか、どの権限で落ちたかを特定）
+      if (error?.response?.data) {
+        errorDetails.responseData = error.response.data;
+        console.error('📋 Google API エラー詳細 (response.data):', JSON.stringify(error.response.data, null, 2));
+      }
+      
+      // エラーオブジェクト全体を出力（デバッグ用）
+      console.error('📋 エラー詳細:', errorDetails);
+      
+      // スタックトレースも出力
+      if (error?.stack) {
+        console.error('📋 スタックトレース:', error.stack);
+      }
       
       let errorMessage = 'スプレッドシートへの出力に失敗しました';
       let detailedMessage = '';
