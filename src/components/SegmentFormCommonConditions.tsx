@@ -173,9 +173,9 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
             </option>
           ))}
         </select>
-        {(formData.attribute === 'resident' || formData.attribute === 'worker') && (
+        {(formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') && (
           <p className="text-xs text-purple-700 mt-2">
-            ※ 居住者・勤務者の場合、抽出期間は3ヶ月固定です
+            ※ 居住者・勤務者・居住者&勤務者の場合、抽出期間は3ヶ月固定です
           </p>
         )}
       </div>

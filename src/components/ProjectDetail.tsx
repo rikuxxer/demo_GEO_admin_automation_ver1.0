@@ -1985,7 +1985,7 @@ export function ProjectDetail({
                             extractionConditionsFormData.extraction_period === option.value
                               ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
                               : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                          } ${(extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker') && option.value !== '3month' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          } ${(extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker') && option.value !== '3month' ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           {option.label}
                         </button>
@@ -2029,7 +2029,7 @@ export function ProjectDetail({
                         type="button"
                         onClick={() => {
                           const updates: Partial<PoiInfo> = { attribute: option.value };
-                          if (option.value === 'resident' || option.value === 'worker') {
+                          if (option.value === 'resident' || option.value === 'worker' || option.value === 'resident_and_worker') {
                             updates.extraction_period = '3month';
                             updates.extraction_period_type = 'preset';
                           }
