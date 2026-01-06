@@ -638,6 +638,33 @@ export function BulkImportEditor({
           </div>
         </div>
       )}
+
+      {/* 半径50m以下の警告ポップアップ */}
+      <AlertDialog open={showRadiusWarning} onOpenChange={setShowRadiusWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600" />
+              配信ボリュームに関する警告
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-4">
+              <div className="space-y-2">
+                <p className="text-base font-medium text-gray-900">
+                  配信ボリュームが担保できない可能性があります。
+                </p>
+                <p className="text-sm text-gray-700">
+                  半径緩和用のセグメントを追加することを推奨します。
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowRadiusWarning(false)}>
+              了解しました
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
