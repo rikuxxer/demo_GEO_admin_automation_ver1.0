@@ -398,12 +398,24 @@ class BigQueryService {
 
         // レスポンスからプロジェクト情報を取得（バックエンドが返す場合）
         const result = await response.json();
-        // バックエンドがメッセージのみを返す場合、プロジェクト一覧から最新を取得
-        if (result.message && !result.project_id) {
-          const projects = await this.getProjects();
-          return projects[0]; // 最新のプロジェクトを返す
+        console.log('✅ プロジェクト作成APIレスポンス:', result);
+        
+        // バックエンドから返されたプロジェクトを返す
+        if (result.project) {
+          return result.project;
         }
-        return result;
+        
+        // project_idのみが返された場合、プロジェクトを取得
+        if (result.project_id) {
+          const createdProject = await this.getProject(result.project_id);
+          if (createdProject) {
+            return createdProject;
+          }
+        }
+        
+        // フォールバック: プロジェクト一覧から最新を取得
+        const projects = await this.getProjects();
+        return projects[0] || project as Project;
       } catch (error) {
         console.error('プロジェクト作成APIエラー:', error);
         if (error instanceof TypeError && error.message.includes('fetch')) {
