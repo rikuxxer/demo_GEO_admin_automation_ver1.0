@@ -1778,16 +1778,24 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                               <Target className="w-3 h-3" />
                               指定半径
                             </p>
-                            <select
-                              value={pasteExtractionConditions.designated_radius}
-                              onChange={(e) => setPasteExtractionConditions(prev => ({ ...prev, designated_radius: e.target.value }))}
-                              className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                            >
-                              <option value="">指定なし</option>
-                              {RADIUS_OPTIONS.map(option => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                              ))}
-                            </select>
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="10000"
+                                step="1"
+                                placeholder="0-10000"
+                                value={pasteExtractionConditions.designated_radius ? String(pasteExtractionConditions.designated_radius).replace('m', '') : ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
+                                    setPasteExtractionConditions(prev => ({ ...prev, designated_radius: value ? `${value}m` : '' }));
+                                  }
+                                }}
+                                className="flex-1 text-sm"
+                              />
+                              <span className="text-xs text-gray-500">m</span>
+                            </div>
                           </div>
 
                           {/* 抽出期間 */}
@@ -2250,33 +2258,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       <Target className="w-4 h-4 text-[#5b5fff]" />
                       指定半径
                     </Label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {RADIUS_OPTIONS.slice(0, 12).map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => handleChange('designated_radius', option.value)}
-                          className={`px-3 py-2 text-sm rounded-md border transition-all ${
-                            formData.designated_radius === option.value
-                              ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
-                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-2 space-y-2">
-                      <select
-                        value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? formData.designated_radius : ''}
-                        onChange={(e) => e.target.value && handleChange('designated_radius', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                      >
-                        <option value="">その他の半径を選択...</option>
-                        {RADIUS_OPTIONS.slice(12).map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
+                    <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Input
                           type="number"
@@ -2284,11 +2266,11 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           max="10000"
                           step="1"
                           placeholder="0-10000の範囲で自由入力（m単位）"
-                          value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? '' : (formData.designated_radius || '')}
+                          value={formData.designated_radius ? String(formData.designated_radius).replace('m', '') : ''}
                           onChange={(e) => {
                             const value = e.target.value;
                             if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
-                              handleChange('designated_radius', value);
+                              handleChange('designated_radius', value ? `${value}m` : '');
                             }
                           }}
                           className="flex-1"
@@ -2296,7 +2278,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
                       </div>
                       {formData.designated_radius && (() => {
-                        const radiusNum = parseInt(formData.designated_radius.replace('m', ''));
+                        const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
                         if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
                           return (
                             <p className="text-sm text-red-600 flex items-center gap-1">
@@ -2559,33 +2541,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     <Target className="w-4 h-4 text-[#5b5fff]" />
                     指定半径
                   </Label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {RADIUS_OPTIONS.slice(0, 12).map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => handleChange('designated_radius', option.value)}
-                        className={`px-3 py-2 text-sm rounded-md border transition-all ${
-                          formData.designated_radius === option.value
-                            ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-2 space-y-2">
-                    <select
-                      value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? formData.designated_radius : ''}
-                      onChange={(e) => e.target.value && handleChange('designated_radius', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
-                    >
-                      <option value="">その他の半径を選択...</option>
-                      {RADIUS_OPTIONS.slice(12).map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -2593,11 +2549,11 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         max="10000"
                         step="1"
                         placeholder="0-10000の範囲で自由入力（m単位）"
-                        value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? '' : (formData.designated_radius || '')}
+                        value={formData.designated_radius ? String(formData.designated_radius).replace('m', '') : ''}
                         onChange={(e) => {
                           const value = e.target.value;
                           if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
-                            handleChange('designated_radius', value);
+                            handleChange('designated_radius', value ? `${value}m` : '');
                           }
                         }}
                         className="flex-1"
@@ -2605,7 +2561,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
                     </div>
                     {formData.designated_radius && (() => {
-                      const radiusNum = parseInt(formData.designated_radius.replace('m', ''));
+                      const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
                       if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
                         return (
                           <p className="text-sm text-red-600 flex items-center gap-1">

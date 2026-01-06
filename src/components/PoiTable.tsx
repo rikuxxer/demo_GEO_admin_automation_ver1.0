@@ -208,16 +208,6 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   <td className="px-4 py-4 align-top">
                     {isEditing ? (
                       <div className="space-y-1">
-                        <select
-                          value={RADIUS_OPTIONS.find(r => r.value === editForm.designated_radius) ? editForm.designated_radius : ''}
-                          onChange={(e) => e.target.value && handleInputChange('designated_radius', e.target.value)}
-                          className="h-8 text-sm w-full px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                          <option value="">選択</option>
-                          {RADIUS_OPTIONS.map(option => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
-                          ))}
-                        </select>
                         <div className="flex items-center gap-1">
                           <input
                             type="number"
@@ -225,11 +215,11 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                             max="10000"
                             step="1"
                             placeholder="0-10000"
-                            value={RADIUS_OPTIONS.find(r => r.value === editForm.designated_radius) ? '' : (editForm.designated_radius || '')}
+                            value={editForm.designated_radius ? String(editForm.designated_radius).replace('m', '') : ''}
                             onChange={(e) => {
                               const value = e.target.value;
                               if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
-                                handleInputChange('designated_radius', value);
+                                handleInputChange('designated_radius', value ? `${value}m` : '');
                               }
                             }}
                             className="h-8 text-sm w-20 px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"

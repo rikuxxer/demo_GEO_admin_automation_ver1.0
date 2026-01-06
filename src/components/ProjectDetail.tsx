@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2 } from 'lucide-react';
-import { RADIUS_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
+import { EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -1895,33 +1895,7 @@ export function ProjectDetail({
                     <Target className="w-4 h-4 text-[#5b5fff]" />
                     指定半径
                   </Label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {RADIUS_OPTIONS.slice(0, 12).map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: option.value }))}
-                        className={`px-3 py-2 text-sm rounded-md border transition-all ${
-                          extractionConditionsFormData.designated_radius === option.value
-                            ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-2 space-y-2">
-                    <select
-                      value={RADIUS_OPTIONS.find(r => r.value === extractionConditionsFormData.designated_radius) ? extractionConditionsFormData.designated_radius : ''}
-                      onChange={(e) => e.target.value && setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
-                    >
-                      <option value="">その他の半径を選択...</option>
-                      {RADIUS_OPTIONS.slice(12).map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -1929,11 +1903,11 @@ export function ProjectDetail({
                         max="10000"
                         step="1"
                         placeholder="0-10000の範囲で自由入力（m単位）"
-                        value={RADIUS_OPTIONS.find(r => r.value === extractionConditionsFormData.designated_radius) ? '' : (extractionConditionsFormData.designated_radius || '')}
+                        value={extractionConditionsFormData.designated_radius ? String(extractionConditionsFormData.designated_radius).replace('m', '') : ''}
                         onChange={(e) => {
                           const value = e.target.value;
                           if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
-                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: value }));
+                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: value ? `${value}m` : '' }));
                           }
                         }}
                         className="flex-1"

@@ -2,7 +2,7 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Settings, Target, Clock, Calendar, Users } from 'lucide-react';
-import { Segment, RADIUS_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
+import { Segment, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 
 interface SegmentFormCommonConditionsProps {
   formData: Partial<Segment>;
@@ -28,35 +28,23 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
           指定半径 <span className="text-red-600">*</span>
         </Label>
         <div className="space-y-2">
-          <select
-            id="designated_radius"
-            value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? formData.designated_radius : ''}
-            onChange={(e) => e.target.value && onChange('designated_radius', e.target.value)}
-            className="w-full px-3 py-2 border border-purple-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            required
-          >
-            <option value="">選択してください</option>
-            {RADIUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
           <div className="flex items-center gap-2">
             <Input
+              id="designated_radius"
               type="number"
               min="0"
               max="10000"
               step="1"
               placeholder="0-10000の範囲で自由入力（m単位）"
-              value={RADIUS_OPTIONS.find(r => r.value === formData.designated_radius) ? '' : (formData.designated_radius || '')}
+              value={formData.designated_radius ? String(formData.designated_radius).replace('m', '') : ''}
               onChange={(e) => {
                 const value = e.target.value;
                 if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
-                  onChange('designated_radius', value);
+                  onChange('designated_radius', value ? `${value}m` : '');
                 }
               }}
               className="flex-1"
+              required
             />
             <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
           </div>

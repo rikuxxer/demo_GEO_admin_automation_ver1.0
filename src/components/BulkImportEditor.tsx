@@ -423,25 +423,26 @@ export function BulkImportEditor({
                     <div className="grid grid-cols-3 gap-3 mt-3">
                       <div>
                         <Label className="text-xs">配信範囲 ⭐</Label>
-                        <Select
-                          value={segment.designated_radius || ''}
-                          onValueChange={(value) => {
-                            const updated = [...editingSegments];
-                            updated[segIndex] = { ...segment, designated_radius: value };
-                            setEditingSegments(updated);
-                          }}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {RADIUS_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="10000"
+                            step="1"
+                            placeholder="0-10000"
+                            value={segment.designated_radius ? String(segment.designated_radius).replace('m', '') : ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
+                                const updated = [...editingSegments];
+                                updated[segIndex] = { ...segment, designated_radius: value ? `${value}m` : '' };
+                                setEditingSegments(updated);
+                              }
+                            }}
+                            className="h-8 text-sm"
+                          />
+                          <span className="text-xs text-gray-500">m</span>
+                        </div>
                       </div>
                       <div>
                         <Label className="text-xs">配信期間 ⭐</Label>
