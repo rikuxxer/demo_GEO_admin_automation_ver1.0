@@ -3,7 +3,7 @@ import { Edit, Trash2, MapPin, ChevronLeft, ChevronRight, ChevronsLeft, Chevrons
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import type { PoiInfo } from '../types/schema';
-import { RADIUS_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
+import { EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import {
   AlertDialog,
   AlertDialogAction,

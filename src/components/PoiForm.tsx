@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { X, MapPin, Building2, Package, Calendar, Clock, Users, Target, Check, ChevronDown, Settings, Settings2, AlertCircle, Loader2, Upload, Download, FileText, CheckCircle, PenLine, Table, Database } from 'lucide-react';
-import { PoiInfo, Segment, POI_TYPE_OPTIONS, ATTRIBUTE_OPTIONS, RADIUS_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
+import { PoiInfo, Segment, POI_TYPE_OPTIONS, ATTRIBUTE_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { Badge } from './ui/badge';
 import { getPrefectures, getCitiesByPrefecture } from '../utils/prefectureData';
 import { geocodeAddress } from '../utils/geocoding';

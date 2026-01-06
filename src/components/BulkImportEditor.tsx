@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { AlertCircle, CheckCircle, Pencil, X, Save, Calendar as CalendarIcon } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import type { ExcelProjectData, ExcelSegmentData, ExcelLocationData, ExcelParseError } from '../utils/excelParser';
-import { MEDIA_OPTIONS, RADIUS_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS } from '../types/schema';
+import { MEDIA_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS } from '../types/schema';
 import { Checkbox } from './ui/checkbox';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
