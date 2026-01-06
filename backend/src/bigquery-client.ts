@@ -594,7 +594,15 @@ export class BigQueryService {
       
       console.log('✅ project_id検証成功:', project.project_id);
 
-      // 2. DATE型フィールドをYYYY-MM-DD形式に変換（共通関数を使用）
+      // 2. 既存の案件IDとの重複チェック
+      const existingProject = await this.getProjectById(project.project_id);
+      if (existingProject) {
+        console.error('❌ project_idが既に存在します:', project.project_id);
+        throw new Error(`project_id "${project.project_id}" already exists. Please use a different project_id.`);
+      }
+      console.log('✅ project_id重複チェック成功（重複なし）:', project.project_id);
+
+      // 3. DATE型フィールドをYYYY-MM-DD形式に変換（共通関数を使用）
 
       // 4. BigQueryのスキーマに存在するフィールドのみを含める
       // スキーマに存在するフィールド: project_id, advertiser_name, appeal_point, delivery_start_date, 

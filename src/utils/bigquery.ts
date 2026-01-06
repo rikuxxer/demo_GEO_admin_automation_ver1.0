@@ -358,7 +358,8 @@ class BigQueryService {
     if (USE_API) {
       try {
         // project_idを生成（モック実装と同じ形式）
-        const projectId = `PRJ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // substrは非推奨のため、substringを使用
+        const projectId = `PRJ-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
         console.log('✅ 生成されたproject_id:', projectId);
         
         // バックエンドに送信するデータを構築（project_idを含める）

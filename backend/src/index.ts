@@ -189,7 +189,8 @@ app.post('/api/projects', async (req, res) => {
     
     if (!projectData.project_id || typeof projectData.project_id !== 'string' || projectData.project_id.trim() === '') {
       // project_idが存在しない、または空文字列の場合、自動生成
-      const generatedProjectId = `PRJ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // substrは非推奨のため、substringを使用
+      const generatedProjectId = `PRJ-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       console.warn('⚠️ リクエストボディにproject_idが含まれていません。自動生成します:', generatedProjectId);
       projectData.project_id = generatedProjectId;
     }
