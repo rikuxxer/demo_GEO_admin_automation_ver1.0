@@ -299,6 +299,55 @@ function formatBoolForBigQuery(boolValue: any): boolean {
 export class BigQueryService {
   // ==================== プロジェクト ====================
   
+  /**
+   * 次の案件IDを生成（連番形式: PRJ-1, PRJ-2, ...）
+   */
+  async generateNextProjectId(): Promise<string> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getCleanDatasetId();
+      
+      // 既存の案件IDから最大の番号を取得
+      const query = `
+        SELECT project_id
+        FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
+        WHERE project_id LIKE 'PRJ-%'
+        ORDER BY 
+          CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\d+)') AS INT64) DESC
+        LIMIT 1
+      `;
+      
+      const [rows] = await initializeBigQueryClient().query({
+        query,
+        location: BQ_LOCATION,
+      });
+      
+      let nextNumber = 1;
+      
+      if (rows && rows.length > 0) {
+        const lastProjectId = rows[0].project_id as string;
+        // PRJ-123 から 123 を抽出
+        const match = lastProjectId.match(/^PRJ-(\d+)$/);
+        if (match && match[1]) {
+          const lastNumber = parseInt(match[1], 10);
+          if (!isNaN(lastNumber)) {
+            nextNumber = lastNumber + 1;
+          }
+        }
+      }
+      
+      const newProjectId = `PRJ-${nextNumber}`;
+      console.log('✅ 生成された案件ID:', newProjectId);
+      return newProjectId;
+    } catch (error: any) {
+      console.error('❌ 案件ID生成エラー:', error);
+      // エラーが発生した場合、タイムスタンプベースのフォールバック
+      const fallbackId = `PRJ-${Date.now()}`;
+      console.warn('⚠️ フォールバックIDを使用:', fallbackId);
+      return fallbackId;
+    }
+  }
+  
   async getProjects(): Promise<any[]> {
     try {
       // プロジェクトIDを検証して取得

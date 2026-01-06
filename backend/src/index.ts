@@ -188,9 +188,8 @@ app.post('/api/projects', async (req, res) => {
     let projectData = { ...req.body };
     
     if (!projectData.project_id || typeof projectData.project_id !== 'string' || projectData.project_id.trim() === '') {
-      // project_idが存在しない、または空文字列の場合、自動生成
-      // substrは非推奨のため、substringを使用
-      const generatedProjectId = `PRJ-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      // project_idが存在しない、または空文字列の場合、連番で自動生成
+      const generatedProjectId = await getBqService().generateNextProjectId();
       console.warn('⚠️ リクエストボディにproject_idが含まれていません。自動生成します:', generatedProjectId);
       projectData.project_id = generatedProjectId;
     }
@@ -211,7 +210,18 @@ app.post('/api/projects', async (req, res) => {
     });
     
     await getBqService().createProject(projectData);
-    res.status(201).json({ message: 'Project created successfully' });
+    
+    // 作成されたプロジェクトを取得して返す
+    const createdProject = await getBqService().getProjectById(projectData.project_id);
+    if (!createdProject) {
+      throw new Error('Failed to retrieve created project');
+    }
+    
+    res.status(201).json({ 
+      message: 'Project created successfully',
+      project_id: projectData.project_id,
+      project: createdProject
+    });
   } catch (error: any) {
     console.error('Error creating project:', error);
     console.error('Error stack:', error.stack);

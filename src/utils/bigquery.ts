@@ -357,15 +357,11 @@ class BigQueryService {
     // バックエンドAPIを使用する場合
     if (USE_API) {
       try {
-        // project_idを生成（モック実装と同じ形式）
-        // substrは非推奨のため、substringを使用
-        const projectId = `PRJ-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-        console.log('✅ 生成されたproject_id:', projectId);
-        
-        // バックエンドに送信するデータを構築（project_idを含める）
+        // project_idはバックエンドで自動生成されるため、ここでは送信しない
+        // バックエンドに送信するデータを構築（project_idは含めない）
         const projectData = {
           ...project,
-          project_id: projectId,
+          // project_idはバックエンドで連番形式で自動生成される
           person_in_charge: userName || '営業A', // 主担当者を設定
         };
         
@@ -419,9 +415,25 @@ class BigQueryService {
     // モック実装（localStorage）
     try {
       const projects = await this.getProjects();
+      
+      // 既存の案件IDから最大の番号を取得
+      let maxNumber = 0;
+      projects.forEach(p => {
+        const match = p.project_id?.match(/^PRJ-(\d+)$/);
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxNumber) {
+            maxNumber = num;
+          }
+        }
+      });
+      
+      const nextNumber = maxNumber + 1;
+      const projectId = `PRJ-${nextNumber}`;
+      
       const newProject: Project = {
         ...project,
-        project_id: `PRJ-${Date.now()}`,
+        project_id: projectId,
         _register_datetime: new Date().toISOString(),
         person_in_charge: userName || '営業A', // 主担当者を自動採番（実際にはログインユーザー情報から取得）
         project_status: 'draft', // 初期ステータスは「準備中」
