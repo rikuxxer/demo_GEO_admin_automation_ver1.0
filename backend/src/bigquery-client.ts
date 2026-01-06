@@ -308,10 +308,12 @@ export class BigQueryService {
       const cleanDatasetId = getCleanDatasetId();
       
       // 既存の案件IDから最大の番号を取得
+      // REGEXP_EXTRACT_ALLを使用して数字部分を抽出し、最大値を取得
       const query = `
         SELECT project_id
         FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
         WHERE project_id LIKE 'PRJ-%'
+          AND REGEXP_CONTAINS(project_id, r'^PRJ-\d+$')
         ORDER BY 
           CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\d+)') AS INT64) DESC
         LIMIT 1
