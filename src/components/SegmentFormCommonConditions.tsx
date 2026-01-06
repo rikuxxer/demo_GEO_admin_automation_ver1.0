@@ -1,8 +1,18 @@
+import { useState } from 'react';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import { Settings, Target, Clock, Calendar, Users } from 'lucide-react';
+import { Settings, Target, Clock, Calendar, Users, AlertCircle } from 'lucide-react';
 import { Segment, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 interface SegmentFormCommonConditionsProps {
   formData: Partial<Segment>;
@@ -10,6 +20,9 @@ interface SegmentFormCommonConditionsProps {
 }
 
 export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormCommonConditionsProps) {
+  // 半径50m以下の警告ポップアップ表示状態
+  const [showRadiusWarning, setShowRadiusWarning] = useState(false);
+  const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
   return (
     <div className="border-2 border-purple-200 rounded-lg p-6 bg-gradient-to-r from-purple-50 to-pink-50 space-y-6">
       <div className="flex items-center gap-2 mb-4">
@@ -41,6 +54,16 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
                 const value = e.target.value;
                 if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
                   onChange('designated_radius', value ? `${value}m` : '');
+                  
+                  // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                  const radiusNum = parseInt(value);
+                  if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                    setShowRadiusWarning(true);
+                    setHasShownRadiusWarning(true);
+                  } else if (radiusNum > 50) {
+                    // 50mを超えた場合は警告表示フラグをリセット
+                    setHasShownRadiusWarning(false);
+                  }
                 }
               }}
               className="flex-1"

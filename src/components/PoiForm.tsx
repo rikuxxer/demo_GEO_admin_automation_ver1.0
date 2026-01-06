@@ -28,6 +28,10 @@ interface PoiFormProps {
 export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [], poi, defaultCategory, defaultGroupId, visitMeasurementGroups = [], onSubmit, onBulkSubmit, onCancel }: PoiFormProps) {
   // このセグメントに属する地点数を確認
   const segmentPoiCount = pois.filter(p => p.segment_id === segmentId).length;
+  
+  // 半径50m以下の警告ポップアップ表示状態
+  const [showRadiusWarning, setShowRadiusWarning] = useState(false);
+  const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
   const isFirstPoi = segmentPoiCount === 0 && !poi;
   
   // セグメントに共通条件が設定されているかチェック
@@ -2271,6 +2275,16 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             const value = e.target.value;
                             if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
                               handleChange('designated_radius', value ? `${value}m` : '');
+                              
+                              // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                              const radiusNum = parseInt(value);
+                              if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                setShowRadiusWarning(true);
+                                setHasShownRadiusWarning(true);
+                              } else if (radiusNum > 50) {
+                                // 50mを超えた場合は警告表示フラグをリセット
+                                setHasShownRadiusWarning(false);
+                              }
                             }
                           }}
                           className="flex-1"
@@ -2554,6 +2568,16 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           const value = e.target.value;
                           if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
                             handleChange('designated_radius', value ? `${value}m` : '');
+                            
+                            // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                            const radiusNum = parseInt(value);
+                            if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                              setShowRadiusWarning(true);
+                              setHasShownRadiusWarning(true);
+                            } else if (radiusNum > 50) {
+                              // 50mを超えた場合は警告表示フラグをリセット
+                              setHasShownRadiusWarning(false);
+                            }
                           }
                         }}
                         className="flex-1"
@@ -2763,6 +2787,33 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
           </div>
         </div>
       )}
+
+      {/* 半径50m以下の警告ポップアップ */}
+      <AlertDialog open={showRadiusWarning} onOpenChange={setShowRadiusWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600" />
+              配信ボリュームに関する警告
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-4">
+              <div className="space-y-2">
+                <p className="text-base font-medium text-gray-900">
+                  配信ボリュームが担保できない可能性があります。
+                </p>
+                <p className="text-sm text-gray-700">
+                  半径緩和用のセグメントを追加することを推奨します。
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowRadiusWarning(false)}>
+              了解しました
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

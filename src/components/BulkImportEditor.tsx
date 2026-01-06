@@ -38,6 +38,9 @@ export function BulkImportEditor({
   const [editingProject, setEditingProject] = useState<ExcelProjectData | null>(project);
   const [editingSegments, setEditingSegments] = useState<ExcelSegmentData[]>(segments);
   const [editingLocations, setEditingLocations] = useState<ExcelLocationData[]>(locations);
+  // 半径50m以下の警告ポップアップ表示状態
+  const [showRadiusWarning, setShowRadiusWarning] = useState(false);
+  const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState<Record<number, boolean>>({});
 
   // セグメントの属性と抽出期間のキーを記憶
   const segmentAttributeKey = useMemo(
@@ -437,6 +440,20 @@ export function BulkImportEditor({
                                 const updated = [...editingSegments];
                                 updated[segIndex] = { ...segment, designated_radius: value ? `${value}m` : '' };
                                 setEditingSegments(updated);
+                                
+                                // 半径が50m以下の場合、警告ポップアップを表示（セグメントごとに一度だけ）
+                                const radiusNum = parseInt(value);
+                                if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning[segIndex]) {
+                                  setShowRadiusWarning(true);
+                                  setHasShownRadiusWarning(prev => ({ ...prev, [segIndex]: true }));
+                                } else if (radiusNum > 50) {
+                                  // 50mを超えた場合は警告表示フラグをリセット
+                                  setHasShownRadiusWarning(prev => {
+                                    const newState = { ...prev };
+                                    delete newState[segIndex];
+                                    return newState;
+                                  });
+                                }
                               }
                             }}
                             className="h-8 text-sm"
