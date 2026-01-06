@@ -68,9 +68,9 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
     stay_time: segment?.stay_time || '',
   });
 
-  // 居住者・勤務者の場合は抽出期間を3ヶ月に固定
+  // 居住者・勤務者・居住者&勤務者の場合は抽出期間を3ヶ月に固定
   useEffect(() => {
-    if (formData.attribute === 'resident' || formData.attribute === 'worker') {
+    if (formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') {
       setFormData(prev => ({
         ...prev,
         extraction_period: '3month',
