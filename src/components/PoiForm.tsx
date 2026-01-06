@@ -9,6 +9,15 @@ import { getPrefectures, getCitiesByPrefecture } from '../utils/prefectureData';
 import { geocodeAddress } from '../utils/geocoding';
 import { toast } from 'sonner';
 import { CSVValidationError, parseAndValidateExcel, downloadExcelTemplate } from '../utils/csvParser';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 interface PoiFormProps {
   projectId: string;

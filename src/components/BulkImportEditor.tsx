@@ -6,6 +6,15 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { AlertCircle, CheckCircle, Pencil, X, Save, Calendar as CalendarIcon } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import type { ExcelProjectData, ExcelSegmentData, ExcelLocationData, ExcelParseError } from '../utils/excelParser';
 import { MEDIA_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS } from '../types/schema';
 import { Checkbox } from './ui/checkbox';

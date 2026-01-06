@@ -9,6 +9,15 @@ import { Progress } from './ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { SegmentForm } from './SegmentForm';
