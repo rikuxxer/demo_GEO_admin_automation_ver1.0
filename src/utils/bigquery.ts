@@ -366,12 +366,13 @@ class BigQueryService {
         };
         
         console.log('📤 プロジェクト作成リクエスト:', {
-          project_id: projectData.project_id,
           advertiser_name: projectData.advertiser_name,
           delivery_start_date: projectData.delivery_start_date,
           delivery_end_date: projectData.delivery_end_date,
+          person_in_charge: projectData.person_in_charge,
           allKeys: Object.keys(projectData),
         });
+        console.log('📤 project_idはバックエンドで自動生成されます');
         console.log('📤 送信する完全なデータ:', JSON.stringify(projectData, null, 2));
         
         const response = await fetch(`${API_BASE_URL}/api/projects`, {
