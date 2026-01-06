@@ -1955,7 +1955,7 @@ export function ProjectDetail({
                         name="period_type_popup"
                         checked={extractionConditionsFormData.extraction_period_type === 'preset'}
                         onChange={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period_type: 'preset' }))}
-                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker'}
+                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
                       <span className="text-sm text-gray-700">プリセット</span>
@@ -1966,7 +1966,7 @@ export function ProjectDetail({
                         name="period_type_popup"
                         checked={extractionConditionsFormData.extraction_period_type === 'custom'}
                         onChange={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period_type: 'custom' }))}
-                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker'}
+                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
                       <span className="text-sm text-gray-700">期間指定</span>
@@ -1980,7 +1980,7 @@ export function ProjectDetail({
                           key={option.value}
                           type="button"
                           onClick={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period: option.value }))}
-                          disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker'}
+                          disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                           className={`px-3 py-2 text-sm rounded-md border transition-all ${
                             extractionConditionsFormData.extraction_period === option.value
                               ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
@@ -2009,9 +2009,9 @@ export function ProjectDetail({
                     </div>
                   )}
                   
-                  {(extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker') && (
+                  {(extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker') && (
                     <p className="text-xs text-orange-600 mt-2">
-                      ※居住者・勤務者の場合、抽出期間は「直近3ヶ月」に固定されます。
+                      ※居住者・勤務者・居住者&勤務者の場合、抽出期間は「直近3ヶ月」に固定されます。
                     </p>
                   )}
                 </div>

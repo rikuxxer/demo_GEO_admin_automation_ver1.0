@@ -2320,7 +2320,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         name="period_type"
                         checked={formData.extraction_period_type === 'preset'}
                         onChange={() => handleChange('extraction_period_type', 'preset')}
-                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
+                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
                       <span className="text-sm text-gray-700">プリセット</span>
@@ -2331,7 +2331,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         name="period_type"
                         checked={formData.extraction_period_type === 'custom'}
                         onChange={() => handleChange('extraction_period_type', 'custom')}
-                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
+                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
                       <span className="text-sm text-gray-700">期間指定</span>
@@ -2345,7 +2345,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           key={option.value}
                           type="button"
                           onClick={() => handleChange('extraction_period', option.value)}
-                          disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
+                          disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
                           className={`px-3 py-2 text-sm rounded-md border transition-all ${
                             formData.extraction_period === option.value
                               ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
@@ -2612,7 +2612,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         name="period_type_popup"
                         checked={formData.extraction_period_type === 'preset'}
                         onChange={() => handleChange('extraction_period_type', 'preset')}
-                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
+                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
                       <span className="text-sm text-gray-700">プリセット</span>
@@ -2623,7 +2623,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         name="period_type_popup"
                         checked={formData.extraction_period_type === 'custom'}
                         onChange={() => handleChange('extraction_period_type', 'custom')}
-                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
+                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
                       <span className="text-sm text-gray-700">期間指定</span>
@@ -2637,7 +2637,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           key={option.value}
                           type="button"
                           onClick={() => handleChange('extraction_period', option.value)}
-                          disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
+                          disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
                           className={`px-3 py-2 text-sm rounded-md border transition-all ${
                             formData.extraction_period === option.value
                               ? 'bg-[#5b5fff] text-white border-[#5b5fff]'

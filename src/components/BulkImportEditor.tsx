@@ -48,11 +48,11 @@ export function BulkImportEditor({
     [editingSegments]
   );
 
-  // 居住者・勤務者の場合は抽出期間を3ヶ月に固定
+  // 居住者・勤務者・居住者&勤務者の場合は抽出期間を3ヶ月に固定
   useEffect(() => {
     let needsUpdate = false;
     const updated = editingSegments.map(segment => {
-      if ((segment.attribute === 'resident' || segment.attribute === 'worker') && 
+      if ((segment.attribute === 'resident' || segment.attribute === 'worker' || segment.attribute === 'resident_and_worker') && 
           segment.extraction_period !== '3month') {
         needsUpdate = true;
         return { ...segment, extraction_period: '3month' };
@@ -465,7 +465,7 @@ export function BulkImportEditor({
                         <Label className="text-xs">配信期間 ⭐</Label>
                         <Select
                           value={segment.extraction_period || ''}
-                          disabled={segment.attribute === 'resident' || segment.attribute === 'worker'}
+                          disabled={segment.attribute === 'resident' || segment.attribute === 'worker' || segment.attribute === 'resident_and_worker'}
                           onValueChange={(value) => {
                             const updated = [...editingSegments];
                             updated[segIndex] = { ...segment, extraction_period: value };
@@ -483,9 +483,9 @@ export function BulkImportEditor({
                             ))}
                           </SelectContent>
                         </Select>
-                        {(segment.attribute === 'resident' || segment.attribute === 'worker') && (
+                        {(segment.attribute === 'resident' || segment.attribute === 'worker' || segment.attribute === 'resident_and_worker') && (
                           <p className="text-xs text-purple-600 mt-1">
-                            ※ 居住者・勤務者は直近3ヶ月固定です
+                            ※ 居住者・勤務者・居住者&勤務者は直近3ヶ月固定です
                           </p>
                         )}
                       </div>

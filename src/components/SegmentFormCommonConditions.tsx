@@ -100,7 +100,7 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
                 checked={formData.extraction_period_type === 'preset'}
                 onChange={() => onChange('extraction_period_type', 'preset')}
                 className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
-                disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
+                disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
               />
               <span className="text-sm">プリセット</span>
             </label>
@@ -110,7 +110,7 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
                 checked={formData.extraction_period_type === 'custom'}
                 onChange={() => onChange('extraction_period_type', 'custom')}
                 className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
-                disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
+                disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
               />
               <span className="text-sm">期間指定</span>
             </label>
