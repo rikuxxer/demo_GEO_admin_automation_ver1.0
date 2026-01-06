@@ -2350,7 +2350,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             formData.extraction_period === option.value
                               ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
                               : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                          } ${(formData.attribute === 'resident' || formData.attribute === 'worker') && option.value !== '3month' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          } ${(formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') && option.value !== '3month' ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           {option.label}
                         </button>
@@ -2374,9 +2374,9 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     </div>
                   )}
                   
-                  {(formData.attribute === 'resident' || formData.attribute === 'worker') && (
+                  {(formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') && (
                     <p className="text-xs text-orange-600 mt-2">
-                      ※居住者・勤務者の場合、抽出期間は「直近3ヶ月」に固定されます。
+                      ※居住者・勤務者・居住者&勤務者の場合、抽出期間は「直近3ヶ月」に固定されます。
                     </p>
                   )}
                 </div>
@@ -2642,7 +2642,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             formData.extraction_period === option.value
                               ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
                               : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                          } ${(formData.attribute === 'resident' || formData.attribute === 'worker') && option.value !== '3month' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          } ${(formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') && option.value !== '3month' ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           {option.label}
                         </button>
@@ -2666,9 +2666,9 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     </div>
                   )}
                   
-                  {(formData.attribute === 'resident' || formData.attribute === 'worker') && (
+                  {(formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') && (
                     <p className="text-xs text-orange-600 mt-2">
-                      ※居住者・勤務者の場合、抽出期間は「直近3ヶ月」に固定されます。
+                      ※居住者・勤務者・居住者&勤務者の場合、抽出期間は「直近3ヶ月」に固定されます。
                     </p>
                   )}
                 </div>
