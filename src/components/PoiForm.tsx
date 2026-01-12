@@ -1409,7 +1409,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             id="bulk_group_id"
                             value={bulkGroupId || ''}
                             onChange={(e) => setBulkGroupId(e.target.value || null)}
-                            className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
+                            className="w-full h-10 px-3 py-2 border border-input rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
                           >
                             <option value="">グループなし</option>
                             {visitMeasurementGroups.map(group => (
@@ -1580,7 +1580,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                 contentEditable
                                 onPaste={handlePaste}
                                 suppressContentEditableWarning
-                                className="w-full min-h-80 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white overflow-auto font-mono text-sm relative"
+                                className="w-full min-h-80 p-4 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-input-background overflow-auto font-mono text-sm relative"
                                 style={{ 
                                   whiteSpace: 'pre-wrap',
                                   wordBreak: 'break-word',
@@ -1821,7 +1821,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                               value={pasteExtractionConditions.extraction_period}
                               onChange={(e) => setPasteExtractionConditions(prev => ({ ...prev, extraction_period: e.target.value }))}
                               disabled={pasteExtractionConditions.attribute !== 'detector'}
-                              className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              className="w-full text-sm px-2 py-1 border border-input rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
                             >
                               {EXTRACTION_PERIOD_PRESET_OPTIONS.map(option => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -1855,7 +1855,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                   detection_count: isNonDetector ? undefined : prev.detection_count,
                                 }));
                               }}
-                              className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                              className="w-full text-sm px-2 py-1 border border-input rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
                             >
                               {ATTRIBUTE_OPTIONS.map(option => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -1873,7 +1873,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                               <select
                                 value={pasteExtractionConditions.stay_time}
                                 onChange={(e) => setPasteExtractionConditions(prev => ({ ...prev, stay_time: e.target.value }))}
-                                className="w-full text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="w-full text-sm px-2 py-1 border border-input rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-primary"
                               >
                                 <option value="">指定なし</option>
                                 {STAY_TIME_OPTIONS.map(option => (
@@ -1922,7 +1922,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             id="paste_bulk_group_id"
                             value={bulkGroupId || ''}
                             onChange={(e) => setBulkGroupId(e.target.value || null)}
-                            className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
+                            className="w-full h-10 px-3 py-2 border border-input rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
                           >
                             <option value="">グループなし</option>
                             {visitMeasurementGroups.map(group => (
@@ -2138,7 +2138,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         <Button
                           type="button"
                           variant="outline"
-                          className="w-full justify-between bg-white"
+                          className="w-full justify-between bg-input-background border-input"
                           onClick={() => setShowPrefectureDropdown(!showPrefectureDropdown)}
                         >
                           {selectedPrefecture || '都道府県を選択してください'}
@@ -2146,7 +2146,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         </Button>
                         
                         {showPrefectureDropdown && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                          <div className="absolute z-10 w-full mt-1 bg-popover border border-input rounded-md shadow-lg max-h-60 overflow-auto">
                             {getPrefectures().map((pref) => (
                               <button
                                 key={pref}
