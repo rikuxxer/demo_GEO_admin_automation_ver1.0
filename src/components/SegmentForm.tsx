@@ -118,17 +118,17 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
   
   // 選択された媒体が競合するかチェック（同一セグメント内のみ）
   const hasMediaConflict = () => {
-    // 同一セグメント内で、UNIVERSE、Tver(SP)、TVer(CTV)が同時に選択されている場合は競合
+    // TVer(CTV)と他の媒体（UNIVERSE、Tver(SP)）が同時に選択されている場合は競合
     const hasUniverse = selectedMediaIds.includes('universe');
     const hasTverSP = selectedMediaIds.includes('tver_sp');
     const hasTverCTV = selectedMediaIds.includes('tver_ctv');
     
-    // 3つのうち2つ以上が選択されている場合は競合
-    const selectedCount = [hasUniverse, hasTverSP, hasTverCTV].filter(Boolean).length;
-    if (selectedCount >= 2) {
+    // TVer(CTV)が選択されている場合、UNIVERSEまたはTVer(SP)が選択されていると競合
+    if (hasTverCTV && (hasUniverse || hasTverSP)) {
       return true;
     }
     
+    // UNIVERSEとTVer(SP)の同時選択は許可（競合なし）
     return false;
   };
   
@@ -165,16 +165,24 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
       return false;
     }
     
-    // 同一セグメント内で、UNIVERSE、Tver(SP)、TVer(CTV)のいずれかが既に選択されている場合は無効
-    const hasUniverse = selectedMediaIds.includes('universe');
-    const hasTverSP = selectedMediaIds.includes('tver_sp');
-    const hasTverCTV = selectedMediaIds.includes('tver_ctv');
-    
-    // 3つのうち1つでも選択されている場合、他の2つは選択不可
-    if (hasUniverse || hasTverSP || hasTverCTV) {
-      return true;
+    // TVer(CTV)は他の媒体と同時選択不可（CTV専用セグメントを作成する必要がある）
+    if (mediaValue === 'tver_ctv') {
+      const hasUniverse = selectedMediaIds.includes('universe');
+      const hasTverSP = selectedMediaIds.includes('tver_sp');
+      if (hasUniverse || hasTverSP) {
+        return true;
+      }
     }
     
+    // UNIVERSEまたはTVer(SP)が選択されている場合、TVer(CTV)は選択不可
+    if (mediaValue === 'universe' || mediaValue === 'tver_sp') {
+      const hasTverCTV = selectedMediaIds.includes('tver_ctv');
+      if (hasTverCTV) {
+        return true;
+      }
+    }
+    
+    // UNIVERSEとTVer(SP)は複数選択可能
     return false;
   };
 

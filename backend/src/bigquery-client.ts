@@ -296,6 +296,26 @@ function formatBoolForBigQuery(boolValue: any): boolean {
   return false;
 }
 
+// media_idフィールドを配列から文字列に変換（BigQueryのSTRING型に合わせる）
+function formatMediaIdForBigQuery(mediaIdValue: any): string | null {
+  if (!mediaIdValue) return null;
+  
+  // 既に文字列の場合はそのまま返す
+  if (typeof mediaIdValue === 'string') {
+    return mediaIdValue.trim() || null;
+  }
+  
+  // 配列の場合はカンマ区切りの文字列に変換
+  if (Array.isArray(mediaIdValue)) {
+    const filtered = mediaIdValue.filter(id => id && typeof id === 'string' && id.trim() !== '');
+    if (filtered.length === 0) return null;
+    return filtered.join(',');
+  }
+  
+  // その他の型の場合は文字列に変換を試みる
+  return String(mediaIdValue).trim() || null;
+}
+
 export class BigQueryService {
   // ==================== プロジェクト ====================
   
@@ -947,6 +967,9 @@ export class BigQueryService {
             cleanedSegment[field] = formatBoolForBigQuery(segment[field]);
           } else if (field === 'segment_registered_at') {
             cleanedSegment[field] = formatTimestampForBigQuery(segment[field] || new Date());
+          } else if (field === 'media_id') {
+            // media_idは配列の場合はカンマ区切りの文字列に変換
+            cleanedSegment[field] = formatMediaIdForBigQuery(segment[field]);
           } else {
             cleanedSegment[field] = segment[field];
           }
@@ -988,7 +1011,14 @@ export class BigQueryService {
 
   async updateSegment(segment_id: string, updates: any): Promise<void> {
     const currentProjectId = validateProjectId();
-    const setClause = Object.keys(updates)
+    
+    // media_idが配列の場合は文字列に変換
+    const processedUpdates = { ...updates };
+    if ('media_id' in processedUpdates && processedUpdates.media_id !== undefined && processedUpdates.media_id !== null) {
+      processedUpdates.media_id = formatMediaIdForBigQuery(processedUpdates.media_id);
+    }
+    
+    const setClause = Object.keys(processedUpdates)
       .map(key => `${key} = @${key}`)
       .join(', ');
     
@@ -1001,7 +1031,7 @@ export class BigQueryService {
     
     await initializeBigQueryClient().query({
       query,
-      params: { segment_id, ...updates },
+      params: { segment_id, ...processedUpdates },
       location: BQ_LOCATION,
     });
   }

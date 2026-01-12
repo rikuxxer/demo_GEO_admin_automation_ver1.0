@@ -381,13 +381,22 @@ export function BulkImportEditor({
                             const selectedMediaIds = Array.isArray(segment.media_id) ? segment.media_id : segment.media_id ? [segment.media_id] : [];
                             const isChecked = selectedMediaIds.includes(option.value);
                             
-                            // 同一セグメント内で、UNIVERSE、Tver(SP)、TVer(CTV)のいずれかが既に選択されている場合は無効
+                            // TVer(CTV)は他の媒体と同時選択不可（CTV専用セグメントを作成する必要がある）
                             const hasUniverse = selectedMediaIds.includes('universe');
                             const hasTverSP = selectedMediaIds.includes('tver_sp');
                             const hasTverCTV = selectedMediaIds.includes('tver_ctv');
-                            const hasAnyMedia = hasUniverse || hasTverSP || hasTverCTV;
                             
-                            const isDisabled = isChecked ? false : hasAnyMedia;
+                            let isDisabled = false;
+                            if (!isChecked) {
+                              // TVer(CTV)を選択しようとしている場合、UNIVERSEまたはTVer(SP)が選択されていると無効
+                              if (option.value === 'tver_ctv' && (hasUniverse || hasTverSP)) {
+                                isDisabled = true;
+                              }
+                              // UNIVERSEまたはTVer(SP)を選択しようとしている場合、TVer(CTV)が選択されていると無効
+                              else if ((option.value === 'universe' || option.value === 'tver_sp') && hasTverCTV) {
+                                isDisabled = true;
+                              }
+                            }
                             
                             return (
                               <label key={option.value} className="flex items-center gap-2">
@@ -421,11 +430,13 @@ export function BulkImportEditor({
                           const hasUniverse = selectedMediaIds.includes('universe');
                           const hasTverSP = selectedMediaIds.includes('tver_sp');
                           const hasTverCTV = selectedMediaIds.includes('tver_ctv');
-                          const selectedCount = [hasUniverse, hasTverSP, hasTverCTV].filter(Boolean).length;
                           
-                          return selectedCount >= 2 && (
+                          // TVer(CTV)と他の媒体（UNIVERSE、TVer(SP)）が同時に選択されている場合は警告
+                          const hasConflict = hasTverCTV && (hasUniverse || hasTverSP);
+                          
+                          return hasConflict && (
                             <p className="text-xs text-orange-600 mt-1">
-                              ⚠️ 同一セグメント内では、UNIVERSE、Tver(SP)、TVer(CTV)のいずれか1つのみ選択できます
+                              ⚠️ TVer(CTV)はCTV専用セグメントを作成してください。UNIVERSEやTVer(SP)と同時に選択できません。
                             </p>
                           );
                         })()}

@@ -44,14 +44,23 @@ export function validateMediaSelection(
     let isDisabled = false;
     let reason = '';
 
-    // 同一セグメント内で、UNIVERSE、Tver(SP)、TVer(CTV)のいずれかが既に選択されている場合は無効
-    const hasUniverse = selectedMediaIds.includes('universe');
-    const hasTverSP = selectedMediaIds.includes('tver_sp');
-    const hasTverCTV = selectedMediaIds.includes('tver_ctv');
-
-    if (hasUniverse || hasTverSP || hasTverCTV) {
-      isDisabled = true;
-      reason = '同一セグメント内では、UNIVERSE、Tver(SP)、TVer(CTV)のいずれか1つのみ選択できます';
+    // TVer(CTV)は他の媒体と同時選択不可（CTV専用セグメントを作成する必要がある）
+    if (mediaValue === 'tver_ctv') {
+      const hasUniverse = selectedMediaIds.includes('universe');
+      const hasTverSP = selectedMediaIds.includes('tver_sp');
+      if (hasUniverse || hasTverSP) {
+        isDisabled = true;
+        reason = 'TVer(CTV)はCTV専用セグメントを作成してください。UNIVERSEやTVer(SP)と同時に選択できません。';
+      }
+    }
+    
+    // UNIVERSEまたはTVer(SP)が選択されている場合、TVer(CTV)は選択不可
+    if (mediaValue === 'universe' || mediaValue === 'tver_sp') {
+      const hasTverCTV = selectedMediaIds.includes('tver_ctv');
+      if (hasTverCTV) {
+        isDisabled = true;
+        reason = 'TVer(CTV)が選択されているため、他の媒体と同時に選択できません。TVer(CTV)はCTV専用セグメントを作成してください。';
+      }
     }
 
     if (isDisabled) {
@@ -68,18 +77,19 @@ export function validateMediaSelection(
     result.errors.push('少なくとも1つの配信媒体を選択してください');
   }
 
-  // 同一セグメント内で複数の媒体が選択されている場合はエラー
+  // TVer(CTV)と他の媒体（UNIVERSE、TVer(SP)）が同時に選択されている場合はエラー
   const hasUniverse = selectedMediaIds.includes('universe');
   const hasTverSP = selectedMediaIds.includes('tver_sp');
   const hasTverCTV = selectedMediaIds.includes('tver_ctv');
-  const selectedCount = [hasUniverse, hasTverSP, hasTverCTV].filter(Boolean).length;
   
-  if (selectedCount >= 2) {
+  if (hasTverCTV && (hasUniverse || hasTverSP)) {
     result.isValid = false;
     result.errors.push(
-      '同一セグメント内では、UNIVERSE、Tver(SP)、TVer(CTV)のいずれか1つのみ選択できます。異なるセグメントで別の媒体を選択してください。'
+      'TVer(CTV)はCTV専用セグメントを作成してください。UNIVERSEやTVer(SP)と同時に選択できません。'
     );
   }
+  
+  // UNIVERSEとTVer(SP)の同時選択は許可
 
   return result;
 }
