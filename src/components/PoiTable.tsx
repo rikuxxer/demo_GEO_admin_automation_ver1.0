@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Edit, Trash2, MapPin, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Save, X, Settings } from 'lucide-react';
 import { Button } from './ui/button';
 import type { PoiInfo } from '../types/schema';
@@ -34,6 +34,26 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
   
   // 編集モードの地点があるかチェック
   const hasEditingRow = editingId !== null;
+
+  // デバッグ: ポリゴン指定の地点を確認
+  useEffect(() => {
+    const polygonPois = pois.filter(p => {
+      const isPolygon = p.poi_type === 'polygon' || (p.polygon && Array.isArray(p.polygon) && p.polygon.length > 0);
+      return isPolygon;
+    });
+    if (polygonPois.length > 0) {
+      console.log('🔍 ポリゴン指定の地点:', polygonPois.map(p => ({
+        poi_id: p.poi_id,
+        poi_name: p.poi_name,
+        poi_type: p.poi_type,
+        polygon: p.polygon,
+        polygon_type: typeof p.polygon,
+        polygon_isArray: Array.isArray(p.polygon),
+        polygon_length: Array.isArray(p.polygon) ? p.polygon.length : 'N/A',
+        isPolygonPoi: p.poi_type === 'polygon' || (p.polygon && Array.isArray(p.polygon) && p.polygon.length > 0)
+      })));
+    }
+  }, [pois]);
   
   const itemsPerPage = 20;
 
@@ -136,8 +156,29 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
             {currentPois.map((poi) => {
               const isEditing = editingId === poi.poi_id;
               
+              // ポリゴン指定の判定: poi_typeが'polygon'、またはpolygonフィールドが存在して配列で長さが0より大きい場合
+              const isPolygonPoi = poi.poi_type === 'polygon' || (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0);
+              
+              // 半径指定（自由指定）の判定: poi_typeが'manual'でdesignated_radiusがある
+              const isManualRadiusPoi = poi.poi_type === 'manual' && poi.designated_radius;
+              
+              // 半径指定（カテゴリ指定）の判定: poi_typeが'prefecture'
+              const isPrefecturePoi = poi.poi_type === 'prefecture';
+              
+              // 行のサイズクラスを決定
+              let rowSizeClass = '';
+              if (isPolygonPoi) {
+                rowSizeClass = 'py-6'; // ポリゴン指定: 大きめ
+              } else if (isPrefecturePoi) {
+                rowSizeClass = 'py-3'; // カテゴリ指定: 小さめ
+              } else if (isManualRadiusPoi) {
+                rowSizeClass = 'py-5'; // 自由指定: 中くらい
+              } else {
+                rowSizeClass = 'py-4'; // デフォルト
+              }
+              
               return (
-                <tr key={poi.poi_id} className={isEditing ? "bg-blue-50/50" : "hover:bg-gray-50"}>
+                <tr key={poi.poi_id} className={`${isEditing ? "bg-blue-50/50" : "hover:bg-gray-50"} ${rowSizeClass}`}>
                   {/* 地点ID */}
                   <td className="px-4 py-4 align-top">
                     {isEditing ? (
@@ -153,7 +194,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   </td>
 
                   {/* 地点名 */}
-                  <td className="px-4 py-4 align-top">
+                  <td className="px-4 align-top">
                     {isEditing ? (
                       <Input
                         value={editForm.poi_name || ''}
@@ -162,11 +203,21 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         placeholder="地点名"
                       />
                     ) : (
-                      <div className="text-sm text-gray-900">
+                      <div className={isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
                         {poi.poi_type === 'prefecture' ? (
                           <>
                             {poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}
                             <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded">都道府県指定</span>
+                          </>
+                        ) : isPolygonPoi ? (
+                          <>
+                            <div className="font-medium">{poi.poi_name || 'ポリゴン地点'}</div>
+                            <span className="ml-2 text-xs text-white bg-blue-600 px-2 py-0.5 rounded">ポリゴン指定</span>
+                            {poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0 && (
+                              <div className="mt-1 text-sm text-gray-500">
+                                座標数: {poi.polygon.length}点
+                              </div>
+                            )}
                           </>
                         ) : (
                           poi.poi_name || '（地点名未設定）'
@@ -176,7 +227,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   </td>
 
                   {/* 住所 */}
-                  <td className="px-4 py-4 align-top">
+                  <td className="px-4 align-top">
                     {isEditing ? (
                       <Input
                         value={editForm.address || ''}
@@ -186,7 +237,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                       />
                     ) : (
                       poi.poi_type === 'prefecture' && poi.cities && poi.cities.length > 0 ? (
-                        <div className="text-sm text-gray-900">
+                        <div className={isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
                           <div className="flex flex-wrap gap-1">
                             {poi.cities.slice(0, 3).map((city, idx) => (
                               <span key={idx} className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">
@@ -200,14 +251,33 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                             )}
                           </div>
                         </div>
+                      ) : isPolygonPoi && poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0 ? (
+                        <div className="text-base text-gray-900">
+                          <div className="space-y-1">
+                            <div className="text-sm text-gray-600 font-medium">
+                              ポリゴン座標範囲:
+                            </div>
+                            <div className="text-sm text-gray-500 font-mono">
+                              緯度: {Math.min(...poi.polygon.map((c: number[]) => c[0])).toFixed(6)} ～ {Math.max(...poi.polygon.map((c: number[]) => c[0])).toFixed(6)}
+                            </div>
+                            <div className="text-sm text-gray-500 font-mono">
+                              経度: {Math.min(...poi.polygon.map((c: number[]) => c[1])).toFixed(6)} ～ {Math.max(...poi.polygon.map((c: number[]) => c[1])).toFixed(6)}
+                            </div>
+                            {poi.address && (
+                              <div className="text-sm text-gray-400 mt-1">
+                                備考: {poi.address}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       ) : (
-                        <div className="text-sm text-gray-900">{poi.address || '-'}</div>
+                        <div className={isManualRadiusPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>{poi.address || '-'}</div>
                       )
                     )}
                   </td>
 
                   {/* 指定半径 */}
-                  <td className="px-4 py-4 align-top">
+                  <td className="px-4 align-top">
                     {isEditing ? (
                       <div className="space-y-1">
                         <div className="flex items-center gap-1">
@@ -249,8 +319,8 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         })()}
                       </div>
                     ) : (
-                      <div className="text-sm text-gray-900">
-                        {poi.poi_type === 'prefecture' 
+                      <div className={isManualRadiusPoi ? "text-base text-gray-900 font-medium" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
+                        {poi.poi_type === 'prefecture' || isPolygonPoi
                           ? <span className="text-gray-400 text-xs">指定なし</span>
                           : (poi.designated_radius || '-')
                         }
@@ -259,7 +329,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   </td>
 
                   {/* 緯度経度 */}
-                  <td className="px-4 py-4 align-top">
+                  <td className="px-4 align-top">
                     {isEditing ? (
                       <div className="flex gap-2">
                         <Input
@@ -276,10 +346,20 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         />
                       </div>
                     ) : (
-                      <div className="text-sm text-gray-900">
-                        {poi.latitude && poi.longitude 
-                          ? `${poi.latitude}, ${poi.longitude}` 
-                          : '-'}
+                      <div className={isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
+                        {isPolygonPoi && poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0 ? (
+                          <div className="text-sm text-gray-600">
+                            <div className="font-medium">中心: {(() => {
+                              const centerLat = poi.polygon.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / poi.polygon.length;
+                              const centerLng = poi.polygon.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / poi.polygon.length;
+                              return `${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}`;
+                            })()}</div>
+                          </div>
+                        ) : poi.latitude && poi.longitude ? (
+                          <span className={isManualRadiusPoi ? "font-medium" : ""}>{poi.latitude}, {poi.longitude}</span>
+                        ) : (
+                          '-'
+                        )}
                       </div>
                     )}
                   </td>

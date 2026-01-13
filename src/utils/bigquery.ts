@@ -695,7 +695,34 @@ class BigQueryService {
   async getPoiInfos(): Promise<PoiInfo[]> {
     try {
       const data = localStorage.getItem(this.poiStorageKey);
-      return data ? JSON.parse(data) : [];
+      const pois = data ? JSON.parse(data) : [];
+      
+      // polygonフィールドをパースし、poi_typeを自動設定
+      return pois.map((poi: PoiInfo) => {
+        let updatedPoi = { ...poi };
+        if (poi.polygon) {
+          if (typeof poi.polygon === 'string') {
+            try {
+              const parsed = JSON.parse(poi.polygon);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                updatedPoi.polygon = parsed;
+                // polygonフィールドが存在するがpoi_typeが設定されていない場合、自動的に'polygon'に設定
+                if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
+                  updatedPoi.poi_type = 'polygon';
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to parse polygon JSON:', e);
+            }
+          } else if (Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+            // 既に配列の場合も、poi_typeが設定されていない場合は自動設定
+            if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
+              updatedPoi.poi_type = 'polygon';
+            }
+          }
+        }
+        return updatedPoi;
+      });
     } catch (error) {
       console.error('Error fetching POI info:', error);
       return [];
@@ -709,7 +736,33 @@ class BigQueryService {
   async getPoisByProject(projectId: string): Promise<PoiInfo[]> {
     try {
       const pois = await this.getPoiInfos();
-      return pois.filter(p => p.project_id === projectId);
+      // polygonフィールドをパース
+      const parsedPois = pois.map(poi => {
+        let updatedPoi = { ...poi };
+        if (poi.polygon) {
+          if (typeof poi.polygon === 'string') {
+            try {
+              const parsed = JSON.parse(poi.polygon);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                updatedPoi.polygon = parsed;
+                // polygonフィールドが存在するがpoi_typeが設定されていない場合、自動的に'polygon'に設定
+                if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
+                  updatedPoi.poi_type = 'polygon';
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to parse polygon JSON:', e);
+            }
+          } else if (Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+            // 既に配列の場合も、poi_typeが設定されていない場合は自動設定
+            if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
+              updatedPoi.poi_type = 'polygon';
+            }
+          }
+        }
+        return updatedPoi;
+      });
+      return parsedPois.filter(p => p.project_id === projectId);
     } catch (error) {
       console.error('Error fetching POIs by project:', error);
       return [];
@@ -719,7 +772,33 @@ class BigQueryService {
   async getPoisBySegment(segmentId: string): Promise<PoiInfo[]> {
     try {
       const pois = await this.getPoiInfos();
-      return pois.filter(p => p.segment_id === segmentId);
+      // polygonフィールドをパース
+      const parsedPois = pois.map(poi => {
+        let updatedPoi = { ...poi };
+        if (poi.polygon) {
+          if (typeof poi.polygon === 'string') {
+            try {
+              const parsed = JSON.parse(poi.polygon);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                updatedPoi.polygon = parsed;
+                // polygonフィールドが存在するがpoi_typeが設定されていない場合、自動的に'polygon'に設定
+                if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
+                  updatedPoi.poi_type = 'polygon';
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to parse polygon JSON:', e);
+            }
+          } else if (Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+            // 既に配列の場合も、poi_typeが設定されていない場合は自動設定
+            if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
+              updatedPoi.poi_type = 'polygon';
+            }
+          }
+        }
+        return updatedPoi;
+      });
+      return parsedPois.filter(p => p.segment_id === segmentId);
     } catch (error) {
       console.error('Error fetching POI by segment:', error);
       return [];
@@ -734,25 +813,63 @@ class BigQueryService {
     try {
       const pois = await this.getPoiInfos();
       
-      // セグメント単位で連番を生成
-      const segmentPois = pois.filter(p => p.segment_id === poi.segment_id);
-      const maxNumber = segmentPois.reduce((max, p) => {
-        // 既存のlocation_idから番号を抽出（形式: S1-001, S1-002など）
-        if (p.location_id) {
-          const match = p.location_id.match(/-(\d+)$/);
-          if (match) {
-            const num = parseInt(match[1], 10);
-            return Math.max(max, num);
-          }
-        }
-        return max;
-      }, 0);
+      // 地点IDの生成（カテゴリ別のロジック）
+      // TG地点: TG-{segment_id}-{連番} (セグメント単位で連番)
+      // 来店計測地点: VM-{連番} (プロジェクト全体で連番、セグメントIDに依存しない)
+      let locationId: string;
       
-      const nextNumber = maxNumber + 1;
-      const locationId = `${poi.segment_id}-${String(nextNumber).padStart(3, '0')}`;
+      if (poi.poi_category === 'visit_measurement') {
+        // 来店計測地点: プロジェクト全体で連番を管理
+        const projectVisitMeasurementPois = pois.filter(p => 
+          p.project_id === poi.project_id && 
+          p.poi_category === 'visit_measurement'
+        );
+        const maxNumber = projectVisitMeasurementPois.reduce((max, p) => {
+          // 既存のlocation_idから番号を抽出（形式: VM-001など）
+          if (p.location_id && p.location_id.startsWith('VM-')) {
+            const match = p.location_id.match(/^VM-(\d+)$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              return Math.max(max, num);
+            }
+          }
+          return max;
+        }, 0);
+        
+        const nextNumber = maxNumber + 1;
+        locationId = `VM-${String(nextNumber).padStart(3, '0')}`;
+      } else {
+        // TG地点: セグメント単位で連番を管理
+        const segmentPois = pois.filter(p => 
+          p.segment_id === poi.segment_id && 
+          (p.poi_category === 'tg' || !p.poi_category)
+        );
+        const maxNumber = segmentPois.reduce((max, p) => {
+          // 既存のlocation_idから番号を抽出（形式: TG-S1-001など）
+          if (p.location_id && p.location_id.startsWith('TG-')) {
+            const match = p.location_id.match(/^TG-[^-]+-(\d+)$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              return Math.max(max, num);
+            }
+          }
+          return max;
+        }, 0);
+        
+        const nextNumber = maxNumber + 1;
+        locationId = `TG-${poi.segment_id}-${String(nextNumber).padStart(3, '0')}`;
+      }
+      
+      // polygonフィールドが存在する場合、poi_typeを自動設定
+      let poiWithType = { ...poi };
+      if (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+        if (!poiWithType.poi_type || poiWithType.poi_type !== 'polygon') {
+          poiWithType.poi_type = 'polygon';
+        }
+      }
       
       const newPoi: PoiInfo = {
-        ...poi,
+        ...poiWithType,
         poi_id: `POI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         location_id: locationId,
         created: new Date().toISOString(),
@@ -760,6 +877,17 @@ class BigQueryService {
       pois.unshift(newPoi);
       localStorage.setItem(this.poiStorageKey, JSON.stringify(pois));
       console.log('📍 POI created:', newPoi);
+      
+      // デバッグ: ポリゴン指定の場合、詳細をログ出力
+      if (newPoi.poi_type === 'polygon' || (newPoi.polygon && Array.isArray(newPoi.polygon) && newPoi.polygon.length > 0)) {
+        console.log('🔵 ポリゴン指定地点が作成されました:', {
+          poi_id: newPoi.poi_id,
+          poi_name: newPoi.poi_name,
+          poi_type: newPoi.poi_type,
+          polygon_length: Array.isArray(newPoi.polygon) ? newPoi.polygon.length : 'N/A',
+          polygon: newPoi.polygon
+        });
+      }
       return newPoi;
     } catch (error) {
       console.error('Error creating POI:', error);
@@ -771,24 +899,74 @@ class BigQueryService {
     try {
       const existingPois = await this.getPoiInfos();
       
-      // セグメントごとにグループ化
-      const poisBySegment = new Map<string, Omit<PoiInfo, 'poi_id' | 'created'>[]>();
+      // カテゴリごとにグループ化（来店計測地点はプロジェクト単位、TG地点はセグメント単位）
+      const visitMeasurementPois: Omit<PoiInfo, 'poi_id' | 'created'>[] = [];
+      const tgPoisBySegment = new Map<string, Omit<PoiInfo, 'poi_id' | 'created'>[]>();
+      
       poisData.forEach(poi => {
-        if (!poisBySegment.has(poi.segment_id)) {
-          poisBySegment.set(poi.segment_id, []);
+        const category = poi.poi_category || 'tg';
+        if (category === 'visit_measurement') {
+          visitMeasurementPois.push(poi);
+        } else {
+          const segmentId = poi.segment_id || '';
+          if (!tgPoisBySegment.has(segmentId)) {
+            tgPoisBySegment.set(segmentId, []);
+          }
+          tgPoisBySegment.get(segmentId)!.push(poi);
         }
-        poisBySegment.get(poi.segment_id)!.push(poi);
       });
       
       const newPois: PoiInfo[] = [];
       
-      // セグメントごとに連番を割り当て
-      for (const [segmentId, segmentPoisData] of poisBySegment.entries()) {
-        // 既存の地点から最大番号を取得
-        const segmentExistingPois = existingPois.filter(p => p.segment_id === segmentId);
+      // 来店計測地点: プロジェクト単位で連番を割り当て
+      if (visitMeasurementPois.length > 0) {
+        const projectId = visitMeasurementPois[0].project_id;
+        const projectVisitMeasurementPois = existingPois.filter(p => 
+          p.project_id === projectId && 
+          p.poi_category === 'visit_measurement'
+        );
+        let maxNumber = projectVisitMeasurementPois.reduce((max, p) => {
+          if (p.location_id && p.location_id.startsWith('VM-')) {
+            const match = p.location_id.match(/^VM-(\d+)$/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              return Math.max(max, num);
+            }
+          }
+          return max;
+        }, 0);
+        
+        for (const poi of visitMeasurementPois) {
+          maxNumber++;
+          const locationId = `VM-${String(maxNumber).padStart(3, '0')}`;
+          
+          // polygonフィールドが存在する場合、poi_typeを自動設定
+          let poiWithType = { ...poi };
+          if (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+            if (!poiWithType.poi_type || poiWithType.poi_type !== 'polygon') {
+              poiWithType.poi_type = 'polygon';
+            }
+          }
+          
+          newPois.push({
+            ...poiWithType,
+            poi_id: `POI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            location_id: locationId,
+            created: new Date().toISOString(),
+          });
+        }
+      }
+      
+      // TG地点: セグメント単位で連番を割り当て
+      for (const [segmentId, segmentPoisData] of tgPoisBySegment.entries()) {
+        // 既存の地点から最大番号を取得（同じセグメント）
+        const segmentExistingPois = existingPois.filter(p => 
+          p.segment_id === segmentId && 
+          (p.poi_category === 'tg' || !p.poi_category)
+        );
         let maxNumber = segmentExistingPois.reduce((max, p) => {
-          if (p.location_id) {
-            const match = p.location_id.match(/-(\d+)$/);
+          if (p.location_id && p.location_id.startsWith('TG-')) {
+            const match = p.location_id.match(/^TG-[^-]+-(\d+)$/);
             if (match) {
               const num = parseInt(match[1], 10);
               return Math.max(max, num);
@@ -800,10 +978,18 @@ class BigQueryService {
         // 各地点に連番を割り当て
         for (const poi of segmentPoisData) {
           maxNumber++;
-          const locationId = `${segmentId}-${String(maxNumber).padStart(3, '0')}`;
+          const locationId = `TG-${segmentId}-${String(maxNumber).padStart(3, '0')}`;
+          
+          // polygonフィールドが存在する場合、poi_typeを自動設定
+          let poiWithType = { ...poi };
+          if (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+            if (!poiWithType.poi_type || poiWithType.poi_type !== 'polygon') {
+              poiWithType.poi_type = 'polygon';
+            }
+          }
           
           newPois.push({
-            ...poi,
+            ...poiWithType,
             poi_id: `POI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             location_id: locationId,
             created: new Date().toISOString(),

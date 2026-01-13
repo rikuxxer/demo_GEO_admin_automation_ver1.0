@@ -9,6 +9,8 @@ import { getPrefectures, getCitiesByPrefecture } from '../utils/prefectureData';
 import { geocodeAddress } from '../utils/geocoding';
 import { toast } from 'sonner';
 import { CSVValidationError, parseAndValidateExcel, downloadExcelTemplate } from '../utils/csvParser';
+import { PolygonMapEditor } from './PolygonMapEditor';
+import { validatePolygonRange } from '../utils/polygonUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,6 +93,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     cities: poi?.cities || [],
     latitude: poi?.latitude,
     longitude: poi?.longitude,
+    polygon: poi?.polygon || undefined,
     // 編集時は既存の地点データを使用、新規登録時はセグメント共通条件があればそれを使用、なければ空
     designated_radius: poi?.designated_radius || (segment?.designated_radius ? segment.designated_radius : ''),
     extraction_period: poi?.extraction_period || (segment?.extraction_period ? segment.extraction_period : ''),
@@ -139,6 +142,12 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   const [isGeocodingPaste, setIsGeocodingPaste] = useState(false);
   // 一括登録用のグループ選択
   const [bulkGroupId, setBulkGroupId] = useState<string | null>(defaultGroupId || null);
+  // ポリゴン選択関連のState
+  const [polygons, setPolygons] = useState<Array<{ id: string; coordinates: number[][] }>>(
+    poi?.polygon ? [{ id: 'polygon-0', coordinates: poi.polygon }] : []
+  );
+  const [showPolygonEditor, setShowPolygonEditor] = useState(false);
+  const [selectedPolygonId, setSelectedPolygonId] = useState<string | undefined>(undefined);
   // 表形式コピペ用の抽出条件
   const [pasteExtractionConditions, setPasteExtractionConditions] = useState<{
     designated_radius: string;
@@ -168,8 +177,22 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     setEntryMethod(value);
     if (value === 'prefecture') {
       handleChange('poi_type', 'prefecture');
+    } else if (value === 'polygon') {
+      handleChange('poi_type', 'polygon');
+      setShowPolygonEditor(true);
     } else if (value !== 'csv' && value !== 'paste') {
       handleChange('poi_type', value);
+    }
+  };
+
+  // ポリゴンデータの更新ハンドラ
+  const handlePolygonsChange = (newPolygons: Array<{ id: string; coordinates: number[][] }>) => {
+    setPolygons(newPolygons);
+    // 最初のポリゴンの座標をformDataに保存（1セグメント内で複数のポリゴンは別のPOIとして登録）
+    if (newPolygons.length > 0) {
+      setFormData(prev => ({ ...prev, polygon: newPolygons[0].coordinates }));
+    } else {
+      setFormData(prev => ({ ...prev, polygon: undefined }));
     }
   };
 
@@ -849,14 +872,67 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     setErrorMessage(null); // エラーメッセージをクリア
     
     // バリデーション
+    // ポリゴン選択の場合
+    if (entryMethod === 'polygon' || formData.poi_type === 'polygon') {
+      if (!formData.polygon || formData.polygon.length === 0) {
+        setErrorMessage('ポリゴンを少なくとも1つ描画してください');
+        return;
+      }
+      
+      // ポリゴンの範囲を検証
+      if (formData.polygon && Array.isArray(formData.polygon) && formData.polygon.length >= 3) {
+        const validation = validatePolygonRange(formData.polygon);
+        if (!validation.isValid) {
+          setErrorMessage(validation.error || 'ポリゴンの範囲が広すぎます');
+          return;
+        }
+      }
+      
+      // 複数のポリゴンがある場合、すべてを検証
+      if (polygons && polygons.length > 0) {
+        for (const polygon of polygons) {
+          if (polygon.coordinates && polygon.coordinates.length >= 3) {
+            const validation = validatePolygonRange(polygon.coordinates);
+            if (!validation.isValid) {
+              setErrorMessage(validation.error || 'ポリゴンの範囲が広すぎます');
+              return;
+            }
+          }
+        }
+      }
+      
+      // 1セグメント内で10個のポリゴンまでという制限をチェック
+      const existingPolygonPois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type === 'polygon' &&
+        p.polygon && p.polygon.length > 0
+      );
+      
+      // 編集時は現在のPOIを除外
+      const existingCount = poi 
+        ? existingPolygonPois.filter(p => p.poi_id !== poi.poi_id).length
+        : existingPolygonPois.length;
+      
+      if (existingCount >= 10) {
+        setErrorMessage('このセグメントには既に10個のポリゴンが登録されています。新しいポリゴンを追加するには、既存のポリゴンを削除してください。');
+        return;
+      }
+      
+      // 新しいポリゴンを追加する場合のチェック
+      if (!poi && existingCount + polygons.length > 10) {
+        setErrorMessage(`このセグメントには既に${existingCount}個のポリゴンが登録されています。あと${10 - existingCount}個まで登録できます。`);
+        return;
+      }
+    }
+    
     // 都道府県指定の場合
     if (entryMethod === 'prefecture' || formData.poi_type === 'prefecture') {
       if (!formData.cities || formData.cities.length === 0) {
         setErrorMessage('市区町村を少なくとも1つ選択してください');
         return;
       }
-    } else {
-      // 手動登録やその他の場合、地点名が必須
+    } else if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon') {
+      // ポリゴン選択以外の場合、地点名が必須
       if (!formData.poi_name || formData.poi_name.trim() === '') {
         setErrorMessage('地点名は必須項目です');
         return;
@@ -886,8 +962,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return;
       }
     }
-    // 都道府県指定以外の場合のみ半径が必須
-    if (formData.poi_type !== 'prefecture' && !formData.designated_radius) {
+    // 都道府県指定とポリゴン選択以外の場合のみ半径が必須
+    if (formData.poi_type !== 'prefecture' && formData.poi_type !== 'polygon' && !formData.designated_radius) {
       setErrorMessage('指定半径は必須項目です');
       return;
     }
@@ -909,11 +985,22 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       return;
     }
 
+    // ポリゴン選択の場合、地点名を自動生成（未設定の場合）
+    let finalFormData = { ...formData };
+    if ((entryMethod === 'polygon' || formData.poi_type === 'polygon') && (!formData.poi_name || formData.poi_name.trim() === '')) {
+      finalFormData.poi_name = `ポリゴン地点 ${new Date().toLocaleString('ja-JP')}`;
+    }
+    
+    // ポリゴン選択の場合、poi_typeを確実に'polygon'に設定
+    if (entryMethod === 'polygon' || (formData.polygon && Array.isArray(formData.polygon) && formData.polygon.length > 0)) {
+      finalFormData.poi_type = 'polygon';
+    }
+
     // 緯度経度を数値に変換
     const submitData = {
-      ...formData,
+      ...finalFormData,
       latitude: (() => {
-        const lat = formData.latitude;
+        const lat = finalFormData.latitude;
         if (lat === undefined || lat === null) return undefined;
         if (typeof lat === 'string') {
           return lat === '' ? undefined : parseFloat(lat);
@@ -921,7 +1008,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return typeof lat === 'number' ? lat : undefined;
       })(),
       longitude: (() => {
-        const lng = formData.longitude;
+        const lng = finalFormData.longitude;
         if (lng === undefined || lng === null) return undefined;
         if (typeof lng === 'string') {
           return lng === '' ? undefined : parseFloat(lng);
@@ -929,6 +1016,17 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return typeof lng === 'number' ? lng : undefined;
       })(),
     };
+
+    // デバッグ: ポリゴン指定の場合、送信データをログ出力
+    if (submitData.poi_type === 'polygon' || (submitData.polygon && Array.isArray(submitData.polygon) && submitData.polygon.length > 0)) {
+      console.log('📤 ポリゴン指定地点を送信:', {
+        poi_type: submitData.poi_type,
+        poi_name: submitData.poi_name,
+        polygon: submitData.polygon,
+        polygon_length: Array.isArray(submitData.polygon) ? submitData.polygon.length : 'N/A',
+        entryMethod: entryMethod
+      });
+    }
 
     onSubmit(submitData);
   };
@@ -997,6 +1095,9 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       return !!formData.poi_name;
     } else if (formData.poi_type === 'prefecture') {
       return formData.cities && formData.cities.length > 0;
+    } else if (formData.poi_type === 'polygon' || entryMethod === 'polygon') {
+      // ポリゴンが1つ以上存在する場合
+      return polygons.length > 0 && formData.polygon && formData.polygon.length > 0;
     }
     return false;
   };
@@ -1178,8 +1279,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
 
         {/* コンテンツエリア */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          {/* エラーメッセージ表示（都道府県指定と手動登録の場合のみ） */}
-          {errorMessage && (entryMethod === 'prefecture' || entryMethod === 'manual') && (
+          {/* エラーメッセージ表示 */}
+          {errorMessage && (entryMethod === 'prefecture' || entryMethod === 'manual' || entryMethod === 'polygon') && (
             <div className="mx-6 mt-6 bg-red-50 border-2 border-red-300 rounded-lg p-4 shadow-md">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -1204,42 +1305,58 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               {/* 地点タイプ選択 */}
               {/* 登録モード切替タ��（新規登録時のみ） */}
               {!poi && (
-                <div className="flex p-1 bg-gray-100 rounded-lg mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
                   <button
                     type="button"
                     onClick={() => handleEntryMethodChange('paste')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                    className={`flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all border ${
                       entryMethod === 'paste'
-                        ? 'bg-white text-[#5b5fff] shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white text-[#5b5fff] shadow-sm border-[#5b5fff]'
+                        : 'bg-gray-50 text-gray-600 hover:text-gray-900 border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <FileText className="w-4 h-4" />
-                    表形式コピペ
+                    <span className="hidden sm:inline">表形式コピペ</span>
+                    <span className="sm:hidden">コピペ</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleEntryMethodChange('prefecture')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                    className={`flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all border ${
                       entryMethod === 'prefecture'
-                        ? 'bg-white text-[#5b5fff] shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white text-[#5b5fff] shadow-sm border-[#5b5fff]'
+                        : 'bg-gray-50 text-gray-600 hover:text-gray-900 border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <Building2 className="w-4 h-4" />
-                    都道府県指定
+                    <span className="hidden sm:inline">都道府県指定</span>
+                    <span className="sm:hidden">都道府県</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleEntryMethodChange('csv')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                    className={`flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all border ${
                       entryMethod === 'csv'
-                        ? 'bg-white text-[#5b5fff] shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white text-[#5b5fff] shadow-sm border-[#5b5fff]'
+                        : 'bg-gray-50 text-gray-600 hover:text-gray-900 border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <Table className="w-4 h-4" />
-                    Excel一括登録
+                    <span className="hidden sm:inline">Excel一括登録</span>
+                    <span className="sm:hidden">Excel</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEntryMethodChange('polygon')}
+                    className={`flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all border ${
+                      entryMethod === 'polygon'
+                        ? 'bg-white text-[#5b5fff] shadow-sm border-[#5b5fff]'
+                        : 'bg-gray-50 text-gray-600 hover:text-gray-900 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <MapPin className="w-4 h-4" />
+                    <span className="hidden sm:inline">ポリゴン選択</span>
+                    <span className="sm:hidden">ポリゴン</span>
                   </button>
                 </div>
               )}
@@ -2241,6 +2358,99 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                 </div>
               )}
 
+              {/* ポリゴン選択 */}
+              {entryMethod === 'polygon' && (
+                <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 text-blue-900 mb-2">
+                    <MapPin className="w-5 h-5" />
+                    <h3>ポリゴン選択（地図上で描画）</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-700">
+                      地図上でポリゴンを描画して地点を指定します。1つのセグメント内で最大10個のポリゴンを登録できます。
+                    </p>
+                    
+                    {/* 既存のポリゴン数をチェック */}
+                    {(() => {
+                      const existingPolygonPois = pois.filter(p => 
+                        p.segment_id === segmentId && 
+                        p.poi_type === 'polygon' &&
+                        p.polygon && p.polygon.length > 0
+                      );
+                      const remainingCount = 10 - existingPolygonPois.length;
+                      
+                      if (remainingCount <= 0) {
+                        return (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <p className="text-sm text-red-700">
+                              ⚠️ このセグメントには既に10個のポリゴンが登録されています。新しいポリゴンを追加するには、既存のポリゴンを削除してください。
+                            </p>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <p className="text-sm text-blue-700">
+                            このセグメントには既に{existingPolygonPois.length}個のポリゴンが登録されています。あと{remainingCount}個登録できます。
+                          </p>
+                        </div>
+                      );
+                    })()}
+                    
+                    <Button
+                      type="button"
+                      onClick={() => setShowPolygonEditor(true)}
+                      className="w-full bg-[#5b5fff] text-white hover:bg-[#4a4fef]"
+                    >
+                      <MapPin className="w-4 h-4 mr-2" />
+                      地図を開いてポリゴンを描画
+                    </Button>
+                    
+                    {polygons.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm font-medium mb-2">登録済みポリゴン ({polygons.length}/10)</p>
+                        <p className="text-xs text-gray-500 mb-2">※ ポリゴンをクリックすると地図でその位置を表示します</p>
+                        <div className="space-y-2">
+                          {polygons.map((polygon, index) => (
+                            <div
+                              key={polygon.id}
+                              className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-[#5b5fff] cursor-pointer transition-colors"
+                              onClick={() => {
+                                // ポリゴンエディタが開いている場合は、地図を移動
+                                if (showPolygonEditor) {
+                                  setSelectedPolygonId(polygon.id);
+                                } else {
+                                  // ポリゴンエディタが閉じている場合は開く
+                                  setSelectedPolygonId(polygon.id);
+                                  setShowPolygonEditor(true);
+                                }
+                              }}
+                            >
+                              <span className="text-sm flex-1">ポリゴン {index + 1} ({polygon.coordinates.length}点)</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  const newPolygons = polygons.filter(p => p.id !== polygon.id);
+                                  handlePolygonsChange(newPolygons);
+                                }}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* PKG指定削除済み */}
             </div>
           )}
@@ -2264,8 +2474,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               )}
 
               <div className="space-y-6">
-                {/* 指定半径（都道府県指定の場合は非表示） */}
-                {formData.poi_type !== 'prefecture' && (
+                {/* 指定半径（都道府県指定とポリゴン選択の場合は非表示） */}
+                {formData.poi_type !== 'prefecture' && formData.poi_type !== 'polygon' && (
                   <div>
                     <Label className="block mb-3 flex items-center gap-2">
                       <Target className="w-4 h-4 text-[#5b5fff]" />
@@ -2558,7 +2768,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               )}
 
               <div className="space-y-6">
-                {/* 指定半径 */}
+                {/* 指定半径（都道府県指定とポリゴン選択の場合は非表示） */}
+                {formData.poi_type !== 'prefecture' && formData.poi_type !== 'polygon' && (
                 <div>
                   <Label className="block mb-3 flex items-center gap-2">
                     <Target className="w-4 h-4 text-[#5b5fff]" />
@@ -2607,6 +2818,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     })()}
                   </div>
                 </div>
+                )}
 
                 {/* 抽出期間 */}
                 <div>
@@ -2823,6 +3035,24 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ポリゴンエディタモーダル */}
+      {showPolygonEditor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-[90vw] h-[90vh] max-w-7xl flex flex-col">
+            <PolygonMapEditor
+              polygons={polygons}
+              maxPolygons={10}
+              onPolygonsChange={handlePolygonsChange}
+              onClose={() => {
+                setShowPolygonEditor(false);
+                setSelectedPolygonId(undefined);
+              }}
+              selectedPolygonId={selectedPolygonId}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

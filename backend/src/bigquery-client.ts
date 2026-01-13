@@ -1099,6 +1099,7 @@ export class BigQueryService {
         'designated_radius',
         'setting_flag',
         'visit_measurement_group_id',
+        'polygon',
       ];
 
       const cleanedPoi: any = {
@@ -1127,6 +1128,15 @@ export class BigQueryService {
               } catch {
                 cleanedPoi[field] = [poi[field]];
               }
+            }
+          } else if (field === 'polygon') {
+            // polygonフィールド: number[][]をJSON文字列に変換して保存
+            if (Array.isArray(poi[field]) && poi[field].length > 0) {
+              // 2次元配列をJSON文字列に変換
+              cleanedPoi[field] = JSON.stringify(poi[field]);
+            } else if (typeof poi[field] === 'string') {
+              // 既にJSON文字列の場合はそのまま
+              cleanedPoi[field] = poi[field];
             }
           } else {
             cleanedPoi[field] = poi[field];
@@ -1197,6 +1207,7 @@ export class BigQueryService {
           'designated_radius',
           'setting_flag',
           'visit_measurement_group_id',
+          'polygon',
         ];
 
         const cleanedPoi: any = {
@@ -1222,6 +1233,15 @@ export class BigQueryService {
                 } catch {
                   cleanedPoi[field] = [poi[field]];
                 }
+              }
+            } else if (field === 'polygon') {
+              // polygonフィールド: number[][]をJSON文字列に変換して保存
+              if (Array.isArray(poi[field]) && poi[field].length > 0) {
+                // 2次元配列をJSON文字列に変換
+                cleanedPoi[field] = JSON.stringify(poi[field]);
+              } else if (typeof poi[field] === 'string') {
+                // 既にJSON文字列の場合はそのまま
+                cleanedPoi[field] = poi[field];
               }
             } else {
               cleanedPoi[field] = poi[field];

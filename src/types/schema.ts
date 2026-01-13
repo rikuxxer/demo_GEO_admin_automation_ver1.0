@@ -54,7 +54,7 @@ export interface PoiInfo {
   poi_id?: string; // 地点グループID（自動採番）
   
   // 地点情報登録タイプ
-  poi_type?: 'manual' | 'prefecture'; // 任意地点 | 都道府県・市区町村
+  poi_type?: 'manual' | 'prefecture' | 'polygon'; // 任意地点 | 都道府県・市区町村 | ポリゴン選択
   
   // 地点カテゴリ
   poi_category?: 'tg' | 'visit_measurement'; // TG地点 | 来店計測地点
@@ -73,6 +73,9 @@ export interface PoiInfo {
   // 座標情報
   latitude?: number; // 緯度
   longitude?: number; // 経度
+  
+  // ポリゴン選択（地図上で描画したポリゴン）
+  polygon?: number[][]; // ポリゴンの座標配列 [[lat, lng], [lat, lng], ...]
   
   // 注意：以下の抽出条件フィールドは後方互換性のために残していますが、
   // 新規登録時はSegmentの共通条件が適用されます。
@@ -138,6 +141,7 @@ export const PROJECT_STATUS_OPTIONS = [
 export const POI_TYPE_OPTIONS = [
   { value: 'manual', label: '任意地点指定' },
   { value: 'prefecture', label: '都道府県・市区町村指定' },
+  { value: 'polygon', label: 'ポリゴン選択（地図上で描画）' },
 ] as const;
 
 // 属性の選択肢
