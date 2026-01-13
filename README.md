@@ -35,9 +35,9 @@ UNIVERSEGEO案件管理ツールは、位置情報データ（POI）と広告配
 
 - **フロントエンド**: React 18 + TypeScript + Vite
 - **UIライブラリ**: Radix UI + Tailwind CSS
-- **地図**: Leaflet.js
+- **地図**: Leaflet.js（Google Maps API対応、APIキー設定で切り替え可能）
 - **Excel処理**: ExcelJS, XLSX
-- **外部API**: Google Sheets API
+- **外部API**: Google Sheets API, Google Maps API
 - **デプロイ**: Cloud Run (推奨), Netlify, Vercel
 
 ---
@@ -58,6 +58,10 @@ npm install
 # 環境変数を設定
 cp env.example .env
 # .envファイルを編集してAPIキーを設定
+# - VITE_API_BASE_URL: バックエンドAPI URL
+# - VITE_GOOGLE_MAPS_API_KEY: Google Maps APIキー（オプション、ポリゴン選択機能で使用）
+# - VITE_API_BASE_URL: バックエンドAPI URL
+# - VITE_GOOGLE_MAPS_API_KEY: Google Maps APIキー（オプション、ポリゴン選択機能で使用）
 
 # 開発サーバーを起動
 npm run dev
@@ -113,13 +117,26 @@ chmod +x deploy.sh
 
 ## 📚 ドキュメント
 
+### 主要ドキュメント
+
 | ドキュメント | 説明 |
 |------------|------|
 | [QUICKSTART.md](./QUICKSTART.md) | 5ステップでデプロイ |
 | [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | 詳細なデプロイ手順 |
 | [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md) | Google Sheets API設定 |
 | [BIGQUERY_SETUP.md](./BIGQUERY_SETUP.md) | BigQuery接続設定 |
+| [COST_ESTIMATION.md](./COST_ESTIMATION.md) | コスト見積もり |
+| [MULTI_API_KEY_STRATEGY.md](./MULTI_API_KEY_STRATEGY.md) | APIキー戦略 |
+| [VERTEX_AI_AGENT_IMPLEMENTATION.md](./VERTEX_AI_AGENT_IMPLEMENTATION.md) | Vertex AI実装 |
 | [env.example](./env.example) | 環境変数テンプレート |
+
+### システム仕様書
+
+システム仕様書は [`src/docs/`](./src/docs/) ディレクトリにあります。
+
+### アーカイブドキュメント
+
+一時的なトラブルシューティングガイドは [`docs/troubleshooting/`](./docs/troubleshooting/) にアーカイブされています。
 
 ---
 
