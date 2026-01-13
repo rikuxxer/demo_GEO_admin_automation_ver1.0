@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Edit, Trash2, MapPin, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Save, X, Settings } from 'lucide-react';
+import { Edit, Trash2, MapPin, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Save, X, Settings, Copy } from 'lucide-react';
 import { Button } from './ui/button';
 import type { PoiInfo } from '../types/schema';
+import { convertToPolygonWKT } from '../utils/polygonUtils';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,9 +33,6 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
-  
-  // 編集モードの地点があるかチェック
-  const hasEditingRow = editingId !== null;
 
   // デバッグ: ポリゴン指定の地点を確認
   useEffect(() => {
@@ -156,8 +155,25 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
             {currentPois.map((poi) => {
               const isEditing = editingId === poi.poi_id;
               
+              // ポリゴンデータの正規化（文字列の場合はパース）
+              let normalizedPolygon: number[][] | undefined = undefined;
+              if (poi.polygon) {
+                if (Array.isArray(poi.polygon)) {
+                  normalizedPolygon = poi.polygon;
+                } else if (typeof poi.polygon === 'string') {
+                  try {
+                    const parsed = JSON.parse(poi.polygon);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                      normalizedPolygon = parsed;
+                    }
+                  } catch (e) {
+                    console.warn('Failed to parse polygon data:', e);
+                  }
+                }
+              }
+              
               // ポリゴン指定の判定: poi_typeが'polygon'、またはpolygonフィールドが存在して配列で長さが0より大きい場合
-              const isPolygonPoi = poi.poi_type === 'polygon' || (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0);
+              const isPolygonPoi = poi.poi_type === 'polygon' || (normalizedPolygon && normalizedPolygon.length > 0);
               
               // 半径指定（自由指定）の判定: poi_typeが'manual'でdesignated_radiusがある
               const isManualRadiusPoi = poi.poi_type === 'manual' && poi.designated_radius;
@@ -213,9 +229,9 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           <>
                             <div className="font-medium">{poi.poi_name || 'ポリゴン地点'}</div>
                             <span className="ml-2 text-xs text-white bg-blue-600 px-2 py-0.5 rounded">ポリゴン指定</span>
-                            {poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0 && (
+                            {normalizedPolygon && normalizedPolygon.length > 0 && (
                               <div className="mt-1 text-sm text-gray-500">
-                                座標数: {poi.polygon.length}点
+                                座標数: {normalizedPolygon.length}点
                               </div>
                             )}
                           </>
@@ -251,17 +267,49 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                             )}
                           </div>
                         </div>
-                      ) : isPolygonPoi && poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0 ? (
+                      ) : isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
                         <div className="text-base text-gray-900">
-                          <div className="space-y-1">
+                          <div className="space-y-2">
                             <div className="text-sm text-gray-600 font-medium">
                               ポリゴン座標範囲:
                             </div>
                             <div className="text-sm text-gray-500 font-mono">
-                              緯度: {Math.min(...poi.polygon.map((c: number[]) => c[0])).toFixed(6)} ～ {Math.max(...poi.polygon.map((c: number[]) => c[0])).toFixed(6)}
+                              緯度: {Math.min(...normalizedPolygon.map((c: number[]) => c[0])).toFixed(6)} ～ {Math.max(...normalizedPolygon.map((c: number[]) => c[0])).toFixed(6)}
                             </div>
                             <div className="text-sm text-gray-500 font-mono">
-                              経度: {Math.min(...poi.polygon.map((c: number[]) => c[1])).toFixed(6)} ～ {Math.max(...poi.polygon.map((c: number[]) => c[1])).toFixed(6)}
+                              経度: {Math.min(...normalizedPolygon.map((c: number[]) => c[1])).toFixed(6)} ～ {Math.max(...normalizedPolygon.map((c: number[]) => c[1])).toFixed(6)}
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-gray-200">
+                              <div className="text-xs text-gray-500 mb-1">POLYGON形式:</div>
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1 text-xs font-mono text-gray-700 bg-gray-50 p-2 rounded break-all">
+                                  {(() => {
+                                    try {
+                                      return convertToPolygonWKT(normalizedPolygon);
+                                    } catch (e) {
+                                      return '変換エラー';
+                                    }
+                                  })()}
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 flex-shrink-0"
+                                  onClick={async () => {
+                                    try {
+                                      const polygonWKT = convertToPolygonWKT(normalizedPolygon);
+                                      await navigator.clipboard.writeText(polygonWKT);
+                                      toast.success('POLYGON形式をクリップボードにコピーしました');
+                                    } catch (e) {
+                                      toast.error('コピーに失敗しました');
+                                    }
+                                  }}
+                                  title="POLYGON形式をコピー"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </div>
                             {poi.address && (
                               <div className="text-sm text-gray-400 mt-1">
@@ -347,11 +395,11 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                       </div>
                     ) : (
                       <div className={isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
-                        {isPolygonPoi && poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0 ? (
+                        {isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
                           <div className="text-sm text-gray-600">
                             <div className="font-medium">中心: {(() => {
-                              const centerLat = poi.polygon.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / poi.polygon.length;
-                              const centerLng = poi.polygon.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / poi.polygon.length;
+                              const centerLat = normalizedPolygon.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / normalizedPolygon.length;
+                              const centerLng = normalizedPolygon.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / normalizedPolygon.length;
                               return `${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}`;
                             })()}</div>
                           </div>

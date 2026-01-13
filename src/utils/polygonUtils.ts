@@ -182,3 +182,32 @@ export function validatePolygonRange(
     };
   }
 }
+
+/**
+ * ポリゴンをWKT（Well-Known Text）形式のPOLYGON文字列に変換
+ * 形式: POLYGON((lng1 lat1, lng2 lat2, lng3 lat3, lng1 lat1))
+ * 注意: 座標は [lat, lng] 形式から [lng, lat] 形式に変換される
+ * @param coordinates ポリゴンの座標配列 [[lat, lng], [lat, lng], ...]
+ * @returns POLYGON形式の文字列
+ */
+export function convertToPolygonWKT(coordinates: number[][]): string {
+  if (!coordinates || coordinates.length < 3) {
+    throw new Error('ポリゴンの座標が不足しています（最低3点必要）');
+  }
+
+  // 座標を [lat, lng] から [lng, lat] に変換し、文字列に変換
+  const points = coordinates.map(coord => {
+    if (coord.length < 2) {
+      throw new Error('座標は緯度と経度の2つの値が必要です');
+    }
+    const lng = coord[1]; // 経度
+    const lat = coord[0]; // 緯度
+    return `${lng} ${lat}`;
+  });
+
+  // 最初の点を最後に追加して閉じたポリゴンにする
+  const closedPoints = [...points, points[0]];
+
+  // POLYGON形式の文字列を生成
+  return `POLYGON((${closedPoints.join(',')}))`;
+}
