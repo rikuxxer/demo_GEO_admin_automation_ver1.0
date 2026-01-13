@@ -144,6 +144,7 @@ CREATE TABLE `universegeo_dataset.pois` (
   designated_radius STRING,
   setting_flag STRING,
   visit_measurement_group_id STRING,
+  polygon STRING,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 )

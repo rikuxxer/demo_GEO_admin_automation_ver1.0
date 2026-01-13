@@ -69,6 +69,7 @@
 - `designated_radius` (STRING, NULLABLE)
 - `setting_flag` (STRING, NULLABLE)
 - `visit_measurement_group_id` (STRING, NULLABLE)
+- `polygon` (STRING, NULLABLE) - ポリゴン座標をJSON文字列形式で保存
 
 ### 4. usersテーブル
 
