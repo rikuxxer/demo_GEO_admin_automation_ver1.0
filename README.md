@@ -102,9 +102,9 @@ chmod +x deploy.sh
 
 ### 詳細な手順
 
-- **5分でデプロイ**: [QUICKSTART.md](./QUICKSTART.md)
-- **詳細なガイド**: [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
-- **Google Sheets設定**: [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)
+- **5分でデプロイ**: [QUICKSTART.md](./docs/shared/QUICKSTART.md)
+- **詳細なガイド**: [DEPLOYMENT_GUIDE.md](./docs/shared/DEPLOYMENT_GUIDE.md)
+- **Google Sheets設定**: [GOOGLE_SHEETS_SETUP.md](./docs/shared/GOOGLE_SHEETS_SETUP.md)
 
 ### 対応プラットフォーム
 
@@ -121,13 +121,13 @@ chmod +x deploy.sh
 
 | ドキュメント | 説明 |
 |------------|------|
-| [QUICKSTART.md](./QUICKSTART.md) | 5ステップでデプロイ |
-| [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) | 詳細なデプロイ手順 |
-| [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md) | Google Sheets API設定 |
-| [BIGQUERY_SETUP.md](./BIGQUERY_SETUP.md) | BigQuery接続設定 |
-| [COST_ESTIMATION.md](./COST_ESTIMATION.md) | コスト見積もり |
-| [MULTI_API_KEY_STRATEGY.md](./MULTI_API_KEY_STRATEGY.md) | APIキー戦略 |
-| [VERTEX_AI_AGENT_IMPLEMENTATION.md](./VERTEX_AI_AGENT_IMPLEMENTATION.md) | Vertex AI実装 |
+| [QUICKSTART.md](./docs/shared/QUICKSTART.md) | 5ステップでデプロイ |
+| [DEPLOYMENT_GUIDE.md](./docs/shared/DEPLOYMENT_GUIDE.md) | 詳細なデプロイ手順 |
+| [GOOGLE_SHEETS_SETUP.md](./docs/shared/GOOGLE_SHEETS_SETUP.md) | Google Sheets API設定 |
+| [BIGQUERY_SETUP.md](./docs/shared/BIGQUERY_SETUP.md) | BigQuery接続設定 |
+| [COST_ESTIMATION.md](./docs/shared/COST_ESTIMATION.md) | コスト見積もり |
+| [MULTI_API_KEY_STRATEGY.md](./docs/shared/MULTI_API_KEY_STRATEGY.md) | APIキー戦略 |
+| [VERTEX_AI_AGENT_IMPLEMENTATION.md](./docs/shared/VERTEX_AI_AGENT_IMPLEMENTATION.md) | Vertex AI実装 |
 | [env.example](./env.example) | 環境変数テンプレート |
 
 ### システム仕様書
