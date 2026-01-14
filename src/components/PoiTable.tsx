@@ -141,13 +141,13 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
         <table className="w-full">
           <thead className="bg-gray-50 border-y border-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[10%]">地点ID</th>
-              <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[20%]">地点名/エリア</th>
-              <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[25%]">住所/市区町村</th>
-              <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[10%]">指定半径</th>
-              <th className="px-4 py-3 text-left text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[20%]">緯度経度</th>
+              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[12%]">地点ID</th>
+              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[18%]">地点名/エリア</th>
+              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[25%]">住所/市区町村</th>
+              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[12%]">指定半径</th>
+              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[18%]">緯度経度</th>
               {!readOnly && (
-                <th className="px-4 py-3 text-right text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap w-[5%]"></th>
+                <th className="px-2 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[5%]"></th>
               )}
             </tr>
           </thead>
@@ -196,39 +196,43 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
               return (
                 <tr key={poi.poi_id} className={`${isEditing ? "bg-blue-50/50" : "hover:bg-gray-50"} ${rowSizeClass}`}>
                   {/* 地点ID */}
-                  <td className="px-4 py-4 align-top">
+                  <td className="px-3 py-3 text-center align-middle">
                     {isEditing ? (
-                      <Input
-                        value={editForm.location_id || ''}
-                        onChange={(e) => handleInputChange('location_id', e.target.value)}
-                        className="h-8 text-sm"
-                        placeholder="地点ID"
-                      />
+                      <div className="flex justify-center">
+                        <Input
+                          value={editForm.location_id || ''}
+                          onChange={(e) => handleInputChange('location_id', e.target.value)}
+                          className="h-8 text-sm w-32"
+                          placeholder="地点ID"
+                        />
+                      </div>
                     ) : (
                       <div className="text-sm text-gray-900 font-mono">{poi.location_id || '-'}</div>
                     )}
                   </td>
 
                   {/* 地点名 */}
-                  <td className="px-4 align-top">
+                  <td className="px-3 text-center align-middle">
                     {isEditing ? (
-                      <Input
-                        value={editForm.poi_name || ''}
-                        onChange={(e) => handleInputChange('poi_name', e.target.value)}
-                        className="h-8 text-sm"
-                        placeholder="地点名"
-                      />
+                      <div className="flex justify-center">
+                        <Input
+                          value={editForm.poi_name || ''}
+                          onChange={(e) => handleInputChange('poi_name', e.target.value)}
+                          className="h-8 text-sm w-40"
+                          placeholder="地点名"
+                        />
+                      </div>
                     ) : (
-                      <div className={isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
+                      <div className={`${isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} flex flex-col items-center gap-1`}>
                         {poi.poi_type === 'prefecture' ? (
                           <>
-                            {poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}
-                            <span className="ml-2 text-xs text-white bg-green-600 px-2 py-0.5 rounded">都道府県指定</span>
+                            <div>{poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}</div>
+                            <span className="text-xs text-white bg-green-600 px-2 py-0.5 rounded">都道府県指定</span>
                           </>
                         ) : isPolygonPoi ? (
                           <>
                             <div className="font-medium">{poi.poi_name || 'ポリゴン地点'}</div>
-                            <span className="ml-2 text-xs text-white bg-blue-600 px-2 py-0.5 rounded">ポリゴン指定</span>
+                            <span className="text-xs text-white bg-blue-600 px-2 py-0.5 rounded">ポリゴン指定</span>
                             {normalizedPolygon && normalizedPolygon.length > 0 && (
                               <div className="mt-1 text-sm text-gray-500">
                                 座標数: {normalizedPolygon.length}点
@@ -243,18 +247,20 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   </td>
 
                   {/* 住所 */}
-                  <td className="px-4 align-top">
+                  <td className="px-3 text-center align-middle">
                     {isEditing ? (
-                      <Input
-                        value={editForm.address || ''}
-                        onChange={(e) => handleInputChange('address', e.target.value)}
-                        className="h-8 text-sm"
-                        placeholder="住所"
-                      />
+                      <div className="flex justify-center">
+                        <Input
+                          value={editForm.address || ''}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
+                          className="h-8 text-sm w-48"
+                          placeholder="住所"
+                        />
+                      </div>
                     ) : (
                       poi.poi_type === 'prefecture' && poi.cities && poi.cities.length > 0 ? (
-                        <div className={isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
-                          <div className="flex flex-wrap gap-1">
+                        <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} flex justify-center`}>
+                          <div className="flex flex-wrap gap-1 justify-center">
                             {poi.cities.slice(0, 3).map((city, idx) => (
                               <span key={idx} className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">
                                 {city}
@@ -269,7 +275,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         </div>
                       ) : isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
                         <div className="text-base text-gray-900">
-                          <div className="space-y-2">
+                          <div className="space-y-2 text-center">
                             <div className="text-sm text-gray-600 font-medium">
                               ポリゴン座標範囲:
                             </div>
@@ -281,8 +287,8 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                             </div>
                             <div className="mt-2 pt-2 border-t border-gray-200">
                               <div className="text-xs text-gray-500 mb-1">POLYGON形式:</div>
-                              <div className="flex items-start gap-2">
-                                <div className="flex-1 text-xs font-mono text-gray-700 bg-gray-50 p-2 rounded break-all">
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="flex-1 text-xs font-mono text-gray-700 bg-gray-50 p-2 rounded break-all max-w-xs">
                                   {(() => {
                                     try {
                                       return convertToPolygonWKT(normalizedPolygon);
@@ -325,10 +331,10 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   </td>
 
                   {/* 指定半径 */}
-                  <td className="px-4 align-top">
+                  <td className="px-3 text-center align-middle">
                     {isEditing ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1">
+                      <div className="space-y-1 flex flex-col items-center">
+                        <div className="flex items-center gap-1 justify-center">
                           <input
                             type="number"
                             min="0"
@@ -360,14 +366,14 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           const radiusNum = parseInt(String(editForm.designated_radius).replace('m', ''));
                           if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
                             return (
-                              <p className="text-xs text-red-600">0-10000の範囲で入力</p>
+                              <p className="text-xs text-red-600 text-center">0-10000の範囲で入力</p>
                             );
                           }
                           return null;
                         })()}
                       </div>
                     ) : (
-                      <div className={isManualRadiusPoi ? "text-base text-gray-900 font-medium" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
+                      <div className={`${isManualRadiusPoi ? "text-base text-gray-900 font-medium" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} text-center`}>
                         {poi.poi_type === 'prefecture' || isPolygonPoi
                           ? <span className="text-gray-400 text-xs">指定なし</span>
                           : (poi.designated_radius || '-')
@@ -377,9 +383,9 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   </td>
 
                   {/* 緯度経度 */}
-                  <td className="px-4 align-top">
+                  <td className="px-3 text-center align-middle">
                     {isEditing ? (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 justify-center">
                         <Input
                           value={editForm.latitude || ''}
                           onChange={(e) => handleInputChange('latitude', e.target.value)}
@@ -394,7 +400,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         />
                       </div>
                     ) : (
-                      <div className={isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>
+                      <div className={`${isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} text-center`}>
                         {isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
                           <div className="text-sm text-gray-600">
                             <div className="font-medium">中心: {(() => {
@@ -413,13 +419,13 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   </td>
 
                   {/* 検知回数（UI非表示） */}
-                      <td className="px-4 py-4 align-top"></td>
+                      <td className="px-2 py-3 align-middle"></td>
 
                   {/* アクション */}
                   {!readOnly && (
-                    <td className="px-4 py-4 align-top text-right whitespace-nowrap">
+                    <td className="px-2 py-3 text-center align-middle whitespace-nowrap">
                       {isEditing ? (
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-center gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -450,7 +456,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-center gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
