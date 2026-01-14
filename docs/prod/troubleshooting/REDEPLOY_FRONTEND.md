@@ -4,16 +4,16 @@
 
 本番環境からデータ管理機能を削除するため、フロントエンドを再デプロイします。
 
-## 📋 変更内容
+## 変更内容
 
 以下のファイルが削除・変更されました：
 
-1. ✅ `src/components/DataManagement.tsx` - 削除済み
-2. ✅ `src/utils/clearData.ts` - 削除済み
-3. ✅ `src/components/Sidebar.tsx` - データ管理メニューを削除済み
-4. ✅ `src/App.tsx` - DataManagementコンポーネントの参照を削除済み
+1. `src/components/DataManagement.tsx` - 削除済み
+2. `src/utils/clearData.ts` - 削除済み
+3. `src/components/Sidebar.tsx` - データ管理メニューを削除済み
+4. `src/App.tsx` - DataManagementコンポーネントの参照を削除済み
 
-## 🚀 再デプロイ方法
+## 再デプロイ方法
 
 ### 方法1: GitHub Actionsで自動デプロイ（推奨）
 
@@ -73,7 +73,7 @@ chmod +x deploy.sh
 ./deploy.sh
 ```
 
-## ✅ デプロイ後の確認
+## デプロイ後の確認
 
 1. **Cloud RunのサービスURLにアクセス**
 2. **サイドバーを確認**
@@ -81,7 +81,7 @@ chmod +x deploy.sh
 3. **ブラウザのキャッシュをクリア**（必要に応じて）
    - ハードリロード: `Ctrl+Shift+R` (Windows) または `Cmd+Shift+R` (Mac)
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### デプロイが失敗する場合
 
@@ -115,7 +115,7 @@ chmod +x deploy.sh
      --format 'value(status.latestReadyRevisionName)'
    ```
 
-## 📋 チェックリスト
+## チェックリスト
 
 - [ ] 変更をコミット
 - [ ] mainブランチにプッシュ（または手動デプロイ）

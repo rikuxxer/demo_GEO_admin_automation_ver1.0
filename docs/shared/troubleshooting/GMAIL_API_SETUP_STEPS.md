@@ -1,11 +1,11 @@
 # Gmail API セットアップ手順
 
-## ✅ 完了済み
+## 完了済み
 - [x] `password_reset_tokens`テーブルの作成
 - [x] GitHub Environment Secretsに`EMAIL_SERVICE=gmail`を設定
 - [x] GitHub Environment Secretsに`FRONTEND_URL`を設定
 
-## 📋 次のステップ
+## 次のステップ
 
 ### ステップ1: Gmail APIを有効化
 
@@ -130,7 +130,7 @@ gcloud run deploy universegeo-backend \
    ```
    
    以下のようなログが表示されることを確認：
-   - `✅ Gmail API経由でメールを送信しました: [メールアドレス]`
+   - `Gmail API経由でメールを送信しました: [メールアドレス]`
    - または、エラーメッセージ（設定に問題がある場合）
 
 3. **メールの確認**
@@ -145,7 +145,7 @@ gcloud run deploy universegeo-backend \
 5. **ログイン確認**
    - 新しいパスワードでログインできるか確認
 
-## 🐛 トラブルシューティング
+## トラブルシューティング
 
 ### Gmail APIが有効化されない
 
@@ -193,7 +193,7 @@ gcloud run deploy universegeo-backend \
 - Gmail APIが有効化されているか確認
 - サービスアカウントが正しく設定されているか確認
 
-## 📝 次のステップ
+## 次のステップ
 
 上記の手順を完了後、パスワードリセット機能が本番環境で使用可能になります。
 

@@ -4,7 +4,7 @@
 
 Gmail APIを使用する場合、GitHub Environment Secretsに`EMAIL_SERVICE=gmail`を設定するだけでOKです。追加のAPIキーや認証情報は不要です。
 
-## 🚀 設定手順
+## 設定手順
 
 ### ステップ1: GitHub Repository Settings を開く
 
@@ -61,15 +61,15 @@ Gmail APIを使用する場合、GitHub Environment Secretsに`EMAIL_SERVICE=gma
 
 追加したSecretsが正しく表示されているか確認：
 
-- ✅ `EMAIL_SERVICE`: `gmail`（値は表示されませんが、存在を確認）
-- ✅ `FRONTEND_URL`: （既に設定済みの場合）
+- `EMAIL_SERVICE`: `gmail`（値は表示されませんが、存在を確認）
+- `FRONTEND_URL`: （既に設定済みの場合）
 
-## 📝 注意事項
+## 注意事項
 
 ### Secret名の大文字・小文字
 
-- ✅ 正しい: `EMAIL_SERVICE`
-- ❌ 間違い: `email_service`, `Email_Service`, `EMAIL-SERVICE` など
+- 正しい: `EMAIL_SERVICE`
+- 間違い: `email_service`, `Email_Service`, `EMAIL-SERVICE` など
 
 ### 値の入力
 
@@ -81,7 +81,7 @@ Gmail APIを使用する場合、GitHub Environment Secretsに`EMAIL_SERVICE=gma
 - `FRONTEND_URL` が既に設定されている場合は、追加する必要はありません
 - `EMAIL_SERVICE` のみ追加してください
 
-## 🔍 ワークフローでの確認
+## ワークフローでの確認
 
 設定後、次回のデプロイ時にワークフローで以下のように環境変数が設定されます：
 
@@ -90,7 +90,7 @@ EMAIL_SERVICE=gmail
 FRONTEND_URL=https://your-frontend-url.com
 ```
 
-## ✅ 設定完了後の確認
+## 設定完了後の確認
 
 1. **GitHub Actions のログを確認**
    - デプロイワークフロー実行時に、環境変数が正しく設定されているか確認
@@ -104,7 +104,7 @@ FRONTEND_URL=https://your-frontend-url.com
      --format='value(spec.template.spec.containers[0].env)'
    ```
 
-## 🐛 トラブルシューティング
+## トラブルシューティング
 
 ### Secretが反映されない場合
 
@@ -124,7 +124,7 @@ FRONTEND_URL=https://your-frontend-url.com
 1. Secretを削除して再追加
 2. 正しい値（`gmail`）を入力
 
-## 📚 関連ドキュメント
+## 関連ドキュメント
 
 - `PASSWORD_RESET_SETUP.md`: パスワードリセット機能のセットアップガイド
 - `PASSWORD_RESET_CHECKLIST.md`: 本番環境対応チェックリスト
