@@ -8,13 +8,13 @@
 ## 現在の状況
 
 ### コードでの使用状況
-- ✅ `backend/src/bigquery-client.ts`で`polygon`フィールドが`allowedFields`に含まれている
-- ✅ `polygon`フィールドはSTRING型としてJSON文字列形式で保存される
+- `backend/src/bigquery-client.ts`で`polygon`フィールドが`allowedFields`に含まれている
+- `polygon`フィールドはSTRING型としてJSON文字列形式で保存される
 - ✅ 形式: `"[[lat1, lng1], [lat2, lng2], ...]"` (JSON文字列)
 
 ### テーブル定義の状況
-- ✅ `BIGQUERY_SETUP.md`の`pois`テーブル定義に`polygon`フィールドを追加済み
-- ✅ 実際のBigQueryテーブルに`polygon`フィールドが追加済み（確認済み: 2025年1月）
+- `BIGQUERY_SETUP.md`の`pois`テーブル定義に`polygon`フィールドを追加済み
+- 実際のBigQueryテーブルに`polygon`フィールドが追加済み（確認済み: 2025年1月）
 
 ## 確認方法
 
@@ -54,11 +54,11 @@ ADD COLUMN IF NOT EXISTS polygon STRING;
 ## 実装の変更点
 
 今回の実装（POLYGON形式の表示機能）では：
-- ✅ 既存の`polygon`フィールドを使用（新規フィールドは追加していない）
-- ✅ フロントエンドでの表示・変換処理のみ（データベーススキーマへの変更なし）
-- ⚠️ ただし、テーブルに`polygon`フィールドが存在しない場合は追加が必要
+- 既存の`polygon`フィールドを使用（新規フィールドは追加していない）
+- フロントエンドでの表示・変換処理のみ（データベーススキーマへの変更なし）
+- ただし、テーブルに`polygon`フィールドが存在しない場合は追加が必要
 
-## ✅ 完了状況
+## 完了状況
 
 **`polygon`フィールドは既に追加済みです**（確認日: 2025年1月）
 
@@ -82,7 +82,7 @@ ADD COLUMN IF NOT EXISTS polygon STRING;
 15. visit_measurement_group_id (STRING, NULLABLE)
 16. created_at (TIMESTAMP, NULLABLE)
 17. updated_at (TIMESTAMP, NULLABLE)
-18. **polygon (STRING, NULLABLE)** ✅ 追加済み
+18. **polygon (STRING, NULLABLE)** 追加済み
 
 ## スキーマの注意点
 

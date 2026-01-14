@@ -1,6 +1,6 @@
 # 複数APIキー活用戦略 - 各人の無料枠を活用する方法
 
-## 📊 概要
+## 概要
 
 Google Maps Geocoding APIの無料枠（40,000リクエスト/月）を各ユーザーが持つAPIキーで活用することで、コストを大幅に削減します。
 
@@ -11,7 +11,7 @@ Google Maps Geocoding APIの無料枠（40,000リクエスト/月）を各ユー
 
 ---
 
-## 🎯 実装方針
+## 実装方針
 
 ### 1. ユーザーごとのAPIキー管理
 
@@ -33,7 +33,7 @@ ALTER TABLE `universegeo_dataset.users` ADD COLUMN IF NOT EXISTS api_key_is_acti
 
 ---
 
-## 🔧 実装詳細
+## 実装詳細
 
 ### 2. APIキーローテーション機能
 
@@ -147,7 +147,7 @@ export async function geocodeAddress(
 
 ---
 
-## 📝 ユーザー設定画面の実装
+## ユーザー設定画面の実装
 
 ### 3. APIキー登録コンポーネント
 
@@ -252,7 +252,7 @@ export function UserSettings() {
 
 ---
 
-## 🔄 バックエンドAPI実装
+## バックエンドAPI実装
 
 ### 4. APIキー管理エンドポイント
 
@@ -324,7 +324,7 @@ app.get('/api/admin/api-keys', async (req, res) => {
 
 ---
 
-## 📊 月次リセット機能
+## 月次リセット機能
 
 ### 5. 使用量のリセット
 
@@ -359,7 +359,7 @@ app.post('/api/admin/reset-api-usage', async (req, res) => {
 
 ---
 
-## 💰 コスト削減効果
+## コスト削減効果
 
 ### 6. 期待される効果
 
@@ -407,7 +407,7 @@ app.post('/api/admin/reset-api-usage', async (req, res) => {
 
 ---
 
-## 📋 実装チェックリスト
+## 実装チェックリスト
 
 ### 8. 実装手順
 
@@ -468,7 +468,7 @@ app.post('/api/admin/reset-api-usage', async (req, res) => {
 
 ---
 
-## ⚠️ 注意事項
+## 注意事項
 
 1. **APIキーの共有禁止**
    - 各ユーザーが自分のAPIキーを登録する必要がある
@@ -488,7 +488,7 @@ app.post('/api/admin/reset-api-usage', async (req, res) => {
 
 ---
 
-## 🚀 次のステップ
+## 次のステップ
 
 1. この実装方針をレビュー
 2. 実装の優先順位を決定

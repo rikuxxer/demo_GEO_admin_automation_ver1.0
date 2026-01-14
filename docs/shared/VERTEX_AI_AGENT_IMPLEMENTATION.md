@@ -1,6 +1,6 @@
 # Vertex AI エージェント機能実装の影響分析
 
-## 📊 サマリ
+## サマリ
 
 **Vertex AIエージェント機能を実装した場合の影響**:
 
@@ -16,7 +16,7 @@
 
 ---
 
-## 💰 コスト試算
+## コスト試算
 
 ### Vertex AI Agent Builder 料金体系（2024-2025年時点）
 
@@ -81,7 +81,7 @@
 
 ---
 
-## 🎯 活用シーンと機能
+## 活用シーンと機能
 
 ### 1. 自然言語での案件検索・質問応答
 
@@ -155,7 +155,7 @@
 
 ---
 
-## 🏗️ アーキテクチャへの影響
+## アーキテクチャへの影響
 
 ### 現在の構成
 
@@ -226,7 +226,7 @@ BigQuery + Google Sheets API
 
 ---
 
-## 💡 実装方針
+## 実装方針
 
 ### フェーズ1: 基本機能（軽度利用）
 
@@ -263,7 +263,7 @@ BigQuery + Google Sheets API
 
 ---
 
-## ⚠️ 注意事項
+## 注意事項
 
 ### 1. コスト管理
 
@@ -291,7 +291,7 @@ BigQuery + Google Sheets API
 
 ---
 
-## 📊 コスト比較表
+## コスト比較表
 
 ### 現在のコスト（各人の無料枠活用後）
 
@@ -317,7 +317,7 @@ BigQuery + Google Sheets API
 
 ---
 
-## 🎯 推奨実装方針
+## 推奨実装方針
 
 ### 段階的な導入
 
@@ -342,7 +342,7 @@ BigQuery + Google Sheets API
 
 ---
 
-## 📋 実装チェックリスト
+## 実装チェックリスト
 
 ### 技術実装
 
@@ -369,7 +369,7 @@ BigQuery + Google Sheets API
 
 ---
 
-## 🚀 次のステップ
+## 次のステップ
 
 1. **PoC（概念実証）の実施**
    - 軽度利用パターンで実装
@@ -385,7 +385,7 @@ BigQuery + Google Sheets API
 
 ---
 
-## 📚 参考資料
+## 参考資料
 
 - [Vertex AI Agent Builder 公式ドキュメント](https://cloud.google.com/vertex-ai/docs/agent-builder)
 - [Vertex AI 料金体系](https://cloud.google.com/vertex-ai/pricing)
