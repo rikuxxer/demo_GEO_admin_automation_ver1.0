@@ -49,7 +49,7 @@ WHERE table_name IN ('sheet_exports', 'sheet_export_data')
 ORDER BY table_name;
 ```
 
-## 💻 実装手順
+## 実装手順
 
 ### ステップ1: バックエンド実装
 
@@ -162,7 +162,7 @@ app.post('/api/sheets/exports/:exportId/reexport', async (req, res) => {
 
 既存のエクスポート処理を `exportToGoogleSheetsWithAccumulation` を使用するように更新
 
-## 📝 実装詳細
+## 実装詳細
 
 ### エクスポート履歴管理コンポーネント
 
@@ -172,7 +172,7 @@ app.post('/api/sheets/exports/:exportId/reexport', async (req, res) => {
 
 `src/components/AdminDashboard.tsx` に新しいセクションを追加します。
 
-## 🔍 動作確認
+## 動作確認
 
 ### 1. テーブル作成の確認
 
@@ -195,7 +195,7 @@ WHERE table_name IN ('sheet_exports', 'sheet_export_data');
 2. エクスポート履歴の詳細を確認
 3. 再エクスポート機能をテスト
 
-## 📚 関連ドキュメント
+## 関連ドキュメント
 
 - [スプレッドシートエクスポートテーブル蓄積ガイド](./SPREADSHEET_EXPORT_TABLE_ACCUMULATION.md)
 - [BigQueryテーブル定義書](../BIGQUERY_TABLE_DEFINITIONS.md)

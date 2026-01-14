@@ -126,7 +126,7 @@ bq mk --table \
   universegeo_dataset.sheet_export_data
 ```
 
-## ✅ テーブル作成の確認
+## テーブル作成の確認
 
 ### 方法1: BigQueryコンソールで確認
 
@@ -172,7 +172,7 @@ WHERE table_name = 'sheet_export_data'
 ORDER BY ordinal_position;
 ```
 
-## ⚠️ 注意事項
+## 注意事項
 
 ### 1. データセットの存在確認
 
@@ -213,7 +213,7 @@ SET OPTIONS(partition_expiration_days=1095);
 `sheet_export_data` テーブルは `export_id` と `project_id` でクラスタリングされています。
 これにより、特定のエクスポートIDやプロジェクトIDで検索する際のパフォーマンスが向上します。
 
-## 🔧 トラブルシューティング
+## トラブルシューティング
 
 ### エラー: "Table already exists"
 
@@ -232,7 +232,7 @@ BigQueryへの書き込み権限が必要です。以下の権限を確認して
 - `bigquery.tables.update`
 - `bigquery.datasets.get`
 
-## 📚 関連ドキュメント
+## 関連ドキュメント
 
 - [スプレッドシートエクスポート管理機能の実装ガイド](./SHEET_EXPORT_ADMIN_IMPLEMENTATION.md)
 - [スプレッドシートエクスポートテーブル蓄積ガイド](./SPREADSHEET_EXPORT_TABLE_ACCUMULATION.md)
