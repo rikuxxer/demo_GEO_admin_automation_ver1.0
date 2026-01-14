@@ -1,4 +1,4 @@
-<!-- ⚠️ 削除候補: このファイルは一時的なトラブルシューティングガイドです。問題が解決されたら削除可能です。 -->
+<!-- 削除候補: このファイルは一時的なトラブルシューティングガイドです。問題が解決されたら削除可能です。 -->
 
 # データセットが見つからないエラーの修正
 
@@ -8,11 +8,11 @@
 BigQuery error in mk operation: Not found: Dataset univere-geo-demo:universegeo_dataset
 ```
 
-## 🔍 原因
+## 原因
 
 データセット `universegeo_dataset` が存在しないため、テーブルを作成できません。
 
-## 🛠️ 解決方法
+## 解決方法
 
 ### ステップ1: データセットを作成
 
@@ -30,7 +30,7 @@ bq mk --dataset \
   --description="UNIVERSEGEO データセット" \
   "${DATASET_ID}"
 
-echo "✅ データセットを作成しました"
+echo "データセットを作成しました"
 ```
 
 ### ステップ2: データセットの存在確認
@@ -47,7 +47,7 @@ bq ls -d --project_id="${PROJECT_ID}" "${DATASET_ID}"
 
 ---
 
-## 🚀 一括実行（データセット作成 + 全テーブル作成）
+## 一括実行（データセット作成 + 全テーブル作成）
 
 Cloud Shellで以下のコマンドをコピー&ペーストして実行：
 
@@ -57,27 +57,27 @@ DATASET_ID="universegeo_dataset"
 LOCATION="asia-northeast1"
 
 echo "=========================================="
-echo "📋 データセットと全テーブル作成"
+echo "データセットと全テーブル作成"
 echo "=========================================="
 echo ""
 
 # ステップ1: データセットの作成
-echo "📋 ステップ1: データセットの作成..."
+echo "ステップ1: データセットの作成..."
 if bq ls -d --project_id="${PROJECT_ID}" "${DATASET_ID}" &> /dev/null; then
-  echo "  ✅ データセット '${DATASET_ID}' が既に存在します"
+  echo "  データセット '${DATASET_ID}' が既に存在します"
 else
-  echo "  📋 データセットを作成中..."
+  echo "  データセットを作成中..."
   bq mk --dataset \
     --project_id="${PROJECT_ID}" \
     --location="${LOCATION}" \
     --description="UNIVERSEGEO データセット" \
     "${DATASET_ID}"
-  echo "  ✅ データセットを作成しました"
+  echo "  データセットを作成しました"
 fi
 echo ""
 
 # ステップ2: 全テーブルを作成
-echo "📋 ステップ2: 全テーブルを作成中..."
+echo "ステップ2: 全テーブルを作成中..."
 echo ""
 
 # 1. projectsテーブル
@@ -99,7 +99,7 @@ cat > /tmp/projects_schema.json << 'EOF'
   {"name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/projects_schema.json "${DATASET_ID}.projects" 2>/dev/null && echo "    ✅ projects" || echo "    ⚠️  projects (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/projects_schema.json "${DATASET_ID}.projects" 2>/dev/null && echo "    projects" || echo "    projects (既に存在)"
 echo ""
 
 # 2. segmentsテーブル
@@ -128,7 +128,7 @@ cat > /tmp/segments_schema.json << 'EOF'
   {"name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/segments_schema.json "${DATASET_ID}.segments" 2>/dev/null && echo "    ✅ segments" || echo "    ⚠️  segments (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/segments_schema.json "${DATASET_ID}.segments" 2>/dev/null && echo "    segments" || echo "    segments (既に存在)"
 echo ""
 
 # 3. poisテーブル
@@ -154,7 +154,7 @@ cat > /tmp/pois_schema.json << 'EOF'
   {"name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/pois_schema.json "${DATASET_ID}.pois" 2>/dev/null && echo "    ✅ pois" || echo "    ⚠️  pois (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/pois_schema.json "${DATASET_ID}.pois" 2>/dev/null && echo "    pois" || echo "    pois (既に存在)"
 echo ""
 
 # 4. usersテーブル
@@ -173,7 +173,7 @@ cat > /tmp/users_schema.json << 'EOF'
   {"name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/users_schema.json "${DATASET_ID}.users" 2>/dev/null && echo "    ✅ users" || echo "    ⚠️  users (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/users_schema.json "${DATASET_ID}.users" 2>/dev/null && echo "    users" || echo "    users (既に存在)"
 echo ""
 
 # 5. user_requestsテーブル
@@ -194,7 +194,7 @@ cat > /tmp/user_requests_schema.json << 'EOF'
   {"name": "review_comment", "type": "STRING", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/user_requests_schema.json "${DATASET_ID}.user_requests" 2>/dev/null && echo "    ✅ user_requests" || echo "    ⚠️  user_requests (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/user_requests_schema.json "${DATASET_ID}.user_requests" 2>/dev/null && echo "    user_requests" || echo "    user_requests (既に存在)"
 echo ""
 
 # 6. messagesテーブル
@@ -212,7 +212,7 @@ cat > /tmp/messages_schema.json << 'EOF'
   {"name": "timestamp", "type": "TIMESTAMP", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/messages_schema.json "${DATASET_ID}.messages" 2>/dev/null && echo "    ✅ messages" || echo "    ⚠️  messages (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/messages_schema.json "${DATASET_ID}.messages" 2>/dev/null && echo "    messages" || echo "    messages (既に存在)"
 echo ""
 
 # 7. change_historyテーブル
@@ -231,7 +231,7 @@ cat > /tmp/change_history_schema.json << 'EOF'
   {"name": "deleted_data", "type": "STRING", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/change_history_schema.json "${DATASET_ID}.change_history" 2>/dev/null && echo "    ✅ change_history" || echo "    ⚠️  change_history (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/change_history_schema.json "${DATASET_ID}.change_history" 2>/dev/null && echo "    change_history" || echo "    change_history (既に存在)"
 echo ""
 
 # 8. edit_requestsテーブル
@@ -253,7 +253,7 @@ cat > /tmp/edit_requests_schema.json << 'EOF'
   {"name": "review_comment", "type": "STRING", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/edit_requests_schema.json "${DATASET_ID}.edit_requests" 2>/dev/null && echo "    ✅ edit_requests" || echo "    ⚠️  edit_requests (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/edit_requests_schema.json "${DATASET_ID}.edit_requests" 2>/dev/null && echo "    edit_requests" || echo "    edit_requests (既に存在)"
 echo ""
 
 # 9. feature_requestsテーブル
@@ -275,7 +275,7 @@ cat > /tmp/feature_requests_schema.json << 'EOF'
   {"name": "implemented_at", "type": "TIMESTAMP", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/feature_requests_schema.json "${DATASET_ID}.feature_requests" 2>/dev/null && echo "    ✅ feature_requests" || echo "    ⚠️  feature_requests (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/feature_requests_schema.json "${DATASET_ID}.feature_requests" 2>/dev/null && echo "    feature_requests" || echo "    feature_requests (既に存在)"
 echo ""
 
 # 10. visit_measurement_groupsテーブル
@@ -288,7 +288,7 @@ cat > /tmp/visit_measurement_groups_schema.json << 'EOF'
   {"name": "created", "type": "TIMESTAMP", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/visit_measurement_groups_schema.json "${DATASET_ID}.visit_measurement_groups" 2>/dev/null && echo "    ✅ visit_measurement_groups" || echo "    ⚠️  visit_measurement_groups (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/visit_measurement_groups_schema.json "${DATASET_ID}.visit_measurement_groups" 2>/dev/null && echo "    visit_measurement_groups" || echo "    visit_measurement_groups (既に存在)"
 echo ""
 
 # 11. password_reset_tokensテーブル
@@ -304,20 +304,20 @@ cat > /tmp/password_reset_tokens_schema.json << 'EOF'
   {"name": "created_at", "type": "TIMESTAMP", "mode": "NULLABLE"}
 ]
 EOF
-bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/password_reset_tokens_schema.json "${DATASET_ID}.password_reset_tokens" 2>/dev/null && echo "    ✅ password_reset_tokens" || echo "    ⚠️  password_reset_tokens (既に存在)"
+bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/password_reset_tokens_schema.json "${DATASET_ID}.password_reset_tokens" 2>/dev/null && echo "    password_reset_tokens" || echo "    password_reset_tokens (既に存在)"
 echo ""
 
 echo "=========================================="
-echo "🎉 データセットと全テーブルの作成が完了しました！"
+echo "データセットと全テーブルの作成が完了しました！"
 echo "=========================================="
 echo ""
-echo "📋 確認コマンド:"
+echo "確認コマンド:"
 echo "  bq ls --project_id=\"${PROJECT_ID}\" \"${DATASET_ID}\""
 ```
 
 ---
 
-## ✅ 確認
+## 確認
 
 実行後、データセットとテーブルが正しく作成されたか確認：
 
@@ -341,7 +341,7 @@ echo "作成済みテーブル数: $(bq ls --project_id="${PROJECT_ID}" "${DATAS
 
 ---
 
-## 📋 次のステップ
+## 次のステップ
 
 1. データセットを作成（上記のコマンドを実行）
 2. 全テーブルを作成（上記のコマンドで自動的に作成されます）

@@ -4,22 +4,22 @@
 
 このエラーは、Google Sheets APIへのアクセス権限がないことを示しています。
 
-## ✅ 重要なポイント
+## 重要なポイント
 
 **現在の実装では、APIキーは使用されていません。**
-- ❌ `GOOGLE_SHEETS_API_KEY` は**不要**です（設定されていても使用されません）
-- ✅ **サービスアカウント認証**を使用しています
-- ✅ スプレッドシートに**サービスアカウントを共有**する必要があります
+- `GOOGLE_SHEETS_API_KEY` は**不要**です（設定されていても使用されません）
+- **サービスアカウント認証**を使用しています
+- スプレッドシートに**サービスアカウントを共有**する必要があります
 
-## 📋 必要な設定
+## 必要な設定
 
 ### 1. 環境変数（GitHub Environment Secrets）
 
 以下の環境変数が設定されている必要があります：
 
-- ✅ `GOOGLE_SPREADSHEET_ID`: スプレッドシートのID（必須）
-- ✅ `GOOGLE_SHEET_NAME`: シート名（オプション、デフォルト: `シート1`）
-- ❌ `GOOGLE_SHEETS_API_KEY`: **不要**（削除可能）
+- `GOOGLE_SPREADSHEET_ID`: スプレッドシートのID（必須）
+- `GOOGLE_SHEET_NAME`: シート名（オプション、デフォルト: `シート1`）
+- `GOOGLE_SHEETS_API_KEY`: **不要**（削除可能）
 
 ### 2. スプレッドシートへの共有設定（重要）
 
@@ -87,7 +87,7 @@ gcloud run services logs read universegeo-backend \
 4. `test-spreadsheet-export.html`でテストを実行
 5. バックエンドのログでサービスアカウントのメールアドレスを確認
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### エラー: "The caller does not have permission"
 
@@ -113,7 +113,7 @@ gcloud run services logs read universegeo-backend \
 - サービスアカウント認証を使用しています
 - スプレッドシートへの共有設定が必須です
 
-## 📝 チェックリスト
+## チェックリスト
 
 - [ ] `GOOGLE_SPREADSHEET_ID`が設定されている
 - [ ] `GOOGLE_SHEET_NAME`が設定されている（オプション）
@@ -123,7 +123,7 @@ gcloud run services logs read universegeo-backend \
 - [ ] バックエンドのログでサービスアカウントのメールアドレスを確認
 - [ ] テストを実行
 
-## 🎯 まとめ
+## まとめ
 
 1. **APIキーは不要** - サービスアカウント認証を使用
 2. **スプレッドシートへの共有が必須** - サービスアカウントに編集者権限を付与
