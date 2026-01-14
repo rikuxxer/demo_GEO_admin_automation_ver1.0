@@ -1,6 +1,6 @@
 # テスト環境と本番環境の比較
 
-## 📋 現在の環境設定
+## 現在の環境設定
 
 ### GitHub Environment
 
@@ -21,7 +21,7 @@
 - **リージョン**: `asia-northeast1`
 - **プロジェクト**: `univere-geo-demo`
 
-## ⚠️ 重要な確認事項
+## 重要な確認事項
 
 ### 1. テスト環境と本番環境が同じ設定を使用している
 
@@ -40,7 +40,7 @@
 | **FRONTEND_URL** | `https://universegeo-i5xw76aisq-an.a.run.app` | （確認必要） | GitHub Environment secrets |
 | **BACKEND_URL** | `https://universegeo-backend-223225164238.asia-northeast1.run.app` | （確認必要） | GitHub Environment secrets |
 
-## 🔍 確認手順
+## 確認手順
 
 ### ステップ1: GitHub Environment Secretsの確認
 
@@ -74,7 +74,7 @@
 3. **GOOGLE_SPREADSHEET_ID**: 同じスプレッドシートを使用するか、別スプレッドシートを使用するか
 4. **FRONTEND_URL / BACKEND_URL**: 異なるURLを使用するか
 
-## 🚀 テスト環境として使用する場合
+## テスト環境として使用する場合
 
 現在の設定をテスト環境として使用する場合、以下の点を確認してください：
 
@@ -83,7 +83,7 @@
 3. ✅ **テスト用のデータセットやスプレッドシートを使用している**
 4. ✅ **本番環境のデータに影響を与えない設定になっている**
 
-## 📝 本番環境との分離が必要な場合
+## 本番環境との分離が必要な場合
 
 テスト環境と本番環境を分離する場合：
 

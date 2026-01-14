@@ -51,7 +51,7 @@ GitHubリポジトリのSettings > Environments > production で以下を設定�
 
 本番環境のCloud Runサービスが正常に動作していることを確認してください。
 
-## 🔍 確認事項
+## 確認事項
 
 - [ ] GCPプロジェクトが正しく設定されている
 - [ ] BigQueryデータセットが存在する
@@ -59,7 +59,7 @@ GitHubリポジトリのSettings > Environments > production で以下を設定�
 - [ ] Cloud Runサービスが正常に動作している
 - [ ] フロントエンドが正常に動作している
 
-## 📝 関連ドキュメント
+## 関連ドキュメント
 
 - [デプロイガイド](./DEPLOYMENT.md)
 - [トラブルシューティング](./troubleshooting/)

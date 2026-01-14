@@ -1,6 +1,6 @@
 # GitHubへのPushコマンド（クイックリファレンス）
 
-## 🚀 基本的なPush手順
+## 基本的なPush手順
 
 ```bash
 # 1. リモートリポジトリを設定（初回のみ）
@@ -19,7 +19,7 @@ git commit -m "Add backend API integration and GitHub Actions workflows"
 git push -u origin main
 ```
 
-## ⚠️ Push前の確認事項
+## Push前の確認事項
 
 ### 機密情報が含まれていないか確認
 
@@ -42,7 +42,7 @@ git status
 - `node_modules/`
 - `dist/`
 
-## 📝 段階的なPush（推奨）
+## 段階的なPush（推奨）
 
 ```bash
 # 1. ワークフローファイルのみ
@@ -66,7 +66,7 @@ git commit -m "Add deployment configuration"
 git push
 ```
 
-## 🔧 トラブルシューティング
+## トラブルシューティング
 
 ### リモートが既に存在する場合
 
