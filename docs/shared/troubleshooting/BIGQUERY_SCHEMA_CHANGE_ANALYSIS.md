@@ -1,10 +1,10 @@
 # BigQueryスキーマ変更の必要性分析
 
-## 📋 結論
+## 結論
 
 **BigQueryのスキーマ変更は不要です。**
 
-## 🔍 現在のスキーマ
+## 現在のスキーマ
 
 ### poisテーブル
 ```json
@@ -16,7 +16,7 @@
 {"name": "designated_radius", "type": "STRING", "mode": "NULLABLE"}
 ```
 
-## ✅ 変更が不要な理由
+## 変更が不要な理由
 
 ### 1. **データ型の互換性**
 
@@ -65,7 +65,7 @@ const categoryId = `9900${String(radiusValue).padStart(4, '0')}`;
 radius: radiusValue > 0 ? String(radiusValue) : '',
 ```
 
-## 🔄 もしINTEGER型に変更した場合の問題点
+## もしINTEGER型に変更した場合の問題点
 
 ### 1. **既存データとの互換性**
 
@@ -83,7 +83,7 @@ radius: radiusValue > 0 ? String(radiusValue) : '',
 - 現在は`parseRadius`関数で柔軟に処理できる
 - 数値型に変更すると、保存時に変換処理が必要になり、エラーハンドリングが複雑になる
 
-## 📊 データフロー
+## データフロー
 
 ```
 [フロントエンド入力]
@@ -102,7 +102,7 @@ category_id: "99000500"
 radius: "500"
 ```
 
-## ✅ まとめ
+## まとめ
 
 1. **現在のスキーマ（STRING型）で十分対応可能**
 2. **既存データとの互換性が保たれる**

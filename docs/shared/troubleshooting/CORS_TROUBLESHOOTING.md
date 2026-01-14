@@ -1,6 +1,6 @@
 # CORSエラーのトラブルシューティング
 
-## ❌ "Failed to fetch" エラーの原因
+## "Failed to fetch" エラーの原因
 
 ローカルのHTMLファイル（`file://`）から直接APIを呼び出すと、CORSエラーが発生する可能性があります。
 

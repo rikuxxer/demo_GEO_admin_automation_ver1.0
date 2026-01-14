@@ -9,7 +9,7 @@
 gcloud services enable gmail.googleapis.com --project=univere-geo-demo
 ```
 
-## 🚨 エラー内容（過去のエラー）
+## エラー内容（過去のエラー）
 
 ```
 ERROR: (gcloud.services.enable) PERMISSION_DENIED: Not found or permission denied for service(s): gmail-api.googleapis.com.
@@ -18,7 +18,7 @@ SERVICE_CONFIG_NOT_FOUND_OR_PERMISSION_DENIED
 
 **原因**: サービス名が間違っていました（`gmail-api.googleapis.com` → `gmail.googleapis.com`）
 
-## 🔍 原因
+## 原因
 
 Gmail APIは、以下の理由で有効化できない場合があります：
 
@@ -26,7 +26,7 @@ Gmail APIは、以下の理由で有効化できない場合があります：
 2. **プロジェクトの種類**: 一部のプロジェクトタイプではGmail APIが利用できない場合があります
 3. **APIの可用性**: 地域やプロジェクト設定によっては利用できない場合があります
 
-## ✅ 解決方法
+## 解決方法
 
 ### オプション1: Google Cloud Consoleから有効化を試す
 
@@ -45,11 +45,11 @@ Gmail APIが利用できない場合は、SendGridを使用することを推奨
 
 #### SendGridの利点
 
-- ✅ 設定が簡単
-- ✅ 無料プランあり（1日100通まで）
-- ✅ パスワードリセット用途では無料プランで十分
-- ✅ 信頼性が高い
-- ✅ ドメイン認証不要（初期設定）
+- 設定が簡単
+- 無料プランあり（1日100通まで）
+- パスワードリセット用途では無料プランで十分
+- 信頼性が高い
+- ドメイン認証不要（初期設定）
 
 #### SendGridのセットアップ手順
 
@@ -83,7 +83,7 @@ Gmail APIが利用できない場合は、SendGridを使用することを推奨
 
 Gmail APIの代わりに、Gmail SMTPを使用することも可能ですが、実装の変更が必要です。
 
-## 📋 推奨される対応
+## 推奨される対応
 
 **Gmail APIが利用できない場合は、SendGridを使用することを強く推奨します。**
 
@@ -93,7 +93,7 @@ Gmail APIの代わりに、Gmail SMTPを使用することも可能ですが、�
 - 信頼性が高く、本番環境でも問題なく動作
 - Gmail APIのような制限がない
 
-## 🚀 SendGrid設定後の次のステップ
+## SendGrid設定後の次のステップ
 
 1. GitHub Environment Secretsを更新：
    - `EMAIL_SERVICE`: `sendgrid` に変更

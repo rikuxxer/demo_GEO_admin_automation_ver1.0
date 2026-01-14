@@ -1,6 +1,6 @@
 # Google Sheets API 認証設定ガイド
 
-## 🔍 問題
+## 問題
 
 Google Sheets API v4は**APIキーをサポートしていません**。OAuth2またはサービスアカウント認証が必要です。
 

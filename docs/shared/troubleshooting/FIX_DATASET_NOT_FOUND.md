@@ -2,7 +2,7 @@
 
 # データセットが見つからないエラーの修正
 
-## 🚨 エラー
+## エラー
 
 ```
 BigQuery error in mk operation: Not found: Dataset univere-geo-demo:universegeo_dataset
