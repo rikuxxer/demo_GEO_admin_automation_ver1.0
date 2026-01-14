@@ -26,16 +26,18 @@ docs/
 
 ## 📚 主要ドキュメント
 
-主要なドキュメントはプロジェクトルートに配置されています：
+主要なドキュメントは [`docs/shared/`](./shared/) ディレクトリに配置されています：
 
-- `README.md` - メインドキュメント
-- `QUICKSTART.md` - クイックスタートガイド
-- `DEPLOYMENT_GUIDE.md` - デプロイガイド
-- `GOOGLE_SHEETS_SETUP.md` - Google Sheets設定
-- `BIGQUERY_SETUP.md` - BigQuery設定
-- `COST_ESTIMATION.md` - コスト見積もり
-- `MULTI_API_KEY_STRATEGY.md` - APIキー戦略
-- `VERTEX_AI_AGENT_IMPLEMENTATION.md` - Vertex AI実装
+- [`QUICKSTART.md`](./shared/QUICKSTART.md) - クイックスタートガイド
+- [`DEPLOYMENT_GUIDE.md`](./shared/DEPLOYMENT_GUIDE.md) - デプロイガイド
+- [`GOOGLE_SHEETS_SETUP.md`](./shared/GOOGLE_SHEETS_SETUP.md) - Google Sheets設定
+- [`BIGQUERY_SETUP.md`](./shared/BIGQUERY_SETUP.md) - BigQuery設定
+- [`COST_ESTIMATION.md`](./shared/COST_ESTIMATION.md) - コスト見積もり
+- [`MULTI_API_KEY_STRATEGY.md`](./shared/MULTI_API_KEY_STRATEGY.md) - APIキー戦略
+- [`VERTEX_AI_AGENT_IMPLEMENTATION.md`](./shared/VERTEX_AI_AGENT_IMPLEMENTATION.md) - Vertex AI実装
+- [`BIGQUERY_TABLE_DEFINITIONS.md`](./shared/BIGQUERY_TABLE_DEFINITIONS.md) - BigQueryテーブル定義書
+
+メインドキュメントはプロジェクトルートの [`README.md`](../README.md) を参照してください。
 
 ## 🗂️ 環境別ドキュメント
 
