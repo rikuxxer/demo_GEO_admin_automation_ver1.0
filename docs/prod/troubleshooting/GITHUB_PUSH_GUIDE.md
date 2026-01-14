@@ -2,13 +2,13 @@
 
 このドキュメントでは、現在のプロジェクトをGitHubリポジトリ `https://github.com/rikuxxer/demo_GEO_admin_automation_ver1.0.git` にpushする手順を説明します。
 
-## 📋 前提条件
+## 前提条件
 
 1. Gitがインストールされている
 2. GitHubアカウントにアクセス権限がある
 3. リポジトリが既に作成されている
 
-## 🚀 Push手順
+## Push手順
 
 ### ステップ1: Gitの状態を確認
 
@@ -52,7 +52,7 @@ git push -u origin main
 git push -u origin master
 ```
 
-## ⚠️ 重要な注意事項
+## 重要な注意事項
 
 ### 1. 機密情報をコミットしない
 
@@ -107,7 +107,7 @@ push後、GitHubリポジトリの **Settings > Secrets and variables > Actions*
 
 詳細は [GITHUB_DEPLOYMENT.md](./GITHUB_DEPLOYMENT.md) を参照してください。
 
-## 🔧 トラブルシューティング
+## トラブルシューティング
 
 ### エラー: "remote origin already exists"
 
@@ -145,7 +145,7 @@ git remote set-url origin https://YOUR_TOKEN@github.com/rikuxxer/demo_GEO_admin_
 git remote set-url origin git@github.com:rikuxxer/demo_GEO_admin_automation_ver1.0.git
 ```
 
-## 📝 推奨されるPush手順（安全版）
+## 推奨されるPush手順（安全版）
 
 ### 1. 変更内容を確認
 
@@ -193,7 +193,7 @@ git commit -m "Add deployment configuration"
 git push -u origin main
 ```
 
-## ✅ Push後の確認
+## Push後の確認
 
 1. **GitHubリポジトリを確認**
    - ファイルが正しくアップロードされているか確認
@@ -210,7 +210,7 @@ git push -u origin main
 4. **初回デプロイを実行**
    - Actionsタブから「Deploy All (Backend + Frontend)」を実行
 
-## 🔗 関連ドキュメント
+## 関連ドキュメント
 
 - [GitHub Actions デプロイガイド](./GITHUB_DEPLOYMENT.md)
 - [Cloud Run デプロイ手順](./CLOUD_RUN_DEPLOY.md)

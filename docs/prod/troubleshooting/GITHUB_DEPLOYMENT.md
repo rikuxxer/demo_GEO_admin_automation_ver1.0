@@ -2,13 +2,13 @@
 
 このドキュメントでは、GitHub Actionsを使用してCloud Runに自動デプロイする方法を説明します。
 
-## 📋 前提条件
+## 前提条件
 
 1. GitHubリポジトリが設定されている
 2. Google Cloud Platform（GCP）の認証情報が準備されている
 3. 必要なGitHub Secretsが設定されている
 
-## 🔐 GitHub Secrets の設定
+## GitHub Secrets の設定
 
 GitHubリポジトリの **Settings > Secrets and variables > Actions** で以下のSecretsを設定してください：
 
@@ -33,7 +33,7 @@ GitHubリポジトリの **Settings > Secrets and variables > Actions** で以�
 | `VITE_GOOGLE_SPREADSHEET_ID` | フロントエンド用（バックエンド未使用時） | - |
 | `VITE_GOOGLE_SHEETS_API_KEY` | フロントエンド用（バックエンド未使用時） | - |
 
-## 🚀 デプロイ方法
+## デプロイ方法
 
 ### 方法1: 自動デプロイ（push時）
 
@@ -71,7 +71,7 @@ GitHubの **Actions** タブから手動でデプロイを実行できます：
 4. フロントエンドをデプロイ
 5. バックエンドのCORS設定を更新
 
-## 📁 ワークフローファイル
+## ワークフローファイル
 
 ### `.github/workflows/deploy-backend.yml`
 バックエンドのみをデプロイするワークフロー
@@ -101,7 +101,7 @@ GitHubの **Actions** タブから手動でデプロイを実行できます：
 - フロントエンドにバックエンドURLを自動設定
 - バックエンドのCORS設定を自動更新
 
-## 🔧 初回デプロイ手順
+## 初回デプロイ手順
 
 ### 1. GitHub Secretsの設定
 
@@ -141,7 +141,7 @@ gcloud run services describe universegeo \
   --format 'value(status.url)'
 ```
 
-## 🔄 継続的なデプロイ
+## 継続的なデプロイ
 
 ### バックエンドの更新
 
@@ -178,7 +178,7 @@ git push origin main
 
 バックエンドとフロントエンドが順番にデプロイされます。
 
-## 🐛 トラブルシューティング
+## トラブルシューティング
 
 ### デプロイが失敗する
 
@@ -204,14 +204,14 @@ git push origin main
 - バックエンドの `FRONTEND_URL` 環境変数が正しく設定されているか確認
 - `Deploy All` ワークフローを使用すると自動で更新されます
 
-## 📝 ベストプラクティス
+## ベストプラクティス
 
 1. **初回デプロイ**: `Deploy All` ワークフローを使用
 2. **通常の更新**: pushによる自動デプロイを使用
 3. **緊急の修正**: 手動デプロイ（workflow_dispatch）を使用
 4. **環境変数の変更**: Secretsを更新してから再デプロイ
 
-## 🔗 関連ドキュメント
+## 関連ドキュメント
 
 - [Cloud Run デプロイ手順](./CLOUD_RUN_DEPLOY.md) - 手動デプロイ手順
 - [デプロイ手順書](./DEPLOYMENT_GUIDE.md) - 詳細なデプロイガイド
