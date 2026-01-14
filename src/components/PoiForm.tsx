@@ -901,6 +901,19 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         }
       }
       
+      // ポリゴン指定の地点は、ポリゴン指定単独のセグメントでのみ登録可能
+      // 既に他のタイプの地点（manual, prefecture）が存在する場合はエラー
+      const existingNonPolygonPois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type !== 'polygon' &&
+        (!poi || p.poi_id !== poi.poi_id) // 編集時は現在編集中の地点を除外
+      );
+      if (existingNonPolygonPois.length > 0) {
+        const errorMsg = 'ポリゴン指定の地点は、ポリゴン指定単独のセグメントでのみ登録できます。このセグメントには既に他のタイプの地点が登録されています。';
+        setErrorMessage(errorMsg);
+        return;
+      }
+      
       // 1セグメント内で10個のポリゴンまでという制限をチェック
       const existingPolygonPois = pois.filter(p => 
         p.segment_id === segmentId && 
@@ -935,6 +948,18 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       // ポリゴン選択以外の場合、地点名が必須
       if (!formData.poi_name || formData.poi_name.trim() === '') {
         setErrorMessage('地点名は必須項目です');
+        return;
+      }
+      
+      // ポリゴン指定以外の地点は、ポリゴン指定の地点が存在するセグメントには登録不可
+      const existingPolygonPois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type === 'polygon' &&
+        (!poi || p.poi_id !== poi.poi_id) // 編集時は現在編集中の地点を除外
+      );
+      if (existingPolygonPois.length > 0) {
+        const errorMsg = 'ポリゴン指定の地点が既に登録されているセグメントには、他のタイプの地点を登録できません。ポリゴン指定の地点は、ポリゴン指定単独のセグメントでのみ登録できます。';
+        setErrorMessage(errorMsg);
         return;
       }
     }
