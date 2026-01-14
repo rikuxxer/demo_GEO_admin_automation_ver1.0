@@ -233,56 +233,53 @@ export function AdminDashboard({
         <>
           {/* ダッシュボードコンテンツ */}
           <div className="flex items-center justify-end">
-        <div className="flex gap-2">
-          <Button
-            onClick={async () => {
-              const queue = getExportQueue();
-              if (queue.length === 0) {
-                alert('エクスポートする地点登録データがありません');
-                return;
-              }
-              
-              // まずGoogle Sheetsへの自動入力を試みる
-              const result = await exportQueueToGoogleSheets();
-              
-              if (result.success) {
-                alert(result.message);
-              } else {
-                // 失敗した場合はCSVダウンロードにフォールバック
-                if (confirm(`${result.message}\n\nCSVファイルとしてダウンロードしますか？`)) {
-                  exportQueueToCSV();
-                }
-              }
-            }}
-            variant="outline"
-            className="border-gray-200"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            地点登録データをエクスポート ({getExportQueue().length}件)
-          </Button>
-          <Button
-            onClick={handleAddSampleData}
-            disabled={isAddingSample}
-            variant="outline"
-            className="border-gray-200"
-          >
-            {isAddingSample ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                追加中...
-              </>
-            ) : (
-              'サンプルデータを追加'
-            )}
-          </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  const queue = getExportQueue();
+                  if (queue.length === 0) {
+                    alert('エクスポートする地点登録データがありません');
+                    return;
+                  }
+                  
+                  // まずGoogle Sheetsへの自動入力を試みる
+                  const result = await exportQueueToGoogleSheets();
+                  
+                  if (result.success) {
+                    alert(result.message);
+                  } else {
+                    // 失敗した場合はCSVダウンロードにフォールバック
+                    if (confirm(`${result.message}\n\nCSVファイルとしてダウンロードしますか？`)) {
+                      exportQueueToCSV();
+                    }
+                  }
+                }}
+                variant="outline"
+                className="border-gray-200"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                地点登録データをエクスポート ({getExportQueue().length}件)
+              </Button>
+              <Button
+                onClick={handleAddSampleData}
+                disabled={isAddingSample}
+                variant="outline"
+                className="border-gray-200"
+              >
+                {isAddingSample ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    追加中...
+                  </>
+                ) : (
+                  'サンプルデータを追加'
+                )}
+              </Button>
+            </div>
           </div>
-        </>
-      )}
 
-      {activeTab === 'dashboard' && (
-        <>
           {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="p-6 border border-gray-200">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -866,6 +863,7 @@ export function AdminDashboard({
             </div>
           </Card>
         )}
+      </div>
         </>
       )}
     </div>
