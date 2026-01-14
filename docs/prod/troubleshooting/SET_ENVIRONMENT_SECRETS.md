@@ -6,7 +6,7 @@
 - プロジェクトID: `univere-geo-demo`
 - サービスアカウント: `id-universegeo-backend@univere-geo-demo.iam.gserviceaccount.com`
 
-## 🔧 設定手順
+## 設定手順
 
 ### ステップ1: JSONファイルの内容をコピー
 
@@ -66,36 +66,36 @@ Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c
 ### ステップ3: 設定の確認
 
 1. **Environment secrets** セクションで、以下のSecretsが表示されているか確認：
-   - ✅ `GCP_SA_KEY`
-   - ✅ `GCP_PROJECT_ID`
-   - ✅ `BACKEND_SERVICE_ACCOUNT`
+   - `GCP_SA_KEY`
+   - `GCP_PROJECT_ID`
+   - `BACKEND_SERVICE_ACCOUNT`
    - （その他のSecrets）
 
 2. 各Secretの名前が正確に一致しているか確認（大文字・小文字を区別）
 
-## ⚠️ よくある間違い
+## よくある間違い
 
 ### 間違い1: Environment名が一致していない
 
-- ❌ 間違い: Environment名が `Production` や `prod` など
-- ✅ 正しい: Environment名は `production`（すべて小文字）
+- 間違い: Environment名が `Production` や `prod` など
+- 正しい: Environment名は `production`（すべて小文字）
 
 ### 間違い2: Secret名が間違っている
 
-- ❌ 間違い: `gcp_sa_key`、`GCP-SA-KEY` など
-- ✅ 正しい: `GCP_SA_KEY`（大文字、アンダースコア）
+- 間違い: `gcp_sa_key`、`GCP-SA-KEY` など
+- 正しい: `GCP_SA_KEY`（大文字、アンダースコア）
 
 ### 間違い3: JSONの内容が不完全
 
-- ❌ 間違い: JSONの一部だけをコピー
-- ✅ 正しい: `{` から `}` まで全体をコピー
+- 間違い: JSONの一部だけをコピー
+- 正しい: `{` から `}` まで全体をコピー
 
 ### 間違い4: Repository secretsに設定している
 
-- ❌ 間違い: Settings > Secrets and variables > Actions > Repository secrets
-- ✅ 正しい: Settings > Environments > production > Environment secrets
+- 間違い: Settings > Secrets and variables > Actions > Repository secrets
+- 正しい: Settings > Environments > production > Environment secrets
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### 問題: Secretが空になる
 
@@ -122,7 +122,7 @@ Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c
 4. 新しい値を貼り付け
 5. **Update secret** をクリック
 
-## 📝 確認チェックリスト
+## 確認チェックリスト
 
 - [ ] Environment `production` が作成されている
 - [ ] Environment secretsに `GCP_SA_KEY` が設定されている
@@ -133,7 +133,7 @@ Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c
 - [ ] `BACKEND_SERVICE_ACCOUNT` の値が `id-universegeo-backend@univere-geo-demo.iam.gserviceaccount.com` である
 - [ ] その他の必要なSecretsも設定されている
 
-## 🚀 次のステップ
+## 次のステップ
 
 すべてのSecretsを設定したら：
 

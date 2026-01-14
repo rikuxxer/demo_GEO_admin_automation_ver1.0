@@ -1,6 +1,6 @@
 # GitHub Push クイックガイド
 
-## ⚡ 最短手順
+## 最短手順
 
 ### ステップ1: Gitのインストール確認
 
@@ -33,7 +33,7 @@ git commit -m "Add backend API integration and deployment workflows"
 git push -u origin main
 ```
 
-## ⚠️ 重要な確認事項
+## 重要な確認事項
 
 ### 機密情報が含まれていないか確認
 
@@ -54,7 +54,7 @@ git status
 - `node_modules/`
 - `dist/`
 
-## 🔧 よくあるエラーと対処法
+## よくあるエラーと対処法
 
 ### エラー: "remote origin already exists"
 
@@ -85,7 +85,7 @@ git remote set-url origin https://YOUR_TOKEN@github.com/rikuxxer/demo_GEO_admin_
 git push -u origin main
 ```
 
-## 📝 詳細な手順
+## 詳細な手順
 
 詳細は以下のドキュメントを参照：
 - [GITHUB_PUSH_GUIDE.md](./GITHUB_PUSH_GUIDE.md) - 詳細なpush手順

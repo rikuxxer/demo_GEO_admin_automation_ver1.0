@@ -1,10 +1,10 @@
 # Repository Secrets 設定ガイド
 
-## 🚨 重要: Repository Secretsに設定してください
+## 重要: Repository Secretsに設定してください
 
 Environment secretsではなく、**Repository secrets**に設定することで、確実に動作します。
 
-## 📝 設定手順
+## 設定手順
 
 ### ステップ1: GitHubリポジトリを開く
 
@@ -72,13 +72,13 @@ Get-Content key.json | Set-Clipboard
 - **Name**: `FRONTEND_URL`
 - **Secret**: フロントエンドURL（デフォルト: `http://localhost:5173`）
 
-## ✅ 設定後の確認
+## 設定後の確認
 
 1. **Repository secrets** タブで、すべてのSecretsが表示されているか確認
 2. 各Secretの名前が正しいか確認（大文字小文字も含む）
 3. 再度デプロイを実行
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### Secretが表示されない
 
@@ -97,7 +97,7 @@ Get-Content key.json | Set-Clipboard
 2. Secretの値が正しい形式（JSON）か確認
 3. GitHub Actionsのログで「Verify Secrets」ステップを確認
 
-## 📋 チェックリスト
+## チェックリスト
 
 - [ ] `GCP_PROJECT_ID` が設定されている
 - [ ] `GCP_SA_KEY` が設定されている（JSON形式）
