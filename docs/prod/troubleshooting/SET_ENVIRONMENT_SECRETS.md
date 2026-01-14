@@ -1,6 +1,6 @@
 # GitHub Environment Secrets 設定手順
 
-## 📋 現在の状況
+## 現在の状況
 
 サービスアカウントキーファイル: `univere-geo-demo-e26fa6a79c50.json`
 - プロジェクトID: `univere-geo-demo`

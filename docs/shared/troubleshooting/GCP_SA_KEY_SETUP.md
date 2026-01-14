@@ -1,6 +1,6 @@
 # GCP_SA_KEY の設定手順
 
-## 🔍 問題
+## 問題
 
 GitHub Actionsのワークフローで`GCP_SA_KEY`が見つからないエラーが発生しています。
 
