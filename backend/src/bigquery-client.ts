@@ -1596,8 +1596,6 @@ export class BigQueryService {
     try {
       const currentProjectId = validateProjectId();
       const cleanDatasetId = getCleanDatasetId();
-      const dataset = initializeBigQueryClient().dataset(cleanDatasetId, { projectId: currentProjectId });
-      const table = dataset.table('user_requests');
       
       console.log('📋 Inserting into BigQuery:', {
         projectId: currentProjectId,
@@ -1605,8 +1603,34 @@ export class BigQueryService {
         table: 'user_requests',
       });
       
-      // ignoreUnknownValues: true を追加（未知のフィールドを無視）
-      await table.insert([cleanedRequest], { ignoreUnknownValues: true });
+      // ストリーミングバッファの問題を回避するため、DML INSERT文を使用
+      // これにより、すぐにUPDATE/DELETEが可能になる
+      const insertQuery = `
+        INSERT INTO \`${currentProjectId}.${cleanDatasetId}.user_requests\`
+        (user_id, name, email, password_hash, requested_role, department, reason, status, requested_at, reviewed_at, reviewed_by, review_comment)
+        VALUES
+        (@user_id, @name, @email, @password_hash, @requested_role, @department, @reason, @status, @requested_at, @reviewed_at, @reviewed_by, @review_comment)
+      `;
+      
+      await initializeBigQueryClient().query({
+        query: insertQuery,
+        params: {
+          user_id: cleanedRequest.user_id,
+          name: cleanedRequest.name,
+          email: cleanedRequest.email,
+          password_hash: cleanedRequest.password_hash,
+          requested_role: cleanedRequest.requested_role,
+          department: cleanedRequest.department || null,
+          reason: cleanedRequest.reason || null,
+          status: cleanedRequest.status,
+          requested_at: cleanedRequest.requested_at,
+          reviewed_at: cleanedRequest.reviewed_at,
+          reviewed_by: cleanedRequest.reviewed_by,
+          review_comment: cleanedRequest.review_comment,
+        },
+        location: BQ_LOCATION,
+      });
+      
       console.log('✅ User request created successfully in BigQuery.');
     } catch (err: any) {
       // BigQuery insertAll の行エラーがここに入る
@@ -1722,20 +1746,30 @@ export class BigQueryService {
       WHERE user_id = @user_id
     `;
     
-    await initializeBigQueryClient().query({
-      query,
-      params: {
-        user_id: requestId,
-        reviewed_by: reviewedBy,
-        review_comment: comment || null
-      },
-      types: {
-        user_id: 'STRING',
-        reviewed_by: 'STRING',
-        review_comment: 'STRING'  // NULL値でも型を指定する必要がある
-      },
-      location: BQ_LOCATION,
-    });
+    try {
+      await initializeBigQueryClient().query({
+        query,
+        params: {
+          user_id: requestId,
+          reviewed_by: reviewedBy,
+          review_comment: comment || null
+        },
+        types: {
+          user_id: 'STRING',
+          reviewed_by: 'STRING',
+          review_comment: 'STRING'  // NULL値でも型を指定する必要がある
+        },
+        location: BQ_LOCATION,
+      });
+    } catch (err: any) {
+      if (err?.message?.includes('streaming buffer') || err?.message?.includes('would affect rows in the streaming buffer')) {
+        const error = new Error('データがまだ処理中のため、しばらく待ってから再度お試しください。通常、数分で処理が完了します。');
+        (error as any).statusCode = 409; // Conflict
+        (error as any).retryAfter = 300; // 5分後に再試行を推奨
+        throw error;
+      }
+      throw err;
+    }
   }
 
   // パスワードリセット機能
@@ -2024,20 +2058,30 @@ UNIVERSEGEO案件管理システム
       WHERE user_id = @user_id
     `;
     
-    await initializeBigQueryClient().query({
-      query,
-      params: {
-        user_id: requestId,
-        reviewed_by: reviewedBy,
-        review_comment: comment
-      },
-      types: {
-        user_id: 'STRING',
-        reviewed_by: 'STRING',
-        review_comment: 'STRING'
-      },
-      location: BQ_LOCATION,
-    });
+    try {
+      await initializeBigQueryClient().query({
+        query,
+        params: {
+          user_id: requestId,
+          reviewed_by: reviewedBy,
+          review_comment: comment
+        },
+        types: {
+          user_id: 'STRING',
+          reviewed_by: 'STRING',
+          review_comment: 'STRING'
+        },
+        location: BQ_LOCATION,
+      });
+    } catch (err: any) {
+      if (err?.message?.includes('streaming buffer') || err?.message?.includes('would affect rows in the streaming buffer')) {
+        const error = new Error('データがまだ処理中のため、しばらく待ってから再度お試しください。通常、数分で処理が完了します。');
+        (error as any).statusCode = 409; // Conflict
+        (error as any).retryAfter = 300; // 5分後に再試行を推奨
+        throw error;
+      }
+      throw err;
+    }
   }
 
   // ==================== メッセージ ====================
