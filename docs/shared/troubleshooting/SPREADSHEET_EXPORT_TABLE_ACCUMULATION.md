@@ -119,7 +119,7 @@ OPTIONS(
 | `row_index` | INTEGER | YES | 行番号（スプレッドシート内） | `1` |
 | `created_at` | TIMESTAMP | YES | 作成日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
 
-## 🔄 実装フロー
+## 実装フロー
 
 ### 現在のフロー
 
@@ -143,7 +143,7 @@ OPTIONS(
 [スプレッドシート]
 ```
 
-## 💻 実装例
+## 実装例
 
 ### バックエンド実装（`backend/src/bigquery-client.ts`）
 
@@ -180,7 +180,7 @@ async exportToGoogleSheetsWithAccumulation(
   
   try {
     // ========== ステップ1: テーブルにデータを保存 ==========
-    console.log('📊 ステップ1: エクスポート履歴をテーブルに保存中...');
+    console.log('ステップ1: エクスポート履歴をテーブルに保存中...');
     
     // 1-1. エクスポート履歴を保存
     const exportRecord = {
@@ -224,13 +224,13 @@ async exportToGoogleSheetsWithAccumulation(
 
     await this.createSheetExportDataBulk(exportDataRecords);
 
-    console.log('✅ エクスポート履歴とデータをテーブルに保存完了:', {
+    console.log('エクスポート履歴とデータをテーブルに保存完了:', {
       exportId,
       rowCount: rows.length,
     });
 
     // ========== ステップ2: スプレッドシートに書き出し ==========
-    console.log('📤 ステップ2: スプレッドシートに書き出し中...');
+    console.log('ステップ2: スプレッドシートに書き出し中...');
     
     const exportResult = await this.exportToGoogleSheets(rows);
 
@@ -239,7 +239,7 @@ async exportToGoogleSheetsWithAccumulation(
       // 成功時: ステータスを'completed'に更新
       await this.updateSheetExportStatus(exportId, 'completed', null);
       
-      console.log('✅ エクスポート完了:', {
+      console.log('エクスポート完了:', {
         exportId,
         rowsAdded: exportResult.rowsAdded,
       });
@@ -254,7 +254,7 @@ async exportToGoogleSheetsWithAccumulation(
       // 失敗時: ステータスを'failed'に更新
       await this.updateSheetExportStatus(exportId, 'failed', exportResult.message);
       
-      console.error('❌ エクスポート失敗:', {
+      console.error('エクスポート失敗:', {
         exportId,
         error: exportResult.message,
       });
@@ -272,7 +272,7 @@ async exportToGoogleSheetsWithAccumulation(
       // ステータス更新に失敗しても続行
     });
 
-    console.error('❌ エクスポート処理エラー:', error);
+    console.error('エクスポート処理エラー:', error);
     return {
       success: false,
       message: `エクスポート処理中にエラーが発生しました。エラー: ${errorMessage}`,
@@ -328,7 +328,7 @@ async createSheetExport(export: any): Promise<void> {
     cleanedExport.updated_at = formatTimestampForBigQuery(export.updated_at || now);
 
     await getDataset().table('sheet_exports').insert([cleanedExport], { ignoreUnknownValues: true });
-    console.log('✅ エクスポート履歴を作成しました:', export.export_id);
+    console.log('エクスポート履歴を作成しました:', export.export_id);
   } catch (err: any) {
     console.error('[BQ insert sheet_export] error:', err?.message);
     throw err;
@@ -396,7 +396,7 @@ async createSheetExportDataBulk(exportData: any[]): Promise<void> {
     });
 
     await getDataset().table('sheet_export_data').insert(cleanedData, { ignoreUnknownValues: true });
-    console.log(`✅ エクスポートデータを一括作成しました: ${cleanedData.length}件`);
+    console.log(`エクスポートデータを一括作成しました: ${cleanedData.length}件`);
   } catch (err: any) {
     console.error('[BQ insert sheet_export_data bulk] error:', err?.message);
     throw err;
@@ -452,7 +452,7 @@ async updateSheetExportStatus(
     }
 
     await initializeBigQueryClient().query(queryOptions);
-    console.log('✅ エクスポートステータスを更新しました:', { exportId, status });
+    console.log('エクスポートステータスを更新しました:', { exportId, status });
   } catch (err: any) {
     console.error('[BQ update sheet_export status] error:', err?.message);
     throw err;
@@ -661,7 +661,7 @@ export async function appendRowsToSheetWithAccumulation(
   // バックエンドAPIを使用する場合
   if (USE_BACKEND_API) {
     try {
-      console.log('📤 バックエンドAPI経由でスプレッドシートに送信（テーブル蓄積付き）:', {
+      console.log('バックエンドAPI経由でスプレッドシートに送信（テーブル蓄積付き）:', {
         rowCount: rows.length,
         projectId,
         segmentId,
@@ -687,10 +687,10 @@ export async function appendRowsToSheetWithAccumulation(
       }
 
       const result = await response.json();
-      console.log('✅ スプレッドシートに追加成功（テーブル蓄積済み）:', result);
+      console.log('スプレッドシートに追加成功（テーブル蓄積済み）:', result);
       return result;
     } catch (error) {
-      console.error('❌ バックエンドAPI エラー:', error);
+      console.error('バックエンドAPI エラー:', error);
       const errorMessage = error instanceof Error ? error.message : 'スプレッドシートへの出力に失敗しました';
       return {
         success: false,
@@ -705,7 +705,7 @@ export async function appendRowsToSheetWithAccumulation(
 }
 ```
 
-## 📈 メリット
+## メリット
 
 ### 1. データの追跡可能性
 - いつ、誰が、何をエクスポートしたかを記録
@@ -727,7 +727,7 @@ export async function appendRowsToSheetWithAccumulation(
 - エクスポート頻度、エクスポート量などの分析が可能
 - プロジェクト別、セグメント別のエクスポート統計
 
-## ⚠️ 注意事項
+## 注意事項
 
 ### 1. ストレージコスト
 - `sheet_export_data`テーブルはデータ量が大きくなる可能性
@@ -741,7 +741,7 @@ export async function appendRowsToSheetWithAccumulation(
 - エクスポートデータの保持期間を設定（例: 1年）
 - パーティション有効期限を活用
 
-## 🔧 実装手順
+## 実装手順
 
 ### ステップ1: テーブル作成
 
@@ -774,7 +774,7 @@ CREATE TABLE `universegeo_dataset.sheet_export_data` (
 3. スプレッドシートに書き出されているか確認
 4. 再エクスポート機能をテスト
 
-## 📊 データ保持期間の設定（推奨）
+## データ保持期間の設定（推奨）
 
 ```sql
 -- エクスポート履歴: 2年で自動削除
@@ -790,7 +790,7 @@ SET OPTIONS(
 );
 ```
 
-## 📚 関連ドキュメント
+## 関連ドキュメント
 
 - [BigQueryテーブル定義書](../BIGQUERY_TABLE_DEFINITIONS.md)
 - [スプレッドシート書き出しロジック](./SPREADSHEET_EXPORT_LOGIC.md)
