@@ -9,7 +9,7 @@ Google Sheets API v4は**APIキーをサポートしていません**。OAuth2�
 API keys are not supported by this API. Expected OAuth2 access token or other authentication credentials that assert a principal.
 ```
 
-## ✅ 解決方法
+## 解決方法
 
 バックエンドの実装を修正し、**サービスアカウント認証**を使用するように変更しました。
 
@@ -23,7 +23,7 @@ API keys are not supported by this API. Expected OAuth2 access token or other au
    - `GOOGLE_SHEETS_API_KEY` は**不要**になりました
    - `GOOGLE_SPREADSHEET_ID` のみ必要です
 
-## 📋 必要な設定
+## 必要な設定
 
 ### 1. スプレッドシートへの共有権限を付与
 
@@ -57,9 +57,9 @@ PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
 GitHub Environment Secretsに以下が設定されていることを確認：
 
-- ✅ `GOOGLE_SPREADSHEET_ID`: スプレッドシートのID
-- ✅ `GOOGLE_SHEET_NAME`: シート名（オプション、デフォルト: `シート1`）
-- ❌ `GOOGLE_SHEETS_API_KEY`: **不要**（削除可能）
+- `GOOGLE_SPREADSHEET_ID`: スプレッドシートのID
+- `GOOGLE_SHEET_NAME`: シート名（オプション、デフォルト: `シート1`）
+- `GOOGLE_SHEETS_API_KEY`: **不要**（削除可能）
 
 ### 3. バックエンドの再デプロイ
 
@@ -106,12 +106,12 @@ gcloud run deploy universegeo-backend \
 3. **認証エラー（401）**
    - サービスアカウントの権限を確認してください
 
-## 📝 まとめ
+## まとめ
 
-1. ✅ バックエンドの実装を修正（サービスアカウント認証に変更）
-2. ✅ スプレッドシートにサービスアカウントを共有（編集者権限）
-3. ✅ バックエンドを再デプロイ
-4. ✅ テストを実行
+1. バックエンドの実装を修正（サービスアカウント認証に変更）
+2. スプレッドシートにサービスアカウントを共有（編集者権限）
+3. バックエンドを再デプロイ
+4. テストを実行
 
 完了後、スプレッドシート書き出し機能が正常に動作します。
 

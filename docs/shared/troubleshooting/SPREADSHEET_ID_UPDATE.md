@@ -1,6 +1,6 @@
 # スプレッドシートIDの確認と更新
 
-## 🔍 現在の状況
+## 現在の状況
 
 提供されたスプレッドシートURL:
 ```
@@ -11,9 +11,9 @@ https://docs.google.com/spreadsheets/d/17Y9KHOaHjoW5dzrIENPRCDa-HQywScJctgzcSOiX
 
 ログに表示されていたスプレッドシートID: `18KSKhgXHjfU0f1pul629lOMe_wDRZ1Wy8JRP-CyqpNI`
 
-**⚠️ 注意**: スプレッドシートIDが異なっています。
+**注意**: スプレッドシートIDが異なっています。
 
-## 📋 必要な対応
+## 必要な対応
 
 ### ステップ1: GitHub Environment Secretsの確認
 
@@ -69,7 +69,7 @@ GitHub Environment Secretsを更新した後、バックエンドを再デプロ
 3. `test-spreadsheet-export.html`で再度テストを実行
 4. 成功することを確認
 
-## 🔍 確認事項
+## 確認事項
 
 - [ ] GitHub Environment Secretsの`GOOGLE_SPREADSHEET_ID`が正しいか確認
 - [ ] スプレッドシートIDを更新（必要に応じて）
@@ -77,7 +77,7 @@ GitHub Environment Secretsを更新した後、バックエンドを再デプロ
 - [ ] バックエンドを再デプロイ
 - [ ] 再度テストを実行
 
-## 📝 まとめ
+## まとめ
 
 1. **スプレッドシートIDの確認**: `17Y9KHOaHjoW5dzrIENPRCDa-HQywScJctgzcSOiX10s`
 2. **サービスアカウントの共有**: `223225164238-compute@developer.gserviceaccount.com`に編集者権限を付与

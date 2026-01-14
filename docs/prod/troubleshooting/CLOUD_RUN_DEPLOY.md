@@ -19,7 +19,7 @@ gcloud run services list --region asia-northeast1 | grep universegeo-backend
 # または、直接describeコマンドで確認（存在しない場合はエラーになる）
 gcloud run services describe universegeo-backend \
   --region asia-northeast1 \
-  --format 'value(status.url)' 2>/dev/null && echo "✅ バックエンドは既にデプロイされています" || echo "❌ バックエンドはまだデプロイされていません"
+  --format 'value(status.url)' 2>/dev/null && echo "バックエンドは既にデプロイされています" || echo "バックエンドはまだデプロイされていません"
 ```
 
 **バックエンドが存在しない場合** → ステップ1から開始  
@@ -27,7 +27,7 @@ gcloud run services describe universegeo-backend \
 
 ---
 
-## 📦 ステップ1: バックエンドのデプロイ
+## ステップ1: バックエンドのデプロイ
 
 ### 1.1 前提条件の確認
 
@@ -145,7 +145,7 @@ curl ${BACKEND_URL}/health
 
 ---
 
-## 🎨 ステップ2: フロントエンドのデプロイ
+## ステップ2: フロントエンドのデプロイ
 
 ### 2.1 環境変数の設定
 
@@ -238,7 +238,7 @@ gcloud run services update universegeo-backend \
 
 ---
 
-## ✅ ステップ3: 動作確認
+## ステップ3: 動作確認
 
 ### 3.1 フロントエンドにアクセス
 
@@ -262,7 +262,7 @@ gcloud run services update universegeo-backend \
 
 ---
 
-## 🔧 トラブルシューティング
+## トラブルシューティング
 
 ### バックエンドが起動しない
 
@@ -299,7 +299,7 @@ gcloud projects get-iam-policy YOUR_PROJECT_ID \
 
 ---
 
-## 📝 デプロイ後のメンテナンス
+## デプロイ後のメンテナンス
 
 ### バックエンドの更新
 
@@ -328,7 +328,7 @@ gcloud run services logs read universegeo --region asia-northeast1
 
 ---
 
-## 🎯 クイックリファレンス
+## クイックリファレンス
 
 ### バックエンドの存在確認
 ```bash
