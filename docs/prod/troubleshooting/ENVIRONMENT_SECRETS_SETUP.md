@@ -1,6 +1,6 @@
 # Environment Secrets 設定ガイド
 
-## ✅ 正しい設定方法
+## 正しい設定方法
 
 ### 1. Environmentの作成
 
@@ -37,7 +37,7 @@ jobs:
       name: production  # ← Environment名と一致しているか確認
 ```
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### 問題1: Secretが空になる
 
@@ -62,7 +62,7 @@ jobs:
 2. 値が正しい形式（JSON）か
 3. JSON全体をコピー&ペーストしているか（改行も含む）
 
-## 📝 設定チェックリスト
+## 設定チェックリスト
 
 - [ ] Environment `production` が作成されている
 - [ ] Environment secretsに `GCP_SA_KEY` が設定されている
@@ -73,29 +73,29 @@ jobs:
 - [ ] Environment secretsに `BACKEND_SERVICE_ACCOUNT` が設定されている
 - [ ] ワークフローの `environment: name: production` が設定されている
 
-## 🚀 確認方法
+## 確認方法
 
 ### GitHub Actionsのログで確認
 
 デプロイを実行すると、「Verify Secrets」ステップで以下が表示されます：
 
 ```
-🔍 Secret確認中...
+Secret確認中...
 Environment: production
 Environment secrets を使用します
 
-✅ GCP_SA_KEY が設定されています（長さ: XXX 文字）
-✅ GCP_PROJECT_ID: your-project-id
+GCP_SA_KEY が設定されています（長さ: XXX 文字）
+GCP_PROJECT_ID: your-project-id
 ```
 
 ### エラーメッセージの確認
 
 エラーが出る場合、ログに詳細なメッセージが表示されます：
 
-- `❌ エラー: GCP_SA_KEY が設定されていません` → Environment secretsに設定されていない
-- `❌ エラー: GCP_PROJECT_ID が設定されていません` → Environment secretsに設定されていない
+- `エラー: GCP_SA_KEY が設定されていません` → Environment secretsに設定されていない
+- `エラー: GCP_PROJECT_ID が設定されていません` → Environment secretsに設定されていない
 
-## 💡 推奨事項
+## 推奨事項
 
 Environment secretsを使う場合：
 

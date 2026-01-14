@@ -4,7 +4,7 @@
 
 ---
 
-## 🚀 3ステップでテスト開始
+## 3ステップでテスト開始
 
 ### ステップ1: .env ファイルを作成（1分）
 
@@ -74,23 +74,23 @@ npm run dev
 
 ---
 
-## 🔍 コンソールで確認
+## コンソールで確認
 
 開発者ツール（F12）→ Console タブ
 
 **成功時:**
 ```
-✅ Google Sheets に追加成功
+Google Sheets に追加成功
 ```
 
 **失敗時:**
 ```
-❌ Google Sheets API エラー
+Google Sheets API エラー
 ```
 
 ---
 
-## ⚠️ よくあるエラー
+## よくあるエラー
 
 ### 「環境変数が設定されていません」
 
@@ -108,7 +108,7 @@ npm run dev
 
 ---
 
-## 📊 期待される結果
+## 期待される結果
 
 スプレッドシートに以下のようなデータが追加されます：
 
@@ -119,7 +119,7 @@ npm run dev
 
 ---
 
-## 📚 詳細情報
+## 詳細情報
 
 - 詳細なセットアップ手順: [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)
 - 詳細なテスト手順: [TEST_SHEETS_OUTPUT.md](./TEST_SHEETS_OUTPUT.md)

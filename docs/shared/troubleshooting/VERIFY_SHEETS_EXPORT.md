@@ -1,6 +1,6 @@
 # スプレッドシートエクスポート機能の確認手順
 
-## 📋 確認項目
+## 確認項目
 
 ### 1. バックエンドの環境変数確認（Cloud Run）
 
@@ -15,9 +15,9 @@ gcloud run services describe universegeo-backend \
 ```
 
 **必要な環境変数：**
-- ✅ `GOOGLE_SPREADSHEET_ID` - Google Sheets スプレッドシートID
-- ✅ `GOOGLE_SHEETS_API_KEY` - Google Sheets API キー
-- ✅ `GOOGLE_SHEET_NAME` - シート名（デフォルト: `シート1`）
+- `GOOGLE_SPREADSHEET_ID` - Google Sheets スプレッドシートID
+- `GOOGLE_SHEETS_API_KEY` - Google Sheets API キー
+- `GOOGLE_SHEET_NAME` - シート名（デフォルト: `シート1`）
 
 ### 2. GitHub Secretsの確認
 
@@ -111,7 +111,7 @@ curl -X POST "${BACKEND_URL}/api/sheets/export" \
    - ステータスコード: `200 OK`
    - レスポンス: `{"success": true, ...}`
 
-## ❌ エラーが発生した場合
+## エラーが発生した場合
 
 ### エラー1: "Google Sheets API が設定されていません"
 
@@ -157,12 +157,12 @@ curl -X POST "${BACKEND_URL}/api/sheets/export" \
 
 以下の条件が満たされていれば成功です：
 
-1. ✅ バックエンドAPIが `200 OK` を返す
-2. ✅ レスポンスに `"success": true` が含まれる
-3. ✅ スプレッドシートに新しい行が追加される
-4. ✅ コンソールログに `✅ スプレッドシートに追加成功` が表示される
+1. バックエンドAPIが `200 OK` を返す
+2. レスポンスに `"success": true` が含まれる
+3. スプレッドシートに新しい行が追加される
+4. コンソールログに `スプレッドシートに追加成功` が表示される
 
-## 📝 データ形式
+## データ形式
 
 スプレッドシートに追加されるデータの形式：
 
@@ -179,7 +179,7 @@ curl -X POST "${BACKEND_URL}/api/sheets/export" \
 | setting_flag | 設定フラグ | `1` |
 | created | 作成日 | `2024-12-18` |
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### ログの確認方法
 
