@@ -385,7 +385,7 @@ app.post('/api/admin/reset-api-usage', async (req, res) => {
 
 ---
 
-## 🔒 セキュリティ考慮事項
+## セキュリティ考慮事項
 
 ### 7. セキュリティ対策
 
@@ -423,7 +423,7 @@ app.post('/api/admin/reset-api-usage', async (req, res) => {
 
 ---
 
-## 🎓 ユーザー向けガイド
+## ユーザー向けガイド
 
 ### 9. APIキー作成手順（ユーザー向け）
 
@@ -455,7 +455,7 @@ app.post('/api/admin/reset-api-usage', async (req, res) => {
 
 ---
 
-## 📈 モニタリング
+## モニタリング
 
 ### 10. 使用量の可視化
 

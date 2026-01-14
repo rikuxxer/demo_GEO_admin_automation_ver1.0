@@ -197,7 +197,7 @@ BigQuery + Google Sheets API
 
 ---
 
-## 📈 期待される効果
+## 期待される効果
 
 ### 作業時間の短縮
 
