@@ -376,7 +376,25 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                       <div className={`${isManualRadiusPoi ? "text-base text-gray-900 font-medium" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} text-center`}>
                         {poi.poi_type === 'prefecture' || isPolygonPoi
                           ? <span className="text-gray-400 text-xs">指定なし</span>
-                          : (poi.designated_radius || '-')
+                          : (() => {
+                              if (!poi.designated_radius) return '-';
+                              const radiusValue = parseInt(String(poi.designated_radius).replace('m', ''));
+                              if (isNaN(radiusValue)) return poi.designated_radius;
+                              
+                              // 選択可能な半径値（1000m以上）のリスト
+                              const selectableRadiusValues = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
+                              const isCategorySpecified = selectableRadiusValues.includes(radiusValue);
+                              
+                              if (isCategorySpecified) {
+                                return (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span>{poi.designated_radius}</span>
+                                    <span className="text-xs text-blue-600 font-medium">カテゴリ指定</span>
+                                  </div>
+                                );
+                              }
+                              return poi.designated_radius;
+                            })()
                         }
                       </div>
                     )}
