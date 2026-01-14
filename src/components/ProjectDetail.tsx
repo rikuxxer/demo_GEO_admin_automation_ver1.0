@@ -47,7 +47,7 @@ interface ProjectDetailProps {
   pois: PoiInfo[];
   onBack: () => void;
   onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
-  onSegmentCreate: (segment: Partial<Segment>) => void;
+  onSegmentCreate: (segment: Partial<Segment>) => Promise<Segment | void>;
   onSegmentUpdate: (segmentId: string, updates: Partial<Segment>) => Promise<void>;
   onSegmentDelete: (segmentId: string) => void;
   onPoiCreate: (segmentId: string, poiData: Partial<PoiInfo>) => void;
@@ -253,11 +253,36 @@ export function ProjectDetail({
     }
   };
 
-  const handleSegmentFormSubmit = (segmentData: Partial<Segment>) => {
+  const handleSegmentFormSubmit = async (segmentData: Partial<Segment>, copyFromSegmentId?: string) => {
     if (editingSegment) {
-      onSegmentUpdate(editingSegment.segment_id, segmentData);
+      await onSegmentUpdate(editingSegment.segment_id, segmentData);
     } else {
-      onSegmentCreate(segmentData);
+      // 新規セグメント作成
+      const newSegment = await onSegmentCreate(segmentData);
+      
+      // 既存セグメントから地点をコピーする場合
+      if (copyFromSegmentId && newSegment && onPoiCreateBulk) {
+        const sourcePois = pois.filter(p => p.segment_id === copyFromSegmentId);
+        if (sourcePois.length > 0) {
+          // 地点情報をコピー（segment_idを新しいセグメントIDに変更）
+          const copiedPois = sourcePois.map(poi => {
+            const { poi_id, location_id, ...poiData } = poi;
+            return {
+              ...poiData,
+              segment_id: newSegment.segment_id,
+              // 地点IDとlocation_idは自動採番されるため削除
+            };
+          });
+          
+          try {
+            await onPoiCreateBulk(newSegment.segment_id, copiedPois);
+            toast.success(`${sourcePois.length}件の地点をコピーしました`);
+          } catch (error) {
+            console.error('地点のコピーに失敗しました:', error);
+            toast.error('地点のコピーに失敗しました');
+          }
+        }
+      }
     }
     setShowSegmentForm(false);
     setEditingSegment(null);

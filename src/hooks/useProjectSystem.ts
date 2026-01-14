@@ -154,9 +154,11 @@ export function useProjectSystem() {
   };
 
   // セグメント作成
-  const createSegment = async (segmentData: Partial<Segment>) => {
+  const createSegment = async (segmentData: Partial<Segment>): Promise<Segment> => {
     try {
-      if (!selectedProject) return;
+      if (!selectedProject) {
+        throw new Error('プロジェクトが選択されていません');
+      }
 
       // データ連携依頼日を自動設定（連携依頼済の場合）
       const dataLinkRequestDate =

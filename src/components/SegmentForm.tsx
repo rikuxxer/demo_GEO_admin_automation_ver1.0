@@ -15,7 +15,7 @@ interface SegmentFormProps {
   segment?: Segment | null;
   existingSegments?: Segment[];
   pois?: PoiInfo[];
-  onSubmit: (segment: Partial<Segment>) => void;
+  onSubmit: (segment: Partial<Segment>, copyPoisFromSegmentId?: string) => void;
   onCancel: () => void;
 }
 
@@ -237,7 +237,8 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
       }
     }
 
-    onSubmit(updatedFormData);
+    // 既存セグメントから地点をコピーする場合、セグメントIDを渡す
+    onSubmit(updatedFormData, copyFromSegmentId || undefined);
   };
 
   return (
@@ -417,6 +418,64 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
                   )}
                 </div>
               </div>
+
+              {/* 既存セグメントから地点をコピー（新規作成時のみ） */}
+              {!segment && otherSegments.length > 0 && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-blue-50">
+                  <Label className="block mb-2 text-sm font-medium">
+                    既存セグメントから地点をコピー（任意）
+                  </Label>
+                  <select
+                    value={copyFromSegmentId}
+                    onChange={(e) => {
+                      setCopyFromSegmentId(e.target.value);
+                      // 選択したセグメントの条件をコピー
+                      if (e.target.value) {
+                        const sourceSegment = otherSegments.find(s => s.segment_id === e.target.value);
+                        if (sourceSegment) {
+                          setFormData(prev => ({
+                            ...prev,
+                            designated_radius: sourceSegment.designated_radius || prev.designated_radius,
+                            extraction_period: sourceSegment.extraction_period || prev.extraction_period,
+                            extraction_period_type: sourceSegment.extraction_period_type || prev.extraction_period_type,
+                            extraction_start_date: sourceSegment.extraction_start_date || prev.extraction_start_date,
+                            extraction_end_date: sourceSegment.extraction_end_date || prev.extraction_end_date,
+                            attribute: sourceSegment.attribute || prev.attribute,
+                            detection_count: sourceSegment.detection_count || prev.detection_count,
+                            detection_time_start: sourceSegment.detection_time_start || prev.detection_time_start,
+                            detection_time_end: sourceSegment.detection_time_end || prev.detection_time_end,
+                            stay_time: sourceSegment.stay_time || prev.stay_time,
+                          }));
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">コピーしない</option>
+                    {otherSegments.map(s => {
+                      const segmentPois = pois.filter(p => p.segment_id === s.segment_id);
+                      const mediaIds = Array.isArray(s.media_id) ? s.media_id : s.media_id ? [s.media_id] : [];
+                      const mediaLabel = mediaIds.map(id => {
+                        const option = MEDIA_OPTIONS.find(opt => opt.value === id);
+                        return option ? option.label : id;
+                      }).join(', ');
+                      return (
+                        <option key={s.segment_id} value={s.segment_id}>
+                          {s.segment_name || `セグメント ${s.segment_id}`} ({mediaLabel}) - {segmentPois.length}件の地点
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <p className="mt-2 text-xs text-gray-600">
+                    既存セグメントを選択すると、そのセグメントの地点情報と抽出条件が新しいセグメントにコピーされます。
+                  </p>
+                  {copyFromSegmentId && (
+                    <div className="mt-2 p-2 bg-blue-100 border border-blue-200 rounded text-xs text-blue-800">
+                      ✓ 選択したセグメントの抽出条件を適用しました
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
 
