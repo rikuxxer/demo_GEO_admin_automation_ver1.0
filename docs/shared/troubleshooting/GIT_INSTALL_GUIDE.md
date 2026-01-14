@@ -2,7 +2,7 @@
 
 PowerShellで `git` コマンドが認識されない場合、Gitがインストールされていないか、PATHに含まれていない可能性があります。
 
-## 🔍 Gitのインストール確認
+## Gitのインストール確認
 
 ### 方法1: コマンドで確認
 
@@ -20,7 +20,7 @@ Get-Command git -ErrorAction SilentlyContinue
 2. "Git" で検索
 3. Git for Windowsがインストールされているか確認
 
-## 📥 Gitのインストール方法
+## Gitのインストール方法
 
 ### 方法1: 公式インストーラー（推奨）
 
@@ -43,7 +43,7 @@ winget install --id Git.Git -e --source winget
 choco install git
 ```
 
-## 🔄 インストール後の確認
+## インストール後の確認
 
 インストール後、**PowerShellを再起動**して以下を実行：
 
@@ -55,7 +55,7 @@ git --version
 # 例: git version 2.42.0.windows.2
 ```
 
-## ⚠️ インストール後も認識されない場合
+## インストール後も認識されない場合
 
 ### 1. PATH環境変数の確認
 
@@ -85,7 +85,7 @@ $env:PATH -split ';' | Select-String -Pattern 'git'
 
 環境変数の変更を反映するため、PowerShellを再起動するか、システムを再起動してください。
 
-## 🚀 インストール後のGitHub Push手順
+## インストール後のGitHub Push手順
 
 Gitがインストールされたら、以下の手順でGitHubにpushできます：
 
@@ -103,7 +103,7 @@ git commit -m "Add backend API integration and GitHub Actions workflows"
 git push -u origin main
 ```
 
-## 🔗 参考リンク
+## 参考リンク
 
 - [Git for Windows 公式サイト](https://git-scm.com/download/win)
 - [Git 公式ドキュメント](https://git-scm.com/doc)

@@ -16,7 +16,7 @@ winget install --id Git.Git -e --source winget
 git --version
 ```
 
-## 📥 方法2: 公式インストーラー（確実）
+## 方法2: 公式インストーラー（確実）
 
 1. ブラウザで以下にアクセス：
    - https://git-scm.com/download/win
@@ -34,7 +34,7 @@ git --version
    git --version
    ```
 
-## ✅ インストール後の確認
+## インストール後の確認
 
 ```powershell
 # Gitのバージョン確認
@@ -46,12 +46,12 @@ git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
 ```
 
-## 🔄 インストール後も認識されない場合
+## インストール後も認識されない場合
 
 1. **PowerShellを完全に閉じて再起動**
 2. それでも認識されない場合、**PCを再起動**
 
-## 📝 インストール後のGitHub Push手順
+## インストール後のGitHub Push手順
 
 Gitがインストールされたら、以下を実行：
 
@@ -69,7 +69,7 @@ git commit -m "Add backend API integration and GitHub Actions workflows"
 git push -u origin main
 ```
 
-## ⚠️ 注意事項
+## 注意事項
 
 - インストール中に「PATH環境変数に追加」のオプションを選択してください
 - インストール後は必ずPowerShellを再起動してください
