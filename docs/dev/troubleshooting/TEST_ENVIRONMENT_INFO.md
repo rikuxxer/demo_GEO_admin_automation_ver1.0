@@ -1,6 +1,6 @@
 # テスト環境情報
 
-## 🔍 現在の環境設定
+## 現在の環境設定
 
 ### GitHub Environments
 
@@ -19,7 +19,7 @@
 - **リージョン**: `asia-northeast1`
 - **プロジェクト**: `univere-geo-demo`
 
-## 📋 確認コマンド
+## 確認コマンド
 
 以下のコマンドを実行して、現在のサービスURLと環境変数を確認してください：
 
@@ -57,7 +57,7 @@ gcloud run services describe universegeo \
   --format='yaml(spec.template.spec.containers[0].env)'
 ```
 
-## ⚠️ 注意事項
+## 注意事項
 
 現在、テスト環境と本番環境が同じ`Environment secrets`を使用しているため、環境の分離ができていません。
 

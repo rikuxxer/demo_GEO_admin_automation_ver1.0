@@ -1,6 +1,6 @@
 # 環境設定の現状確認
 
-## 📋 現在の環境設定状況
+## 現在の環境設定状況
 
 ### GitHub Environments
 
@@ -22,7 +22,7 @@
    - テスト環境用の別のEnvironmentが必要
    - 本番環境用のEnvironmentが必要
 
-## 🔍 確認手順
+## 確認手順
 
 ### ステップ1: GitHub Environmentsの確認
 
@@ -48,7 +48,7 @@
 | FRONTEND_URL | 本番URL | テストURL |
 | BACKEND_URL | 本番URL | テストURL |
 
-## 🚀 推奨される環境分離
+## 推奨される環境分離
 
 ### オプション1: 環境名を分離（推奨）
 
@@ -59,7 +59,7 @@
 
 現在の`Environment secrets`を本番環境として使用し、テスト環境用に新しいEnvironmentを作成
 
-## 📝 現在のCloud Runサービス
+## 現在のCloud Runサービス
 
 ### バックエンド
 - **サービス名**: `universegeo-backend`
@@ -71,7 +71,7 @@
 - **リージョン**: `asia-northeast1`
 - **プロジェクト**: `univere-geo-demo`（推測）
 
-## 🔧 確認コマンド
+## 確認コマンド
 
 ### Cloud Runサービスの確認
 
@@ -94,7 +94,7 @@ gcloud run services describe universegeo-backend \
 ブラウザで以下を開いて確認：
 - https://github.com/rikuxxer/demo_GEO_admin_automation_ver1.0/settings/environments
 
-## ⚠️ 注意事項
+## 注意事項
 
 1. **現在はテスト環境と本番環境が同じEnvironmentを使用**
 2. **環境変数の違いを確認する必要がある**

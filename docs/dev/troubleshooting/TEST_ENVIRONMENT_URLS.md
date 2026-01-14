@@ -1,6 +1,6 @@
 # テスト環境URL一覧
 
-## 🌐 現在のサービスURL
+## 現在のサービスURL
 
 ### バックエンド（API）
 - **サービス名**: `universegeo-backend`
@@ -15,7 +15,7 @@
 - **リージョン**: `asia-northeast1`
 - **プロジェクト**: `univere-geo-demo`
 
-## 🔍 環境設定の確認
+## 環境設定の確認
 
 ### GitHub Environment Secrets
 
@@ -35,7 +35,7 @@
 | `FRONTEND_URL` | フロントエンドURL | `https://universegeo-i5xw76aisq-an.a.run.app` |
 | `BACKEND_URL` | バックエンドURL | `https://universegeo-backend-223225164238.asia-northeast1.run.app` |
 
-## ⚠️ 本番環境との違い
+## 本番環境との違い
 
 ### 現在の状況
 
@@ -58,7 +58,7 @@
 4. **FRONTEND_URL / BACKEND_URL**
    - テスト環境と本番環境で異なるURLを使用しているか確認
 
-## 🧪 テスト環境として使用する場合
+## テスト環境として使用する場合
 
 ### 現在の設定をテスト環境として使用
 
@@ -76,7 +76,7 @@
    - Cloud Runコンソールで各サービスの環境変数を確認
    - テスト環境用の設定になっているか確認
 
-## 📝 本番環境との分離が必要な場合
+## 本番環境との分離が必要な場合
 
 テスト環境と本番環境を分離する場合：
 
@@ -92,7 +92,7 @@
    - テスト環境用のワークフロー: `environment: name: staging`
    - 本番環境用のワークフロー: `environment: name: production`
 
-## 🔗 直接アクセス
+## 直接アクセス
 
 ### バックエンドAPI
 - **ヘルスチェック**: https://universegeo-backend-223225164238.asia-northeast1.run.app/health
