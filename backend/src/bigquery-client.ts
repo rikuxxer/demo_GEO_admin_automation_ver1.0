@@ -2439,7 +2439,7 @@ UNIVERSEGEO案件管理システム
   /**
    * エクスポート履歴を作成
    */
-  async createSheetExport(export: any): Promise<void> {
+  async createSheetExport(exportRecord: any): Promise<void> {
     try {
       const currentProjectId = validateProjectId();
       const cleanDatasetId = getDatasetId();
@@ -2460,30 +2460,30 @@ UNIVERSEGEO案件管理システム
       ];
 
       const cleanedExport: any = {
-        export_id: export.export_id.trim(),
+        export_id: exportRecord.export_id.trim(),
       };
 
       for (const field of allowedFields) {
-        if (field in export && export[field] !== undefined && export[field] !== null) {
+        if (field in exportRecord && exportRecord[field] !== undefined && exportRecord[field] !== null) {
           if (field === 'exported_at' || field === 'completed_at') {
-            cleanedExport[field] = formatTimestampForBigQuery(export[field]);
+            cleanedExport[field] = formatTimestampForBigQuery(exportRecord[field]);
           } else if (field === 'row_count') {
-            const numValue = typeof export[field] === 'string' ? parseInt(export[field]) : export[field];
+            const numValue = typeof exportRecord[field] === 'string' ? parseInt(exportRecord[field]) : exportRecord[field];
             if (!isNaN(numValue)) {
               cleanedExport[field] = numValue;
             }
           } else {
-            cleanedExport[field] = export[field];
+            cleanedExport[field] = exportRecord[field];
           }
         }
       }
 
       const now = new Date();
-      cleanedExport.created_at = formatTimestampForBigQuery(export.created_at || now);
-      cleanedExport.updated_at = formatTimestampForBigQuery(export.updated_at || now);
+      cleanedExport.created_at = formatTimestampForBigQuery(exportRecord.created_at || now);
+      cleanedExport.updated_at = formatTimestampForBigQuery(exportRecord.updated_at || now);
 
       await getDataset().table('sheet_exports').insert([cleanedExport], { ignoreUnknownValues: true });
-      console.log('✅ エクスポート履歴を作成しました:', export.export_id);
+      console.log('✅ エクスポート履歴を作成しました:', exportRecord.export_id);
     } catch (err: any) {
       console.error('[BQ insert sheet_export] error:', err?.message);
       throw err;
