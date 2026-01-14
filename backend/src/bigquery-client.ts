@@ -1504,26 +1504,45 @@ export class BigQueryService {
     department?: string;
     reason?: string;
   }): Promise<any> {
-    // メールアドレスを正規化（前後の空白を除去、小文字化）
-    const normalizedEmail = requestData.email.trim().toLowerCase();
+    try {
+      // メールアドレスを正規化（前後の空白を除去、小文字化）
+      const normalizedEmail = requestData.email.trim().toLowerCase();
 
-    // メールアドレスの重複チェック（既存ユーザー）
-    const existingUser = await this.getUserByEmail(normalizedEmail);
-    if (existingUser) {
-      throw new Error('このメールアドレスは既に登録されています');
-    }
+      // メールアドレスの重複チェック（既存ユーザー）
+      let existingUser: any = null;
+      try {
+        existingUser = await this.getUserByEmail(normalizedEmail);
+      } catch (err: any) {
+        // getUserByEmailでエラーが発生した場合（テーブルが存在しないなど）、ログを出力して続行
+        console.warn('[createUserRequest] getUserByEmail error (continuing):', err?.message);
+      }
+      
+      if (existingUser) {
+        const error = new Error('このメールアドレスは既に登録されています');
+        (error as any).statusCode = 400;
+        throw error;
+      }
 
-    // 既に申請済みかチェック（メールアドレス）- pending または approved の申請をチェック
-    const existingRequests = await this.getUserRequests();
-    const existingRequestByEmail = existingRequests.find(r => 
-      r.email && r.email.trim().toLowerCase() === normalizedEmail && (r.status === 'pending' || r.status === 'approved')
-    );
-    if (existingRequestByEmail) {
-      throw new Error('このメールアドレスで既に申請が行われています。別のメールアドレスを使用するか、既存の申請の承認をお待ちください。');
-    }
+      // 既に申請済みかチェック（メールアドレス）- pending または approved の申請をチェック
+      let existingRequests: any[] = [];
+      try {
+        existingRequests = await this.getUserRequests();
+      } catch (err: any) {
+        // getUserRequestsでエラーが発生した場合（テーブルが存在しないなど）、ログを出力して続行
+        console.warn('[createUserRequest] getUserRequests error (continuing):', err?.message);
+      }
+      
+      const existingRequestByEmail = existingRequests.find(r => 
+        r.email && r.email.trim().toLowerCase() === normalizedEmail && (r.status === 'pending' || r.status === 'approved')
+      );
+      if (existingRequestByEmail) {
+        const error = new Error('このメールアドレスで既に申請が行われています。別のメールアドレスを使用するか、既存の申請の承認をお待ちください。');
+        (error as any).statusCode = 400;
+        throw error;
+      }
 
-    // パスワードハッシュ化（簡易実装 - 本番環境ではbcrypt等を使用）
-    const password_hash = Buffer.from(requestData.password).toString('base64');
+      // パスワードハッシュ化（簡易実装 - 本番環境ではbcrypt等を使用）
+      const password_hash = Buffer.from(requestData.password).toString('base64');
 
     const user_id = `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
@@ -1627,8 +1646,18 @@ export class BigQueryService {
       throw enhancedError;
     }
     
-    const { password_hash: _, ...requestWithoutPassword } = cleanedRequest;
-    return requestWithoutPassword;
+      const { password_hash: _, ...requestWithoutPassword } = cleanedRequest;
+      return requestWithoutPassword;
+    } catch (err: any) {
+      // 既にエラーが設定されている場合（重複チェックなど）はそのまま再スロー
+      if (err.statusCode === 400) {
+        throw err;
+      }
+      
+      // その他のエラーはログを出力して再スロー
+      console.error('[createUserRequest] unexpected error:', err?.message);
+      throw err;
+    }
   }
 
   async approveUserRequest(requestId: string, reviewedBy: string, comment?: string): Promise<void> {
