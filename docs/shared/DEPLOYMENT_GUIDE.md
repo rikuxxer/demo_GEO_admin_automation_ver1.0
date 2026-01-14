@@ -78,7 +78,7 @@ gcloud run services describe universegeo-backend \
 
 このURLをメモしておきます（例: `https://universegeo-backend-xxx.run.app`）
 
-## 🎨 2. フロントエンドのデプロイ
+## 2. フロントエンドのデプロイ
 
 ### 2.1 環境変数の設定
 
@@ -128,7 +128,7 @@ gcloud run deploy universegeo \
   --max-instances 10
 ```
 
-## ✅ 3. 動作確認
+## 3. 動作確認
 
 ### 3.1 バックエンドAPIの確認
 
@@ -151,7 +151,7 @@ curl https://universegeo-backend-xxx.run.app/api/projects
 1. 地点格納依頼を実行
 2. スプレッドシートにデータが追加されることを確認
 
-## 🔧 4. トラブルシューティング
+## 4. トラブルシューティング
 
 ### 4.1 CORSエラー
 
@@ -179,30 +179,30 @@ gcloud run services update universegeo-backend \
 - フロントエンドの環境変数はビルド時に埋め込まれるため、変更後は再ビルドが必要
 - バックエンドの環境変数は再デプロイで反映される
 
-## 📝 5. 環境変数一覧
+## 5. 環境変数一覧
 
 ### バックエンド
 
 | 変数名 | 説明 | 必須 |
 |--------|------|------|
-| `GCP_PROJECT_ID` | GCPプロジェクトID | ✅ |
-| `BQ_DATASET` | BigQueryデータセット名 | ✅ |
-| `GOOGLE_APPLICATION_CREDENTIALS` | サービスアカウントキーファイルパス | ✅ |
-| `PORT` | サーバーポート（デフォルト: 8080） | ❌ |
-| `FRONTEND_URL` | フロントエンドURL（CORS設定用） | ✅ |
-| `GOOGLE_SPREADSHEET_ID` | Google Sheets スプレッドシートID | ✅ |
-| `GOOGLE_SHEETS_API_KEY` | Google Sheets API キー | ✅ |
-| `GOOGLE_SHEET_NAME` | シート名（デフォルト: シート1） | ❌ |
+| `GCP_PROJECT_ID` | GCPプロジェクトID | 必須 |
+| `BQ_DATASET` | BigQueryデータセット名 | 必須 |
+| `GOOGLE_APPLICATION_CREDENTIALS` | サービスアカウントキーファイルパス | 必須 |
+| `PORT` | サーバーポート（デフォルト: 8080） | オプション |
+| `FRONTEND_URL` | フロントエンドURL（CORS設定用） | 必須 |
+| `GOOGLE_SPREADSHEET_ID` | Google Sheets スプレッドシートID | 必須 |
+| `GOOGLE_SHEETS_API_KEY` | Google Sheets API キー | 必須 |
+| `GOOGLE_SHEET_NAME` | シート名（デフォルト: シート1） | オプション |
 
 ### フロントエンド
 
 | 変数名 | 説明 | 必須 |
 |--------|------|------|
-| `VITE_API_BASE_URL` | バックエンドAPI URL | ✅ |
-| `VITE_GOOGLE_SPREADSHEET_ID` | Google Sheets スプレッドシートID（バックエンド未使用時） | ❌ |
-| `VITE_GOOGLE_SHEETS_API_KEY` | Google Sheets API キー（バックエンド未使用時） | ❌ |
+| `VITE_API_BASE_URL` | バックエンドAPI URL | 必須 |
+| `VITE_GOOGLE_SPREADSHEET_ID` | Google Sheets スプレッドシートID（バックエンド未使用時） | オプション |
+| `VITE_GOOGLE_SHEETS_API_KEY` | Google Sheets API キー（バックエンド未使用時） | オプション |
 
-## 🔐 6. セキュリティ設定
+## 6. セキュリティ設定
 
 ### 6.1 サービスアカウントの権限
 
@@ -223,7 +223,7 @@ Google Sheets APIキーに以下の制限を設定：
 
 バックエンドの `FRONTEND_URL` 環境変数で、許可するフロントエンドURLを指定。
 
-## 📚 7. 参考資料
+## 7. 参考資料
 
 - [BigQuery設定ガイド](./BIGQUERY_SETUP.md)
 - [Google Sheets設定ガイド](./GOOGLE_SHEETS_SETUP.md)

@@ -68,14 +68,14 @@ chmod +x deploy.sh
 表示されたURLにアクセス：
 
 ```
-✅ デプロイが完了しました！
-🌐 サービスURL:
+デプロイが完了しました！
+サービスURL:
 https://universegeo-xxxxxxxxx-an.a.run.app
 ```
 
 ---
 
-## 📝 チェックリスト
+## チェックリスト
 
 デプロイ前に確認：
 
@@ -88,7 +88,7 @@ https://universegeo-xxxxxxxxx-an.a.run.app
 
 ---
 
-## ⚡ 簡易版（Netlifyで無料デプロイ）
+## 簡易版（Netlifyで無料デプロイ）
 
 Cloud Runを使わず、無料でデプロイする方法：
 
@@ -119,7 +119,7 @@ Publish directory: dist
 
 ---
 
-## 🆘 トラブルシューティング
+## トラブルシューティング
 
 ### エラー: 環境変数が見つからない
 
@@ -157,7 +157,7 @@ gcloud projects get-iam-policy universegeo-project
 
 ---
 
-## 📚 詳細情報
+## 詳細情報
 
 - 詳細なデプロイ手順: [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
 - Google Sheets API設定: [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)
@@ -165,7 +165,7 @@ gcloud projects get-iam-policy universegeo-project
 
 ---
 
-## 💡 次のステップ
+## 次のステップ
 
 1. **カスタムドメインを設定**
    - Cloud Runでカスタムドメインをマッピング
