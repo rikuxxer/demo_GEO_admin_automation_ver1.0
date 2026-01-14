@@ -1331,7 +1331,8 @@ export class BigQueryService {
   }
 
   async getUserByEmail(email: string): Promise<any> {
-    const currentProjectId = validateProjectId();
+    try {
+      const currentProjectId = validateProjectId();
       const cleanDatasetId = getCleanDatasetId();
       // メールアドレスを小文字に正規化して検索
       const normalizedEmail = email.trim().toLowerCase();
@@ -1340,12 +1341,24 @@ export class BigQueryService {
         FROM \`${currentProjectId}.${cleanDatasetId}.users\`
         WHERE LOWER(TRIM(email)) = @email
       `;
-    const [rows] = await initializeBigQueryClient().query({
-      query,
-      params: { email: normalizedEmail },
-      location: BQ_LOCATION,
-    });
-    return rows[0] || null;
+      const [rows] = await initializeBigQueryClient().query({
+        query,
+        params: { email: normalizedEmail },
+        location: BQ_LOCATION,
+      });
+      return rows[0] || null;
+    } catch (err: any) {
+      console.error('[BQ getUserByEmail] error:', err?.message);
+      console.error('[BQ getUserByEmail] code:', err?.code);
+      
+      // テーブルが存在しない場合のエラーハンドリング
+      if (err?.message?.includes('Not found') || err?.code === 404) {
+        console.warn('⚠️ usersテーブルが存在しません。nullを返します。');
+        return null;
+      }
+      
+      throw err;
+    }
   }
 
   async createUser(user: any): Promise<void> {
@@ -1455,18 +1468,32 @@ export class BigQueryService {
   // ==================== ユーザー登録申請 ====================
 
   async getUserRequests(): Promise<any[]> {
-    const currentProjectId = validateProjectId();
+    try {
+      const currentProjectId = validateProjectId();
       const cleanDatasetId = getCleanDatasetId();
       const query = `
         SELECT *
         FROM \`${currentProjectId}.${cleanDatasetId}.user_requests\`
         ORDER BY requested_at DESC
       `;
-    const [rows] = await initializeBigQueryClient().query({
-      query,
-      location: BQ_LOCATION,
-    });
-    return rows;
+      const [rows] = await initializeBigQueryClient().query({
+        query,
+        location: BQ_LOCATION,
+      });
+      return rows;
+    } catch (err: any) {
+      console.error('[BQ getUserRequests] error:', err?.message);
+      console.error('[BQ getUserRequests] code:', err?.code);
+      console.error('[BQ getUserRequests] errors:', JSON.stringify(err?.errors, null, 2));
+      
+      // テーブルが存在しない場合のエラーハンドリング
+      if (err?.message?.includes('Not found') || err?.code === 404) {
+        console.warn('⚠️ user_requestsテーブルが存在しません。空の配列を返します。');
+        return [];
+      }
+      
+      throw err;
+    }
   }
 
   async createUserRequest(requestData: {
