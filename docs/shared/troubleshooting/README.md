@@ -2,7 +2,7 @@
 
 このディレクトリには、開発環境と本番環境の両方に共通するトラブルシューティングドキュメントが含まれています。
 
-## 📋 カテゴリ
+## カテゴリ
 
 ### BigQuery
 - `BIGQUERY_TABLE_DEFINITIONS.md` - BigQueryテーブル定義
@@ -88,7 +88,7 @@
 - `PROJECT_ID_GENERATION_ANALYSIS.md` - プロジェクトID生成分析
 - `UPDATE_COMPLETION_CHECKLIST.md` - 更新完了チェックリスト
 
-## 📝 関連ドキュメント
+## 関連ドキュメント
 
 - [開発環境トラブルシューティング](../../dev/troubleshooting/)
 - [本番環境トラブルシューティング](../../prod/troubleshooting/)

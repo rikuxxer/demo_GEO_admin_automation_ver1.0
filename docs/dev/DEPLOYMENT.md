@@ -1,10 +1,10 @@
 # 開発環境デプロイガイド
 
-## 📋 概要
+## 概要
 
 開発環境へのデプロイ手順を説明します。
 
-## 🚀 デプロイ方法
+## デプロイ方法
 
 ### 方法1: GitHub Actionsワークフローを使用（推奨）
 
@@ -39,7 +39,7 @@
 - **バックエンド**: `backend/**` が変更された場合
 - **フロントエンド**: `src/**`, `public/**`, `package.json`, `Dockerfile`, `config/dev/**` が変更された場合
 
-## ⚙️ 前提条件
+## 前提条件
 
 ### GitHub Environment Secretsの設定
 
@@ -50,18 +50,18 @@
 
 | Secret名 | 説明 | 必須 |
 |---------|------|------|
-| `GCP_SA_KEY` | GCPサービスアカウントキー（JSON） | ✅ |
-| `GCP_PROJECT_ID` | GCPプロジェクトID（開発環境用） | ✅ |
-| `BQ_DATASET` | BigQueryデータセット名（開発環境用） | ✅ |
-| `GOOGLE_SPREADSHEET_ID` | GoogleスプレッドシートID（開発環境用） | ✅ |
-| `GOOGLE_SHEETS_API_KEY` | Google Sheets APIキー | ⚠️ |
-| `GOOGLE_SHEET_NAME` | シート名（デフォルト: シート1） | ⚠️ |
-| `FRONTEND_URL` | フロントエンドURL（開発環境） | ⚠️ |
-| `BACKEND_URL` | バックエンドURL（開発環境） | ⚠️ |
-| `VITE_GOOGLE_SPREADSHEET_ID` | フロントエンド用スプレッドシートID | ⚠️ |
-| `VITE_GOOGLE_SHEETS_API_KEY` | フロントエンド用APIキー | ⚠️ |
+| `GCP_SA_KEY` | GCPサービスアカウントキー（JSON） | 必須 |
+| `GCP_PROJECT_ID` | GCPプロジェクトID（開発環境用） | 必須 |
+| `BQ_DATASET` | BigQueryデータセット名（開発環境用） | 必須 |
+| `GOOGLE_SPREADSHEET_ID` | GoogleスプレッドシートID（開発環境用） | 必須 |
+| `GOOGLE_SHEETS_API_KEY` | Google Sheets APIキー | オプション |
+| `GOOGLE_SHEET_NAME` | シート名（デフォルト: シート1） | オプション |
+| `FRONTEND_URL` | フロントエンドURL（開発環境） | オプション |
+| `BACKEND_URL` | バックエンドURL（開発環境） | オプション |
+| `VITE_GOOGLE_SPREADSHEET_ID` | フロントエンド用スプレッドシートID | オプション |
+| `VITE_GOOGLE_SHEETS_API_KEY` | フロントエンド用APIキー | オプション |
 
-## 🔍 デプロイ後の確認
+## デプロイ後の確認
 
 ### 1. サービスURLの確認
 
@@ -96,7 +96,7 @@ gcloud run services describe universegeo-backend-dev \
   --format 'value(spec.template.spec.containers[0].env)'
 ```
 
-## 📝 関連ドキュメント
+## 関連ドキュメント
 
 - [開発環境セットアップガイド](./SETUP.md)
 - [トラブルシューティング](./troubleshooting/)

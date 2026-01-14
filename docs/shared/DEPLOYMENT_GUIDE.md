@@ -2,14 +2,14 @@
 
 このドキュメントでは、UNIVERSEGEOアプリケーションをGoogle Cloud Platform（GCP）にデプロイする手順を説明します。
 
-## 📋 前提条件
+## 前提条件
 
 - Google Cloud Platform（GCP）アカウント
 - `gcloud` CLI がインストール・設定済み
 - BigQueryデータセットとテーブルが作成済み
 - Google Sheets API の設定が完了
 
-## 🏗️ アーキテクチャ
+## アーキテクチャ
 
 ```
 フロントエンド (Cloud Run)
@@ -19,7 +19,7 @@
 BigQuery + Google Sheets API
 ```
 
-## 📦 1. バックエンドのデプロイ
+## 1. バックエンドのデプロイ
 
 ### 1.1 環境変数の設定
 

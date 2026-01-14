@@ -1,10 +1,10 @@
 # 本番環境デプロイガイド
 
-## 📋 概要
+## 概要
 
 本番環境へのデプロイ手順を説明します。
 
-## 🚀 デプロイ方法
+## デプロイ方法
 
 ### 方法1: GitHub Actionsワークフローを使用（推奨）
 
@@ -39,7 +39,7 @@
 - **バックエンド**: `backend/**` が変更された場合
 - **フロントエンド**: `src/**`, `public/**`, `package.json`, `Dockerfile`, `config/prod/**` が変更された場合
 
-## ⚙️ 前提条件
+## 前提条件
 
 ### GitHub Environment Secretsの設定
 
@@ -50,21 +50,21 @@
 
 | Secret名 | 説明 | 必須 |
 |---------|------|------|
-| `GCP_SA_KEY` | GCPサービスアカウントキー（JSON） | ✅ |
-| `GCP_PROJECT_ID` | GCPプロジェクトID | ✅ |
-| `BQ_DATASET` | BigQueryデータセット名 | ✅ |
-| `GOOGLE_SPREADSHEET_ID` | GoogleスプレッドシートID | ✅ |
-| `GOOGLE_SHEETS_API_KEY` | Google Sheets APIキー | ⚠️ |
-| `GOOGLE_SHEET_NAME` | シート名（デフォルト: シート1） | ⚠️ |
-| `FRONTEND_URL` | フロントエンドURL | ✅ |
-| `BACKEND_URL` | バックエンドURL | ⚠️ |
-| `EMAIL_SERVICE` | メールサービス（sendgrid等） | ⚠️ |
-| `SENDGRID_API_KEY` | SendGrid APIキー | ⚠️ |
-| `SENDGRID_FROM_EMAIL` | 送信元メールアドレス | ⚠️ |
-| `VITE_GOOGLE_SPREADSHEET_ID` | フロントエンド用スプレッドシートID | ⚠️ |
-| `VITE_GOOGLE_SHEETS_API_KEY` | フロントエンド用APIキー | ⚠️ |
+| `GCP_SA_KEY` | GCPサービスアカウントキー（JSON） | 必須 |
+| `GCP_PROJECT_ID` | GCPプロジェクトID | 必須 |
+| `BQ_DATASET` | BigQueryデータセット名 | 必須 |
+| `GOOGLE_SPREADSHEET_ID` | GoogleスプレッドシートID | 必須 |
+| `GOOGLE_SHEETS_API_KEY` | Google Sheets APIキー | オプション |
+| `GOOGLE_SHEET_NAME` | シート名（デフォルト: シート1） | オプション |
+| `FRONTEND_URL` | フロントエンドURL | 必須 |
+| `BACKEND_URL` | バックエンドURL | オプション |
+| `EMAIL_SERVICE` | メールサービス（sendgrid等） | オプション |
+| `SENDGRID_API_KEY` | SendGrid APIキー | オプション |
+| `SENDGRID_FROM_EMAIL` | 送信元メールアドレス | オプション |
+| `VITE_GOOGLE_SPREADSHEET_ID` | フロントエンド用スプレッドシートID | オプション |
+| `VITE_GOOGLE_SHEETS_API_KEY` | フロントエンド用APIキー | オプション |
 
-## 🔍 デプロイ後の確認
+## デプロイ後の確認
 
 ### 1. サービスURLの確認
 
@@ -105,14 +105,14 @@ gcloud run services describe universegeo \
   --format 'value(spec.template.spec.containers[0].env)'
 ```
 
-## ⚠️ 注意事項
+## 注意事項
 
 1. **バックアップ**: デプロイ前に必ずバックアップを取得してください
 2. **テスト**: 本番環境へのデプロイ前に、テスト環境で検証してください
 3. **ロールバック計画**: 問題が発生した場合のロールバック計画を確認してください
 4. **モニタリング**: デプロイ後はモニタリングを確認してください
 
-## 📝 関連ドキュメント
+## 関連ドキュメント
 
 - [本番環境セットアップガイド](./SETUP.md)
 - [トラブルシューティング](./troubleshooting/)
