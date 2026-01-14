@@ -1,22 +1,22 @@
 # メール送信機能の現状確認
 
-## ✅ 完了済み
+## 完了済み
 
 1. **コードの修正**
-   - ✅ 登録されているメールアドレスに送信するように修正済み
-   - ✅ バックエンドとフロントエンドの両方で実装済み
+   - 登録されているメールアドレスに送信するように修正済み
+   - バックエンドとフロントエンドの両方で実装済み
 
 2. **GitHub Environment Secrets**
-   - ✅ `EMAIL_SERVICE=gmail` 設定済み
-   - ✅ `FRONTEND_URL` 設定済み
+   - `EMAIL_SERVICE=gmail` 設定済み
+   - `FRONTEND_URL` 設定済み
 
 3. **Gmail APIの有効化**
-   - ✅ `gmail.googleapis.com` 有効化済み
+   - `gmail.googleapis.com` 有効化済み
 
 4. **デプロイワークフロー**
-   - ✅ `.github/workflows/deploy-backend.yml` に `EMAIL_SERVICE` と `FRONTEND_URL` が含まれている
+   - `.github/workflows/deploy-backend.yml` に `EMAIL_SERVICE` と `FRONTEND_URL` が含まれている
 
-## ⚠️ まだ完了していない設定
+## まだ完了していない設定
 
 ### 1. サービスアカウントへのGmail API権限付与（重要）
 
@@ -80,7 +80,7 @@ gcloud run deploy universegeo-backend \
   --project univere-geo-demo
 ```
 
-## 🔍 動作確認方法
+## 動作確認方法
 
 ### 1. 環境変数の確認
 
@@ -111,7 +111,7 @@ gcloud run services logs read universegeo-backend \
 ```
 
 以下のようなログが表示されることを確認：
-- `✅ Gmail API経由でメールを送信しました: [メールアドレス]`
+- `Gmail API経由でメールを送信しました: [メールアドレス]`
 - または、エラーメッセージ（設定に問題がある場合）
 
 ### 4. メールの確認
@@ -119,7 +119,7 @@ gcloud run services logs read universegeo-backend \
 - メールボックスを確認
 - パスワードリセットリンクが含まれているか確認
 
-## ❌ よくあるエラーと対処法
+## よくあるエラーと対処法
 
 ### エラー: "Permission denied" または "403 Forbidden"
 
@@ -145,7 +145,7 @@ gcloud run services logs read universegeo-backend \
 3. サービスアカウントに適切な権限が付与されているか
 4. バックエンドのログでエラーメッセージを確認
 
-## 📝 次のステップ
+## 次のステップ
 
 1. **サービスアカウントへのGmail API権限付与**（またはSendGridに切り替え）
 2. **バックエンドの再デプロイ**

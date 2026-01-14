@@ -126,7 +126,7 @@ gcloud run services logs read universegeo-backend \
 ```
 
 以下のようなログが表示されることを確認：
-- `✅ SendGrid経由でメールを送信しました: [メールアドレス]`
+- `SendGrid経由でメールを送信しました: [メールアドレス]`
 - または、エラーメッセージ（設定に問題がある場合）
 
 4. **メールの確認**
@@ -167,14 +167,14 @@ gcloud run services logs read universegeo-backend \
 - 制限を超えると、追加料金が発生するか、送信が停止されます
 - 使用量はSendGridダッシュボードで確認できます
 
-## 📝 まとめ
+## まとめ
 
-1. ✅ SendGridアカウントを作成
-2. ✅ APIキーを生成
-3. ✅ 送信者認証を設定
-4. ✅ GitHub Environment Secretsに追加
-5. ✅ バックエンドを再デプロイ
-6. ✅ 動作確認
+1. SendGridアカウントを作成
+2. APIキーを生成
+3. 送信者認証を設定
+4. GitHub Environment Secretsに追加
+5. バックエンドを再デプロイ
+6. 動作確認
 
 完了後、パスワードリセット機能が本番環境で使用可能になります。
 
