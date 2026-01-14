@@ -1,10 +1,10 @@
-# 🔍 Secrets設定の確認方法
+# Secrets設定の確認方法
 
 ## 現在のエラー
 
 `GCP_SA_KEY` が空になっているエラーが発生しています。
 
-## ✅ 確認手順
+## 確認手順
 
 ### ステップ1: Repository Secretsにアクセス
 
@@ -23,11 +23,11 @@
 
 **重要**: Secret名は正確に以下である必要があります（大文字・小文字を区別）：
 
-- ✅ `GCP_SA_KEY` （正しい）
-- ❌ `gcp_sa_key` （間違い）
-- ❌ `GCP-SA-KEY` （間違い）
-- ❌ `GCP_SA_KEY_` （間違い）
-- ❌ `GCP_SA_KEY ` （末尾にスペース）
+- `GCP_SA_KEY` （正しい）
+- `gcp_sa_key` （間違い）
+- `GCP-SA-KEY` （間違い）
+- `GCP_SA_KEY_` （間違い）
+- `GCP_SA_KEY ` （末尾にスペース）
 
 ### ステップ4: GCP_SA_KEY の値の確認
 
@@ -51,7 +51,7 @@ Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c
 
 4. **Add secret** をクリック
 
-## 🔍 デバッグ情報の確認
+## デバッグ情報の確認
 
 次回のGitHub Actions実行時に、「Debug Secrets」ステップで以下が表示されます：
 
@@ -62,7 +62,7 @@ Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c
 
 この情報を確認して、問題を特定してください。
 
-## ⚠️ よくある問題
+## よくある問題
 
 ### 問題1: Repository secretsではなくEnvironment secretsに設定している
 
@@ -88,20 +88,20 @@ Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c
 - 最新のコードがGitHubにpushされているか確認
 - GitHub Actionsの実行ログで、最新のワークフローが実行されているか確認
 
-## 📝 設定済みSecretsの一覧
+## 設定済みSecretsの一覧
 
 以下のSecretsが **Repository secrets** に設定されている必要があります：
 
 | Secret名 | 値の例 | 必須 |
 |---------|--------|------|
-| `GCP_SA_KEY` | JSONファイルの内容全体 | ✅ |
-| `GCP_PROJECT_ID` | `univere-geo-demo` | ✅ |
-| `BACKEND_SERVICE_ACCOUNT` | `id-universegeo-backend@univere-geo-demo.iam.gserviceaccount.com` | ✅ |
-| `BQ_DATASET` | BigQueryデータセット名 | ⚠️ |
-| `GOOGLE_SPREADSHEET_ID` | Google Sheets スプレッドシートID | ⚠️ |
-| `GOOGLE_SHEETS_API_KEY` | Google Sheets API キー | ⚠️ |
+| `GCP_SA_KEY` | JSONファイルの内容全体 | 必須 |
+| `GCP_PROJECT_ID` | `univere-geo-demo` | 必須 |
+| `BACKEND_SERVICE_ACCOUNT` | `id-universegeo-backend@univere-geo-demo.iam.gserviceaccount.com` | 必須 |
+| `BQ_DATASET` | BigQueryデータセット名 | オプション |
+| `GOOGLE_SPREADSHEET_ID` | Google Sheets スプレッドシートID | オプション |
+| `GOOGLE_SHEETS_API_KEY` | Google Sheets API キー | オプション |
 
-## 🚀 次のステップ
+## 次のステップ
 
 1. 上記の確認手順を実行
 2. 問題があれば修正

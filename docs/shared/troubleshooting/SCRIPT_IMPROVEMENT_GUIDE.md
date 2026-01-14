@@ -1,30 +1,30 @@
 # スクリプト改善ガイド
 
-## 🔍 問題点
+## 問題点
 
 ### 1. `2>/dev/null` でエラーを捨てない
 
 **問題:**
 ```bash
-# ❌ 悪い例
-bq mk --table ... 2>/dev/null && echo "✅" || echo "⚠️"
+# 悪い例
+bq mk --table ... 2>/dev/null && echo "成功" || echo "警告"
 ```
 
 この方法では、`NotFound` エラーも「既に存在」と誤認してしまいます。
 
 **改善:**
 ```bash
-# ✅ 良い例
+# 良い例
 TABLE_CREATE_OUTPUT=$(bq mk --table ... 2>&1)
 TABLE_CREATE_EXIT_CODE=$?
 if [ ${TABLE_CREATE_EXIT_CODE} -eq 0 ]; then
-  echo "    ✅ テーブル作成成功"
+  echo "    テーブル作成成功"
 else
   if echo "${TABLE_CREATE_OUTPUT}" | grep -q "Already Exists"; then
-    echo "    ⚠️  テーブルが既に存在します"
+    echo "    テーブルが既に存在します"
   else
-    echo "    ❌ テーブル作成に失敗しました"
-    echo "    📋 エラー詳細: ${TABLE_CREATE_OUTPUT}"
+    echo "    テーブル作成に失敗しました"
+    echo "    エラー詳細: ${TABLE_CREATE_OUTPUT}"
   fi
 fi
 ```
@@ -33,7 +33,7 @@ fi
 
 **問題:**
 ```bash
-# ❌ 悪い例
+# 悪い例
 if bq ls -d --project_id="${PROJECT_ID}" "${DATASET_ID}" &> /dev/null; then
 ```
 
@@ -41,28 +41,28 @@ if bq ls -d --project_id="${PROJECT_ID}" "${DATASET_ID}" &> /dev/null; then
 
 **改善:**
 ```bash
-# ✅ 良い例
+# 良い例
 DATASET_CHECK_OUTPUT=$(bq show --dataset --project_id="${PROJECT_ID}" "${DATASET_ID}" 2>&1)
 DATASET_CHECK_EXIT_CODE=$?
 
 if [ ${DATASET_CHECK_EXIT_CODE} -eq 0 ]; then
-  echo "  ✅ データセットが存在します"
-  echo "  📊 データセット情報:"
+  echo "  データセットが存在します"
+  echo "  データセット情報:"
   echo "${DATASET_CHECK_OUTPUT}" | head -n 5
 else
-  echo "  ⚠️  データセットが存在しません"
+  echo "  データセットが存在しません"
   # エラーメッセージを確認
   if echo "${DATASET_CHECK_OUTPUT}" | grep -q "Not found"; then
-    echo "  📋 データセットが見つかりません。作成します..."
+    echo "  データセットが見つかりません。作成します..."
   else
-    echo "  ❌ 予期しないエラー: ${DATASET_CHECK_OUTPUT}"
+    echo "  予期しないエラー: ${DATASET_CHECK_OUTPUT}"
   fi
 fi
 ```
 
 ---
 
-## 📋 改善されたスクリプトの特徴
+## 改善されたスクリプトの特徴
 
 ### 1. エラーメッセージの表示
 
@@ -82,7 +82,7 @@ fi
 
 ---
 
-## 🛠️ 実装例
+## 実装例
 
 ### データセットの存在確認と作成
 
@@ -92,12 +92,12 @@ DATASET_CHECK_OUTPUT=$(bq show --dataset --project_id="${PROJECT_ID}" "${DATASET
 DATASET_CHECK_EXIT_CODE=$?
 
 if [ ${DATASET_CHECK_EXIT_CODE} -eq 0 ]; then
-  echo "  ✅ データセット '${DATASET_ID}' が既に存在します"
-  echo "  📊 データセット情報:"
+  echo "  データセット '${DATASET_ID}' が既に存在します"
+  echo "  データセット情報:"
   echo "${DATASET_CHECK_OUTPUT}" | head -n 5
 else
-  echo "  ⚠️  データセット '${DATASET_ID}' が存在しません"
-  echo "  📋 データセットを作成中..."
+  echo "  データセット '${DATASET_ID}' が存在しません"
+  echo "  データセットを作成中..."
   
   DATASET_CREATE_OUTPUT=$(bq mk --dataset \
     --project_id="${PROJECT_ID}" \
@@ -107,10 +107,10 @@ else
   DATASET_CREATE_EXIT_CODE=$?
   
   if [ ${DATASET_CREATE_EXIT_CODE} -eq 0 ]; then
-    echo "  ✅ データセットを作成しました"
+    echo "  データセットを作成しました"
   else
-    echo "  ❌ データセットの作成に失敗しました"
-    echo "  📋 エラー詳細:"
+    echo "  データセットの作成に失敗しました"
+    echo "  エラー詳細:"
     echo "${DATASET_CREATE_OUTPUT}"
     exit 1
   fi
@@ -127,20 +127,20 @@ TABLE_CREATE_OUTPUT=$(bq mk --table \
 TABLE_CREATE_EXIT_CODE=$?
 
 if [ ${TABLE_CREATE_EXIT_CODE} -eq 0 ]; then
-  echo "    ✅ table_name"
+  echo "    table_name"
 else
   if echo "${TABLE_CREATE_OUTPUT}" | grep -q "Already Exists"; then
-    echo "    ⚠️  table_name (既に存在します)"
+    echo "    table_name (既に存在します)"
   else
-    echo "    ❌ table_name の作成に失敗しました"
-    echo "    📋 エラー詳細: ${TABLE_CREATE_OUTPUT}"
+    echo "    table_name の作成に失敗しました"
+    echo "    エラー詳細: ${TABLE_CREATE_OUTPUT}"
   fi
 fi
 ```
 
 ---
 
-## ✅ チェックリスト
+## チェックリスト
 
 スクリプトを作成・修正する際は、以下を確認：
 
@@ -152,7 +152,7 @@ fi
 
 ---
 
-## 📚 参考
+## 参考
 
 - [BigQuery CLI リファレンス](https://cloud.google.com/bigquery/docs/reference/bq-cli-reference)
 - [シェルスクリプトのエラーハンドリング](https://www.gnu.org/software/bash/manual/html_node/Exit-Status.html)

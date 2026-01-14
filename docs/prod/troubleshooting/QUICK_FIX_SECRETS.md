@@ -1,10 +1,10 @@
-# 🔧 クイック修正: GitHub Secrets の設定
+# クイック修正: GitHub Secrets の設定
 
 ## 問題
 
 `GCP_SA_KEY` が空になっているエラーが発生しています。
 
-## ✅ 解決方法: Repository Secrets に設定（推奨）
+## 解決方法: Repository Secrets に設定（推奨）
 
 Environment secretsではなく、**Repository secrets**に設定してください。これが最も確実に動作します。
 
@@ -55,15 +55,15 @@ Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c
 - **GOOGLE_SHEET_NAME**: シート名（オプション）
 - **FRONTEND_URL**: フロントエンドURL（オプション）
 
-## 📍 設定場所の確認
+## 設定場所の確認
 
-### ✅ 正しい場所: Repository secrets
+### 正しい場所: Repository secrets
 
 ```
 Settings > Secrets and variables > Actions > Repository secrets
 ```
 
-### ❌ 間違った場所: Environment secrets
+### 間違った場所: Environment secrets
 
 ```
 Settings > Environments > production > Environment secrets
@@ -71,15 +71,15 @@ Settings > Environments > production > Environment secrets
 
 **注意**: Environment secretsでも動作するはずですが、Repository secretsの方が確実です。
 
-## 🔍 確認方法
+## 確認方法
 
 1. **Settings** > **Secrets and variables** > **Actions** を開く
 2. **Repository secrets** タブで以下を確認：
-   - ✅ `GCP_SA_KEY` が存在する
-   - ✅ `GCP_PROJECT_ID` が存在する
-   - ✅ `BACKEND_SERVICE_ACCOUNT` が存在する
+   - `GCP_SA_KEY` が存在する
+   - `GCP_PROJECT_ID` が存在する
+   - `BACKEND_SERVICE_ACCOUNT` が存在する
 
-## 🚀 次のステップ
+## 次のステップ
 
 すべてのSecretsを設定したら：
 
@@ -87,12 +87,12 @@ Settings > Environments > production > Environment secrets
 2. 「Verify Secrets」ステップのログを確認
 3. エラーが解消されているか確認
 
-## 💡 なぜRepository secretsが推奨されるのか
+## なぜRepository secretsが推奨されるのか
 
-- ✅ より簡単に設定できる
-- ✅ Environment secretsよりも確実に動作する
-- ✅ 複数のEnvironmentで同じSecretを使える
-- ✅ 設定場所が明確
+- より簡単に設定できる
+- Environment secretsよりも確実に動作する
+- 複数のEnvironmentで同じSecretを使える
+- 設定場所が明確
 
 
 

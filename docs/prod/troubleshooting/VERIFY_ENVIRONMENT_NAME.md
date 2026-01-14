@@ -1,10 +1,10 @@
-# 🔍 Environment名の確認と修正
+# Environment名の確認と修正
 
 ## 現在の状況
 
 ワークフローは `environment: name: production` を設定していますが、実際のEnvironment名が異なる可能性があります。
 
-## ✅ 確認手順
+## 確認手順
 
 ### ステップ1: GitHub Environmentsを確認
 
@@ -31,7 +31,7 @@
 
 GitHubでEnvironment名を `production` に変更します。
 
-## 📋 ワークフローで使用しているEnvironment名
+## ワークフローで使用しているEnvironment名
 
 現在、すべてのワークフローで以下のEnvironment名を使用しています：
 
@@ -40,19 +40,19 @@ environment:
   name: production
 ```
 
-## ⚠️ 重要
+## 重要
 
 - Environment名は**大文字・小文字を区別**します
 - Environment名が `production` でない場合、Environment secretsが参照されません
 - ワークフローの `environment: name:` と実際のEnvironment名が**完全に一致**する必要があります
 
-## 🔍 確認方法
+## 確認方法
 
 1. **Settings** > **Environments** を開く
 2. Environment一覧で、実際のEnvironment名を確認
 3. そのEnvironmentをクリックして、Environment secretsが設定されているか確認
 
-## 🚀 修正が必要な場合
+## 修正が必要な場合
 
 ### 方法1: ワークフローを実際のEnvironment名に合わせる
 
@@ -72,7 +72,7 @@ environment:
 5. **Configure environment** をクリック
 6. Environment secretsを再設定
 
-## 💡 推奨
+## 推奨
 
 Environment名は `production` を使用することを推奨します。これが標準的な命名規則です。
 

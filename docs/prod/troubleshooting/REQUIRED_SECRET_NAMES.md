@@ -1,6 +1,6 @@
-# 📋 ワークフローが参照しているSecret名一覧
+# ワークフローが参照しているSecret名一覧
 
-## ✅ 必須Secrets（Environment secretsに設定が必要）
+## 必須Secrets（Environment secretsに設定が必要）
 
 ワークフローは以下のSecret名を**正確に**参照しています：
 
@@ -25,7 +25,7 @@
 - **説明**: BigQueryデータセット名
 - **値**: あなたのBigQueryデータセット名（例: `universegeo_dataset`）
 
-## ⚠️ オプションSecrets（必要に応じて設定）
+## オプションSecrets（必要に応じて設定）
 
 ### 5. GOOGLE_SPREADSHEET_ID
 - **参照箇所**: `${{ secrets.GOOGLE_SPREADSHEET_ID }}`
@@ -59,15 +59,15 @@
 - **説明**: フロントエンド用Google Sheets API キー
 - **必須**: オプション
 
-## 📝 Secret名の規則
+## Secret名の規則
 
-### ✅ 正しいSecret名
+### 正しいSecret名
 
 - `GCP_SA_KEY` - 大文字、アンダースコア
 - `GCP_PROJECT_ID` - 大文字、アンダースコア
 - `BACKEND_SERVICE_ACCOUNT` - 大文字、アンダースコア
 
-### ❌ 間違ったSecret名の例
+### 間違ったSecret名の例
 
 - `gcp_sa_key` - 小文字（間違い）
 - `GCP-SA-KEY` - ハイフン（間違い）
@@ -75,7 +75,7 @@
 - `GCP_SA_KEY ` - 末尾にスペース（間違い）
 - `Gcp_Sa_Key` - 大文字・小文字が混在（間違い）
 
-## 🔍 確認方法
+## 確認方法
 
 1. **Environment secrets** にアクセス:
    `https://github.com/rikuxxer/demo_GEO_admin_automation_ver1.0/settings/environments/production`
@@ -84,7 +84,7 @@
 
 3. 各Secret名が上記の正しい名前と**完全に一致**しているか確認
 
-## 🚀 設定手順
+## 設定手順
 
 1. Environment secretsにアクセス
 2. **Add secret** をクリック
@@ -92,7 +92,7 @@
 4. **Secret** に値を貼り付け
 5. **Add secret** をクリック
 
-## ⚠️ 重要
+## 重要
 
 - Secret名は**大文字・小文字を区別**します
 - Secret名は**完全に一致**する必要があります

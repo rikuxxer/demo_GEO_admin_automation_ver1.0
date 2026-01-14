@@ -1,4 +1,4 @@
-# 🔧 サービスアカウント権限の修正
+# サービスアカウント権限の修正
 
 ## 現在のエラー
 
@@ -8,7 +8,7 @@ Permission 'iam.serviceaccounts.actAs' denied on service account
 
 GitHub Actionsで使用しているサービスアカウントが、Cloud Runサービスで使用するサービスアカウントを`actAs`する権限を持っていません。
 
-## ✅ 解決方法
+## 解決方法
 
 ### 方法1: サービスアカウントに権限を付与（推奨）
 
@@ -67,7 +67,7 @@ Cloud Runサービスで、プロジェクトのデフォルトサービスア�
 --service-account=${{ env.PROJECT_ID }}@appspot.gserviceaccount.com \
 ```
 
-## 🔍 確認方法
+## 確認方法
 
 ### 現在の権限を確認
 
@@ -83,7 +83,7 @@ gcloud iam service-accounts get-iam-policy $BACKEND_SA \
   --project=univere-geo-demo
 ```
 
-## 📝 推奨設定
+## 推奨設定
 
 **方法1（サービスアカウントに権限を付与）**を推奨します。これにより、Cloud Runサービスで適切なサービスアカウントを使用できます。
 

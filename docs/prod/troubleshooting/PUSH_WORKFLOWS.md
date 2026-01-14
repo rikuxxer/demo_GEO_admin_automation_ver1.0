@@ -1,10 +1,10 @@
-# 🔄 ワークフローの変更をGitHubにpushする方法
+# ワークフローの変更をGitHubにpushする方法
 
 ## 現在の状況
 
 ワークフローファイルは更新されていますが、GitHubにpushする必要があります。
 
-## 📋 手動でpushする方法
+## 手動でpushする方法
 
 ### 方法1: GitHub Desktopを使用（推奨）
 
@@ -34,17 +34,17 @@ git push
    - `.github/workflows/deploy-frontend.yml`
 3. 変更をコミット
 
-## ✅ 変更内容の確認
+## 変更内容の確認
 
 以下のファイルが更新されています：
 
-- ✅ `.github/workflows/deploy-all.yml`
-- ✅ `.github/workflows/deploy-backend.yml`
-- ✅ `.github/workflows/deploy-frontend.yml`
+- `.github/workflows/deploy-all.yml`
+- `.github/workflows/deploy-backend.yml`
+- `.github/workflows/deploy-frontend.yml`
 
 すべてのワークフローで、**Environment secrets**を参照するようにエラーメッセージが更新されています。
 
-## 🚀 push後の確認
+## push後の確認
 
 push後、以下を確認してください：
 

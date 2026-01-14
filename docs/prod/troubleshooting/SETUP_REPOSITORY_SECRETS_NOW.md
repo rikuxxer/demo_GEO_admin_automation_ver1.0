@@ -1,10 +1,10 @@
-# 🚨 緊急: Repository Secrets の設定（今すぐ実行）
+# 緊急: Repository Secrets の設定（今すぐ実行）
 
 ## 現在の状況
 
 `GCP_SA_KEY` が空になっているため、デプロイが失敗しています。
 
-## ✅ 今すぐ実行する手順
+## 今すぐ実行する手順
 
 ### ステップ1: JSONファイルの内容をコピー
 
@@ -12,7 +12,7 @@
 
 ```powershell
 Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c50.json" | Set-Clipboard
-Write-Host "✅ JSONファイルの内容をクリップボードにコピーしました"
+Write-Host "JSONファイルの内容をクリップボードにコピーしました"
 ```
 
 **または、メモ帳で開いて:**
@@ -67,41 +67,41 @@ Write-Host "✅ JSONファイルの内容をクリップボードにコピーし
 3. **Secret**: あなたのBigQueryデータセット名（例: `universegeo_dataset`）
 4. **Add secret** をクリック
 
-## 🔍 設定確認
+## 設定確認
 
 設定後、**Repository secrets** タブで以下が表示されているか確認してください：
 
-- ✅ `GCP_SA_KEY`
-- ✅ `GCP_PROJECT_ID`
-- ✅ `BACKEND_SERVICE_ACCOUNT`
-- ✅ `BQ_DATASET`
+- `GCP_SA_KEY`
+- `GCP_PROJECT_ID`
+- `BACKEND_SERVICE_ACCOUNT`
+- `BQ_DATASET`
 
-## ⚠️ よくある間違い
+## よくある間違い
 
 ### 間違い1: Environment secretsに設定している
 
-- ❌ **間違い**: Settings > Environments > production > Environment secrets
-- ✅ **正しい**: Settings > Secrets and variables > Actions > **Repository secrets**
+- **間違い**: Settings > Environments > production > Environment secrets
+- **正しい**: Settings > Secrets and variables > Actions > **Repository secrets**
 
 ### 間違い2: Secret名が間違っている
 
-- ❌ `gcp_sa_key`（小文字）
-- ❌ `GCP-SA-KEY`（ハイフン）
-- ❌ `GCP_SA_KEY_`（末尾にアンダースコア）
-- ✅ `GCP_SA_KEY`（正しい）
+- `gcp_sa_key`（小文字）
+- `GCP-SA-KEY`（ハイフン）
+- `GCP_SA_KEY_`（末尾にアンダースコア）
+- `GCP_SA_KEY`（正しい）
 
 ### 間違い3: JSONの内容が不完全
 
-- ❌ JSONの一部だけをコピー
-- ✅ JSON全体（`{` から `}` まで）をコピー
+- JSONの一部だけをコピー
+- JSON全体（`{` から `}` まで）をコピー
 
-## 📝 設定後の確認
+## 設定後の確認
 
 1. **Repository secrets** タブで、`GCP_SA_KEY` が表示されているか確認
 2. `GCP_SA_KEY` をクリックして、**Update** ボタンが表示されるか確認（値は表示されませんが、設定されているか確認できます）
 3. GitHub Actionsでデプロイを再実行
 
-## 🚀 次のステップ
+## 次のステップ
 
 すべてのSecretsを設定したら：
 

@@ -1,17 +1,17 @@
-# 🔧 Repository Secrets 設定手順（必須）
+# Repository Secrets 設定手順（必須）
 
-## ⚠️ 現在の状況
+## 現在の状況
 
 `GCP_SA_KEY` が空になっているエラーが発生しています。**Repository secrets**に設定する必要があります。
 
-## 📋 設定手順
+## 設定手順
 
 ### ステップ1: JSONファイルの内容をコピー
 
 **PowerShellを使用:**
 ```powershell
 Get-Content "C:\Users\sakamoto_riku_microa\Downloads\univere-geo-demo-e26fa6a79c50.json" | Set-Clipboard
-Write-Host "✅ JSONファイルの内容をクリップボードにコピーしました"
+Write-Host "JSONファイルの内容をクリップボードにコピーしました"
 ```
 
 ### ステップ2: GitHub Repository Secretsにアクセス
@@ -55,7 +55,7 @@ Write-Host "✅ JSONファイルの内容をクリップボードにコピーし
 - **GOOGLE_SHEET_NAME**: シート名（オプション、デフォルト: `シート1`）
 - **FRONTEND_URL**: フロントエンドURL（オプション）
 
-## ✅ 設定確認チェックリスト
+## 設定確認チェックリスト
 
 Repository secretsに以下が設定されているか確認してください：
 
@@ -66,32 +66,32 @@ Repository secretsに以下が設定されているか確認してください�
 - [ ] `GOOGLE_SPREADSHEET_ID` - Google Sheets スプレッドシートID
 - [ ] `GOOGLE_SHEETS_API_KEY` - Google Sheets API キー
 
-## 🔍 確認方法
+## 確認方法
 
 1. **Settings** > **Secrets and variables** > **Actions** を開く
 2. **Repository secrets** タブで以下を確認：
-   - ✅ `GCP_SA_KEY` が存在する
-   - ✅ `GCP_PROJECT_ID` が存在する
-   - ✅ `BACKEND_SERVICE_ACCOUNT` が存在する
+   - `GCP_SA_KEY` が存在する
+   - `GCP_PROJECT_ID` が存在する
+   - `BACKEND_SERVICE_ACCOUNT` が存在する
 
-## ⚠️ よくある間違い
+## よくある間違い
 
 ### 間違い1: Environment secretsに設定している
 
-- ❌ 間違い: Settings > Environments > production > Environment secrets
-- ✅ 正しい: Settings > Secrets and variables > Actions > Repository secrets
+- 間違い: Settings > Environments > production > Environment secrets
+- 正しい: Settings > Secrets and variables > Actions > Repository secrets
 
 ### 間違い2: Secret名が間違っている
 
-- ❌ 間違い: `gcp_sa_key`、`GCP-SA-KEY`、`GCP_SA_KEY_` など
-- ✅ 正しい: `GCP_SA_KEY`（大文字、アンダースコア）
+- 間違い: `gcp_sa_key`、`GCP-SA-KEY`、`GCP_SA_KEY_` など
+- 正しい: `GCP_SA_KEY`（大文字、アンダースコア）
 
 ### 間違い3: JSONの内容が不完全
 
-- ❌ 間違い: JSONの一部だけをコピー
-- ✅ 正しい: `{` から `}` まで全体をコピー
+- 間違い: JSONの一部だけをコピー
+- 正しい: `{` から `}` まで全体をコピー
 
-## 🚀 次のステップ
+## 次のステップ
 
 すべてのSecretsを設定したら：
 
@@ -99,7 +99,7 @@ Repository secretsに以下が設定されているか確認してください�
 2. 「Verify Secrets」ステップのログを確認
 3. エラーが解消されているか確認
 
-## 📝 直接リンク
+## 直接リンク
 
 - Repository secrets: `https://github.com/rikuxxer/demo_GEO_admin_automation_ver1.0/settings/secrets/actions`
 
