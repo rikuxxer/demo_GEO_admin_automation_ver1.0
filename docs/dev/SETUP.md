@@ -57,15 +57,15 @@ cd backend
 npm run dev
 ```
 
-## 🔍 確認事項
+## 確認事項
 
 - [ ] フロントエンドが http://localhost:5173 で起動している
 - [ ] バックエンドが http://localhost:8080 で起動している
 - [ ] BigQueryへの接続が成功している
 - [ ] 開発用データセットが存在している
 
-## 📝 関連ドキュメント
+## 関連ドキュメント
 
 - [デプロイガイド](./DEPLOYMENT.md)
-- [トラブルシューティング](./TROUBLESHOOTING.md)
+- [トラブルシューティング](./troubleshooting/)
 - [共通ドキュメント](../shared/)
