@@ -31,7 +31,7 @@ chmod +x update_all_schemas_complete.sh
 
 ---
 
-## 📋 個別テーブル更新（user_requestsテーブルのみ）
+## 個別テーブル更新（user_requestsテーブルのみ）
 
 `user_requests`テーブルのみを更新する場合：
 
@@ -67,13 +67,13 @@ bq update -t \
   "${DATASET_ID}.${TABLE}"
 
 # 更新後のスキーマを確認
-echo "✅ 更新後のスキーマ:"
+echo "更新後のスキーマ:"
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}"
 ```
 
 ---
 
-## 🔍 スキーマ確認コマンド
+## スキーマ確認コマンド
 
 更新後、各テーブルのスキーマを確認：
 
@@ -92,7 +92,7 @@ bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.messages"
 
 ---
 
-## ⚠️ トラブルシューティング
+## トラブルシューティング
 
 ### エラー: "Field request_id is missing in new schema"
 
@@ -117,7 +117,7 @@ bq ls "${DATASET_ID}"
 
 ---
 
-## ✅ 更新後の確認
+## 更新後の確認
 
 1. **スキーマ更新を実行**
 2. **各テーブルのスキーマを確認**（上記のコマンド）
@@ -127,7 +127,7 @@ bq ls "${DATASET_ID}"
 
 ---
 
-## 📝 注意事項
+## 注意事項
 
 - 既存のデータは保持されます
 - 新しいフィールドはNULLABLEとして追加されます

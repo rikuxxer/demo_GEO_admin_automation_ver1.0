@@ -1,6 +1,6 @@
 # テーブル作成完了後の次のステップ
 
-## ✅ テーブル作成の確認
+## テーブル作成の確認
 
 すべてのテーブルが正しく作成されたか確認：
 
@@ -24,24 +24,24 @@ bash verify_tables_created.sh
 
 ---
 
-## 📋 期待されるテーブル一覧
+## 期待されるテーブル一覧
 
 以下の10個のテーブルが作成されている必要があります：
 
-1. ✅ `projects` - プロジェクト情報
-2. ✅ `segments` - セグメント情報
-3. ✅ `pois` - POI（地点）情報
-4. ✅ `users` - ユーザー情報
-5. ✅ `user_requests` - ユーザー登録申請（**重要**）
-6. ✅ `messages` - メッセージ
-7. ✅ `change_history` - 変更履歴
-8. ✅ `edit_requests` - 編集申請
-9. ✅ `feature_requests` - 機能要望
-10. ✅ `visit_measurement_groups` - 訪問測定グループ
+1. `projects` - プロジェクト情報
+2. `segments` - セグメント情報
+3. `pois` - POI（地点）情報
+4. `users` - ユーザー情報
+5. `user_requests` - ユーザー登録申請（**重要**）
+6. `messages` - メッセージ
+7. `change_history` - 変更履歴
+8. `edit_requests` - 編集申請
+9. `feature_requests` - 機能要望
+10. `visit_measurement_groups` - 訪問測定グループ
 
 ---
 
-## 🚀 次のステップ
+## 次のステップ
 
 ### 1. ブラウザのキャッシュをクリア
 
@@ -65,7 +65,7 @@ Missing required fields: Msg_0_CLOUD_QUERY_TABLE.desired_role, Msg_0_CLOUD_QUERY
 
 ---
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### まだエラーが発生する場合
 
@@ -89,7 +89,7 @@ Missing required fields: Msg_0_CLOUD_QUERY_TABLE.desired_role, Msg_0_CLOUD_QUERY
 
 ---
 
-## 📊 テーブルスキーマの確認
+## テーブルスキーマの確認
 
 各テーブルのスキーマが正しいか確認：
 
@@ -117,7 +117,7 @@ bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.user_requests"
 
 ---
 
-## ✅ 完了チェックリスト
+## 完了チェックリスト
 
 - [ ] すべてのテーブルが作成された（10個）
 - [ ] `user_requests`テーブルのスキーマが正しい
@@ -127,7 +127,7 @@ bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.user_requests"
 
 ---
 
-## 💡 補足
+## 補足
 
 テーブル作成が完了したら、アプリケーションは正常に動作するはずです。もし問題が発生した場合は、上記のトラブルシューティング手順を参照してください。
 

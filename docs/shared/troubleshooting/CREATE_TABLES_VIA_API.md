@@ -4,13 +4,13 @@
 
 `bq mk --table`コマンドがタイムアウト（exit code 124）する問題が発生しています。
 
-## ✅ 解決方法
+## 解決方法
 
 BigQuery REST APIを直接使用してテーブルを作成します。
 
 ---
 
-## 🚀 使用方法
+## 使用方法
 
 ### 方法1: スクリプトを実行
 
@@ -52,7 +52,7 @@ timeout 10s curl -sS -w "http_code=%{http_code}\n" \
   > /tmp/get_${TABLE}.json
 
 if grep -q "http_code=200" /tmp/get_${TABLE}.json; then
-  echo "⚠️  ${TABLE} は既に存在します"
+  echo "${TABLE} は既に存在します"
 else
   # 3) JSONリクエストボディを作成
   export PROJECT_ID DATASET_ID
@@ -69,11 +69,11 @@ body = {
 }
 with open("/tmp/create_projects.json", "w", encoding="utf-8") as f:
   json.dump(body, f, ensure_ascii=False)
-print("✅ リクエストボディを作成しました")
+print("リクエストボディを作成しました")
 PY
 
   # 4) REST APIでテーブルを作成
-  echo "➡️  ${TABLE} を作成中..."
+  echo "${TABLE} を作成中..."
   timeout 30s curl -sS -o /tmp/create_${TABLE}_resp.json -w "http_code=%{http_code}\n" \
     -X POST \
     -H "Authorization: Bearer ${TOKEN}" \
@@ -83,9 +83,9 @@ PY
 
   # 5) 結果確認
   if grep -q "http_code=200" /tmp/create_${TABLE}_resp.json; then
-    echo "✅ ${TABLE} を作成しました"
+    echo "${TABLE} を作成しました"
   else
-    echo "❌ ${TABLE} の作成に失敗しました"
+    echo "${TABLE} の作成に失敗しました"
     head -c 500 /tmp/create_${TABLE}_resp.json
   fi
 fi
@@ -93,7 +93,7 @@ fi
 
 ---
 
-## 📋 テーブル一覧
+## テーブル一覧
 
 作成されるテーブル：
 
@@ -110,7 +110,7 @@ fi
 
 ---
 
-## ✅ 完了確認
+## 完了確認
 
 すべてのテーブルが作成されたか確認：
 
@@ -138,16 +138,16 @@ for table in projects segments pois users user_requests messages change_history 
     -H "Authorization: Bearer ${TOKEN}" \
     "https://bigquery.googleapis.com/bigquery/v2/projects/${PROJECT_ID}/datasets/${DATASET_ID}/tables/${table}")
   if [ "${HTTP_CODE}" = "200" ]; then
-    echo "✅ ${table}"
+    echo "${table}"
   else
-    echo "❌ ${table} (HTTP ${HTTP_CODE})"
+    echo "${table} (HTTP ${HTTP_CODE})"
   fi
 done
 ```
 
 ---
 
-## 🔍 トラブルシューティング
+## トラブルシューティング
 
 ### トークンの取得に失敗する場合
 
@@ -164,7 +164,7 @@ gcloud auth application-default login
 
 ---
 
-## 💡 メリット
+## メリット
 
 1. **タイムアウト問題を回避**: `bq`コマンドのタイムアウト問題を回避
 2. **高速**: REST APIは直接呼び出しで高速

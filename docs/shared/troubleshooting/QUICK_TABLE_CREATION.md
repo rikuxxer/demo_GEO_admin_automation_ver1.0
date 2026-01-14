@@ -14,7 +14,7 @@ bq ls --project_id="${PROJECT_ID}" "${DATASET_ID}" 2>&1 | tail -n +3
 
 ---
 
-## 🚀 方法1: スクリプトファイルを使用（推奨）
+## 方法1: スクリプトファイルを使用（推奨）
 
 ### ステップ1: スクリプトを作成
 
@@ -37,7 +37,7 @@ chmod +x create_tables_step_by_step.sh
 
 ---
 
-## 🚀 方法2: 個別にテーブルを作成
+## 方法2: 個別にテーブルを作成
 
 コマンドが長すぎる場合は、各テーブルを個別に作成できます。
 
@@ -66,7 +66,7 @@ cat > /tmp/projects_schema.json << 'EOF'
 EOF
 
 bq mk --table --project_id="${PROJECT_ID}" --schema /tmp/projects_schema.json "${DATASET_ID}.projects"
-echo "✅ projects作成完了"
+echo "projects作成完了"
 ```
 
 ### 2. 残りのテーブル
@@ -75,7 +75,7 @@ echo "✅ projects作成完了"
 
 ---
 
-## 📋 作成状況の確認
+## 作成状況の確認
 
 テーブル作成状況を確認：
 
@@ -93,7 +93,7 @@ echo "作成済みテーブル数: $(bq ls --project_id="${PROJECT_ID}" "${DATAS
 
 ---
 
-## ⚠️ エラーが発生した場合
+## エラーが発生した場合
 
 ### エラー: "Table already exists"
 
@@ -113,7 +113,7 @@ bq mk --dataset \
 
 ---
 
-## ✅ 完了確認
+## 完了確認
 
 すべてのテーブルが作成されたか確認：
 
@@ -130,16 +130,16 @@ EXISTING=$(bq ls --project_id="${PROJECT_ID}" "${DATASET_ID}" 2>&1 | tail -n +3 
 echo "テーブル作成状況:"
 for table in "${EXPECTED[@]}"; do
   if echo "$EXISTING" | grep -q "^${table}$"; then
-    echo "  ✅ ${table}"
+    echo "  ${table}"
   else
-    echo "  ❌ ${table} (未作成)"
+    echo "  ${table} (未作成)"
   fi
 done
 ```
 
 ---
 
-## 🎯 次のステップ
+## 次のステップ
 
 1. すべてのテーブルが作成されたことを確認
 2. ブラウザのキャッシュをクリア

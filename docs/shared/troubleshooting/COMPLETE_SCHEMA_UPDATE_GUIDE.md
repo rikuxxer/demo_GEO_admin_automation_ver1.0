@@ -6,7 +6,7 @@
 
 ---
 
-## 🚀 クイックスタート
+## クイックスタート
 
 ### 方法1: 一括更新スクリプトを使用（推奨）
 
@@ -24,7 +24,7 @@ chmod +x update_all_schemas_complete.sh
 
 ---
 
-## 📋 各テーブルのスキーマ定義
+## 各テーブルのスキーマ定義
 
 ### 1. projectsテーブル
 
@@ -145,7 +145,7 @@ bq update -t \
   "${DATASET_ID}.users"
 ```
 
-### 5. user_requestsテーブル ⚠️ 重要
+### 5. user_requestsテーブル（重要）
 
 **既存の`request_id`と`desired_role`フィールドを保持しつつ、新しいフィールドを追加します。**
 
@@ -200,7 +200,7 @@ bq update -t \
 
 ---
 
-## 🔍 スキーマ確認コマンド
+## スキーマ確認コマンド
 
 更新後、各テーブルのスキーマを確認します：
 
@@ -219,7 +219,7 @@ bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.messages"
 
 ---
 
-## ⚠️ 注意事項
+## 注意事項
 
 ### 1. 既存フィールドの削除
 
@@ -255,7 +255,7 @@ BigQueryでは、既存のフィールドをスキーマから削除すること
 
 ---
 
-## ✅ 更新後の確認
+## 更新後の確認
 
 1. **スキーマ更新を実行**
 2. **各テーブルのスキーマを確認**
@@ -264,12 +264,12 @@ BigQueryでは、既存のフィールドをスキーマから削除すること
 
 ---
 
-## 📋 フィールド名の対応表（user_requestsテーブル）
+## フィールド名の対応表（user_requestsテーブル）
 
 | コード（送信） | 既存スキーマ | 新しいスキーマ（両方保持） |
 |--------------|------------|----------------------|
-| `user_id` | `request_id` ❌ | `user_id` ✅ + `request_id` (互換性のため保持) |
-| `requested_role` | `desired_role` ❌ | `requested_role` ✅ + `desired_role` (互換性のため保持) |
+| `user_id` | `request_id` | `user_id` + `request_id` (互換性のため保持) |
+| `requested_role` | `desired_role` | `requested_role` + `desired_role` (互換性のため保持) |
 
 **注意**: コードは`user_id`と`requested_role`を送信しますが、スキーマに両方のフィールドがあるため動作します。
 
