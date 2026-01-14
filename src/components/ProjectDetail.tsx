@@ -48,7 +48,7 @@ interface ProjectDetailProps {
   onBack: () => void;
   onProjectUpdate: (projectId: string, updates: Partial<Project>) => void;
   onSegmentCreate: (segment: Partial<Segment>) => void;
-  onSegmentUpdate: (segmentId: string, updates: Partial<Segment>) => void;
+  onSegmentUpdate: (segmentId: string, updates: Partial<Segment>) => Promise<void>;
   onSegmentDelete: (segmentId: string) => void;
   onPoiCreate: (segmentId: string, poiData: Partial<PoiInfo>) => void;
   onPoiCreateBulk?: (segmentId: string, poisData: Partial<PoiInfo>[]) => Promise<any>;
