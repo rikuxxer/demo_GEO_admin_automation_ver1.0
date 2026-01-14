@@ -47,6 +47,26 @@ function parseRadius(radius: string | undefined): number {
 }
 
 /**
+ * 選択可能な半径のリスト（1000m以上）
+ */
+const SELECTABLE_RADIUS_VALUES = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
+
+/**
+ * 半径が選択可能な値かどうかを判定
+ */
+function isSelectableRadius(radius: number): boolean {
+  return SELECTABLE_RADIUS_VALUES.includes(radius);
+}
+
+/**
+ * 半径が自由入力範囲内かどうかを判定（0-999m）
+ * 注意: 1000mは選択可能な値として扱うため、自由入力範囲には含めない
+ */
+function isFreeInputRadius(radius: number): boolean {
+  return radius > 0 && radius < 1000;
+}
+
+/**
  * 日付をYYYY/MM/DD形式に変換
  */
 function formatDateToYYYYMMDD(date: Date | string): string {
@@ -99,10 +119,6 @@ export function convertPoiToSheetRow(
   // 半径を数値に変換
   const radiusValue = parseRadius(poi.designated_radius || segment?.designated_radius);
   
-  // category_id: 99000000（00には指定半径の広さ）
-  // 例: 半径50m -> 99000050, 半径100m -> 99000100
-  const categoryId = `9900${String(radiusValue).padStart(4, '0')}`;
-
   // データ連携予定日のロジックを使用してcreatedを計算
   // poi.createdが存在する場合はそれを使用、なければ現在日時を使用
   let requestDateTime: string;
@@ -123,9 +139,44 @@ export function convertPoiToSheetRow(
   // YYYY-MM-DD形式をYYYY/MM/DD形式に変換
   const createdDateFormatted = formatDateToYYYYMMDD(coordinationDate);
 
-  // 半径が設定されている場合（0より大きい場合）はsetting_flag=4（任意半径で指定）
-  // 半径が設定されていない場合はsetting_flag=2（弊社のPOIマスタに存在しない）
-  const settingFlag = radiusValue > 0 ? '4' : (poi.setting_flag || '2');
+  // 半径の入力方法に応じてcategory_id、radius、setting_flagを決定
+  let categoryId: string;
+  let radius: string;
+  let settingFlag: string;
+
+  if (radiusValue === 0) {
+    // 半径が設定されていない場合
+    categoryId = '';
+    radius = '';
+    settingFlag = poi.setting_flag || '2';
+  } else if (isFreeInputRadius(radiusValue)) {
+    // 自由入力範囲（0-1000m）の場合
+    // category_id: 99000XXX（XXXは半径の値、4桁で0埋め）
+    // radius: 空
+    // setting_flag: 2
+    categoryId = `9900${String(radiusValue).padStart(4, '0')}`;
+    radius = '';
+    settingFlag = '2';
+  } else if (isSelectableRadius(radiusValue)) {
+    // 選択可能な値（1000m以上）の場合
+    // category_id: 空
+    // radius: 選択した値
+    // setting_flag: 4
+    categoryId = '';
+    radius = String(radiusValue);
+    settingFlag = '4';
+  } else {
+    // その他の値（1000m超で選択可能な値以外）の場合
+    // 選択可能な値に最も近い値に丸める、またはエラーとして扱う
+    // ここでは選択可能な値に最も近い値を使用
+    const closestSelectable = SELECTABLE_RADIUS_VALUES.reduce((prev, curr) => {
+      return Math.abs(curr - radiusValue) < Math.abs(prev - radiusValue) ? curr : prev;
+    });
+    console.warn(`⚠️ 半径${radiusValue}mは選択可能な値ではありません。最も近い値${closestSelectable}mを使用します。`);
+    categoryId = '';
+    radius = String(closestSelectable);
+    settingFlag = '4';
+  }
 
   return {
     category_id: categoryId,
@@ -137,11 +188,72 @@ export function convertPoiToSheetRow(
     longitude: poi.longitude !== undefined && poi.longitude !== null ? String(poi.longitude) : '',
     prefecture: prefecture || '', // 空の場合は空文字列
     city: city || '', // 空の場合は空文字列
-    radius: radiusValue > 0 ? String(radiusValue) : '', // 0より大きい場合のみ設定（J列）
+    radius: radius, // 選択可能な値の場合のみ設定
     polygon: '', // 空
-    setting_flag: settingFlag, // 半径が設定されている場合は4、それ以外は2
+    setting_flag: settingFlag,
     created: createdDateFormatted, // YYYY/MM/DD形式
   };
+}
+
+/**
+ * スプレッドシートに行を追加（テーブル蓄積付き）
+ */
+export async function appendRowsToSheetWithAccumulation(
+  rows: SheetRow[],
+  projectId: string,
+  segmentId?: string,
+  exportedBy?: string,
+  exportedByName?: string
+): Promise<{
+  success: boolean;
+  message: string;
+  exportId?: string;
+  rowsAdded?: number;
+}> {
+  // バックエンドAPIを使用する場合
+  if (USE_BACKEND_API) {
+    try {
+      console.log('📤 バックエンドAPI経由でスプレッドシートに送信（テーブル蓄積付き）:', {
+        rowCount: rows.length,
+        projectId,
+        segmentId,
+      });
+
+      const response = await fetch(`${API_BASE_URL}/api/sheets/export-with-accumulation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rows,
+          projectId,
+          segmentId,
+          exportedBy,
+          exportedByName,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'スプレッドシートへの出力に失敗しました');
+      }
+
+      const result = await response.json();
+      console.log('✅ スプレッドシートに追加成功（テーブル蓄積済み）:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ バックエンドAPI エラー:', error);
+      const errorMessage = error instanceof Error ? error.message : 'スプレッドシートへの出力に失敗しました';
+      return {
+        success: false,
+        message: errorMessage,
+      };
+    }
+  }
+
+  // 直接Google Sheets APIを使用する場合（開発環境）
+  // この場合はテーブル蓄積なしで従来通り
+  return appendRowsToSheet(rows);
 }
 
 /**
@@ -333,16 +445,25 @@ export async function ensureHeaderRow(): Promise<boolean> {
 export async function exportPoisToSheet(
   pois: PoiInfo[],
   project: Project,
-  segments: Segment[]
+  segments: Segment[],
+  options?: {
+    useAccumulation?: boolean;
+    segmentId?: string;
+    exportedBy?: string;
+    exportedByName?: string;
+  }
 ): Promise<{
   success: boolean;
   message: string;
   rowsAdded?: number;
+  exportId?: string;
   validationErrors?: Array<{ index: number; errors: Array<{ field: string; message: string }> }>;
 }> {
   try {
-    // ヘッダー行を確保
-    await ensureHeaderRow();
+    // ヘッダー行を確保（テーブル蓄積を使用しない場合のみ）
+    if (!options?.useAccumulation) {
+      await ensureHeaderRow();
+    }
 
     // POIデータを変換
     const rows = pois.map(poi => {
@@ -368,7 +489,18 @@ export async function exportPoisToSheet(
       };
     }
 
-    // スプレッドシートに追加
+    // テーブル蓄積を使用する場合
+    if (options?.useAccumulation && USE_BACKEND_API) {
+      return await appendRowsToSheetWithAccumulation(
+        valid,
+        project.project_id,
+        options.segmentId,
+        options.exportedBy,
+        options.exportedByName
+      );
+    }
+
+    // スプレッドシートに追加（従来の方法）
     return await appendRowsToSheet(valid);
   } catch (error) {
     console.error('❌ POI出力エラー:', error);

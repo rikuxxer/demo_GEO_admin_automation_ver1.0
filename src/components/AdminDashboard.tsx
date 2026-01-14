@@ -13,6 +13,7 @@ import { addSampleRegistrationData } from '../utils/addSampleRegistrationData';
 import { addSampleChangeHistory } from '../utils/addSampleChangeHistory';
 import { analyzeWorkTime, formatWorkTime } from '../utils/workTimeAnalysis';
 import { exportQueueToCSV, getExportQueue, exportQueueToGoogleSheets } from '../utils/spreadsheetExport';
+import { SheetExportHistory } from './SheetExportHistory';
 
 interface AdminDashboardProps {
   projects: Project[];
@@ -36,6 +37,7 @@ export function AdminDashboard({
   onRefresh: _onRefresh
 }: AdminDashboardProps) {
   const [isAddingSample, setIsAddingSample] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'exports'>('dashboard');
 
   const handleAddSampleData = async () => {
     setIsAddingSample(true);
@@ -198,6 +200,39 @@ export function AdminDashboard({
           <h1 className="text-gray-900 mb-2">管理ダッシュボード</h1>
           <p className="text-muted-foreground">案件とセグメントの全体状況を確認できます</p>
         </div>
+      </div>
+
+      {/* タブ切り替え */}
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'dashboard'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          ダッシュボード
+        </button>
+        <button
+          onClick={() => setActiveTab('exports')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'exports'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          エクスポート履歴
+        </button>
+      </div>
+
+      {/* タブコンテンツ */}
+      {activeTab === 'exports' ? (
+        <SheetExportHistory currentUserId={_currentUserId} />
+      ) : (
+        <>
+          {/* ダッシュボードコンテンツ */}
+          <div className="flex items-center justify-end">
         <div className="flex gap-2">
           <Button
             onClick={async () => {
@@ -240,10 +275,13 @@ export function AdminDashboard({
               'サンプルデータを追加'
             )}
           </Button>
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
-      {/* 統計カード */}
+      {activeTab === 'dashboard' && (
+        <>
+          {/* 統計カード */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="p-6 border border-gray-200">
           <div className="flex items-center gap-3 mb-3">
@@ -828,8 +866,8 @@ export function AdminDashboard({
             </div>
           </Card>
         )}
-      </div>
-
+        </>
+      )}
     </div>
   );
 }

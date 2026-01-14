@@ -53,6 +53,8 @@ UNIVERSEGEOシステムで使用するBigQueryテーブルの包括的な定義�
 | 8 | `edit_requests` | 編集依頼 | 営業からの編集依頼 | `request_id` | - | `projects`, `segments`, `pois` |
 | 9 | `feature_requests` | 機能リクエスト | 機能追加・改善リクエスト | `request_id` | - | - |
 | 10 | `visit_measurement_groups` | 来店計測地点グループ | 来店計測地点のグループ | `group_id` | - | `projects`, `pois` |
+| 11 | `sheet_exports` | スプレッドシートエクスポート履歴 | スプレッドシートへのエクスポート履歴 | `export_id` | `exported_at` | `projects`, `segments` |
+| 12 | `sheet_export_data` | スプレッドシートエクスポートデータ | エクスポートされたデータの詳細 | `export_data_id` | `created_at` | `sheet_exports`, `projects`, `segments`, `pois` |
 
 ---
 
@@ -567,6 +569,125 @@ OPTIONS(
 
 ---
 
+### 11. sheet_exports（スプレッドシートエクスポート履歴テーブル）
+
+**説明**: スプレッドシートへのエクスポート履歴を管理するテーブル
+
+**CREATE文**:
+```sql
+CREATE TABLE `universegeo_dataset.sheet_exports` (
+  export_id STRING NOT NULL,
+  project_id STRING NOT NULL,
+  segment_id STRING,
+  exported_by STRING NOT NULL,
+  exported_by_name STRING NOT NULL,
+  export_status STRING NOT NULL,
+  spreadsheet_id STRING,
+  sheet_name STRING,
+  row_count INTEGER,
+  exported_at TIMESTAMP NOT NULL,
+  completed_at TIMESTAMP,
+  error_message STRING,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+)
+PARTITION BY DATE(exported_at)
+OPTIONS(
+  description="スプレッドシートエクスポート履歴"
+);
+```
+
+**フィールド定義**:
+
+| フィールド名 | データ型 | NULL | 説明 | 例 |
+|------------|---------|------|------|-----|
+| `export_id` | STRING | NO | エクスポートID（主キー） | `EXP-20250113-001` |
+| `project_id` | STRING | NO | 案件ID（外部キー） | `PRJ-1` |
+| `segment_id` | STRING | YES | セグメントID（外部キー） | `SEG-1` |
+| `exported_by` | STRING | NO | エクスポート実行者（user_id） | `user-sales-001` |
+| `exported_by_name` | STRING | NO | エクスポート実行者名 | `営業太郎` |
+| `export_status` | STRING | NO | エクスポートステータス | `pending`, `completed`, `failed` |
+| `spreadsheet_id` | STRING | YES | スプレッドシートID | `1a2b3c4d5e6f7g8h` |
+| `sheet_name` | STRING | YES | シート名 | `シート1` |
+| `row_count` | INTEGER | YES | エクスポート行数 | `100` |
+| `exported_at` | TIMESTAMP | NO | エクスポート開始日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
+| `completed_at` | TIMESTAMP | YES | エクスポート完了日時 | `2025-01-13 10:01:00 UTC` |
+| `error_message` | STRING | YES | エラーメッセージ | `API Error: 403` |
+| `created_at` | TIMESTAMP | YES | 作成日時 | `2025-01-13 10:00:00 UTC` |
+| `updated_at` | TIMESTAMP | YES | 更新日時 | `2025-01-13 10:01:00 UTC` |
+
+**ビジネスルール**:
+- `export_id`は自動採番（形式: `EXP-{YYYYMMDD}-{連番}`）
+- `export_status`は`pending`, `completed`, `failed`のみ
+- `project_id`は必須（`projects`テーブルに存在する必要がある）
+
+---
+
+### 12. sheet_export_data（スプレッドシートエクスポートデータテーブル）
+
+**説明**: エクスポートされたデータの詳細を保存するテーブル
+
+**CREATE文**:
+```sql
+CREATE TABLE `universegeo_dataset.sheet_export_data` (
+  export_data_id STRING NOT NULL,
+  export_id STRING NOT NULL,
+  project_id STRING NOT NULL,
+  segment_id STRING,
+  poi_id STRING,
+  category_id STRING,
+  brand_id STRING,
+  brand_name STRING,
+  poi_name STRING,
+  latitude FLOAT64,
+  longitude FLOAT64,
+  prefecture STRING,
+  city STRING,
+  radius STRING,
+  polygon STRING,
+  setting_flag STRING,
+  created STRING,
+  row_index INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+)
+PARTITION BY DATE(created_at)
+CLUSTER BY export_id, project_id
+OPTIONS(
+  description="スプレッドシートエクスポートデータ"
+);
+```
+
+**フィールド定義**:
+
+| フィールド名 | データ型 | NULL | 説明 | 例 |
+|------------|---------|------|------|-----|
+| `export_data_id` | STRING | NO | エクスポートデータID（主キー） | `EXPD-20250113-001-001` |
+| `export_id` | STRING | NO | エクスポートID（外部キー） | `EXP-20250113-001` |
+| `project_id` | STRING | NO | 案件ID（外部キー） | `PRJ-1` |
+| `segment_id` | STRING | YES | セグメントID（外部キー） | `SEG-1` |
+| `poi_id` | STRING | YES | 地点ID（外部キー） | `POI-1` |
+| `category_id` | STRING | YES | カテゴリID | `99000050` |
+| `brand_id` | STRING | YES | ブランドID | - |
+| `brand_name` | STRING | YES | ブランド名 | `サンプルブランド` |
+| `poi_name` | STRING | YES | 地点名 | `東京駅` |
+| `latitude` | FLOAT64 | YES | 緯度 | `35.681236` |
+| `longitude` | FLOAT64 | YES | 経度 | `139.767125` |
+| `prefecture` | STRING | YES | 都道府県 | `東京都` |
+| `city` | STRING | YES | 市区町村 | `千代田区` |
+| `radius` | STRING | YES | 半径 | `50m` |
+| `polygon` | STRING | YES | ポリゴン（JSON文字列） | `"[[35.681236, 139.767125], ...]"` |
+| `setting_flag` | STRING | YES | 設定フラグ | `2` |
+| `created` | STRING | YES | 作成日（YYYY/MM/DD形式） | `2025/01/13` |
+| `row_index` | INTEGER | YES | 行番号（スプレッドシート内） | `1` |
+| `created_at` | TIMESTAMP | YES | 作成日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
+
+**ビジネスルール**:
+- `export_data_id`は自動採番（形式: `EXPD-{export_id}-{連番}`）
+- `export_id`は必須（`sheet_exports`テーブルに存在する必要がある）
+- `row_index`は1から始まる連番
+
+---
+
 ## リレーションシップ
 
 ### ER図（概念図）
@@ -578,10 +699,17 @@ projects (1) ──< (N) messages
 segments (1) ──< (N) pois
 projects (1) ──< (N) visit_measurement_groups
 visit_measurement_groups (1) ──< (N) pois (visit_measurement_group_id)
+projects (1) ──< (N) sheet_exports
+segments (1) ──< (N) sheet_exports
+sheet_exports (1) ──< (N) sheet_export_data
+projects (1) ──< (N) sheet_export_data
+segments (1) ──< (N) sheet_export_data
+pois (1) ──< (N) sheet_export_data
 users (1) ──< (N) projects (person_in_charge, sub_person_in_charge)
 users (1) ──< (N) change_history (changed_by)
 users (1) ──< (N) edit_requests (requested_by, reviewed_by)
 users (1) ──< (N) feature_requests (requested_by, reviewed_by)
+users (1) ──< (N) sheet_exports (exported_by)
 ```
 
 ### 外部キー制約
@@ -596,7 +724,14 @@ BigQueryでは外部キー制約はサポートされていませんが、アプ
 4. **projects → messages**: `messages.project_id` → `projects.project_id`
 5. **projects → visit_measurement_groups**: `visit_measurement_groups.project_id` → `projects.project_id`
 6. **visit_measurement_groups → pois**: `pois.visit_measurement_group_id` → `visit_measurement_groups.group_id`
-7. **users → projects**: `projects.person_in_charge` → `users.user_id`, `projects.sub_person_in_charge` → `users.user_id`
+7. **projects → sheet_exports**: `sheet_exports.project_id` → `projects.project_id`
+8. **segments → sheet_exports**: `sheet_exports.segment_id` → `segments.segment_id`
+9. **sheet_exports → sheet_export_data**: `sheet_export_data.export_id` → `sheet_exports.export_id`
+10. **projects → sheet_export_data**: `sheet_export_data.project_id` → `projects.project_id`
+11. **segments → sheet_export_data**: `sheet_export_data.segment_id` → `segments.segment_id`
+12. **pois → sheet_export_data**: `sheet_export_data.poi_id` → `pois.poi_id`
+13. **users → projects**: `projects.person_in_charge` → `users.user_id`, `projects.sub_person_in_charge` → `users.user_id`
+14. **users → sheet_exports**: `sheet_exports.exported_by` → `users.user_id`
 
 ---
 
@@ -610,6 +745,8 @@ BigQueryでは外部キー制約はサポートされていませんが、アプ
 | `segments` | `segment_registered_at` | DATE | 登録日でパーティション分割 |
 | `pois` | `created_at` | DATE | 作成日でパーティション分割 |
 | `messages` | `timestamp` | DATE | 送信日でパーティション分割 |
+| `sheet_exports` | `exported_at` | DATE | エクスポート日でパーティション分割 |
+| `sheet_export_data` | `created_at` | DATE | 作成日でパーティション分割 |
 
 ### パーティションの効果
 
@@ -663,6 +800,7 @@ SET OPTIONS(
   - 例: `"[[35.681236, 139.767125], [35.682236, 139.768125]]"`
 - **`changes` / `deleted_data`**: `Record<string, any>`をJSON文字列として保存
   - 例: `"{\"field\": {\"before\": \"A\", \"after\": \"B\"}}"`
+- **`sheet_export_data.polygon`**: エクスポート時のポリゴンデータ（JSON文字列）
 
 ---
 
@@ -681,6 +819,8 @@ SET OPTIONS(
 - `edit_requests.request_id`
 - `feature_requests.request_id`
 - `visit_measurement_groups.group_id`
+- `sheet_exports.export_id`
+- `sheet_export_data.export_data_id`
 
 ### ユニーク制約
 
@@ -696,8 +836,9 @@ SET OPTIONS(
    - `users.role`: `admin`, `sales`のみ
    - `pois.poi_type`: `manual`, `prefecture`, `polygon`のみ
    - `pois.poi_category`: `tg`, `visit_measurement`のみ
-   - `edit_requests.status`: `pending`, `approved`, `rejected`, `withdrawn`のみ
-   - `feature_requests.status`: `pending`, `under_review`, `approved`, `rejected`, `implemented`のみ
+- `edit_requests.status`: `pending`, `approved`, `rejected`, `withdrawn`のみ
+- `feature_requests.status`: `pending`, `under_review`, `approved`, `rejected`, `implemented`のみ
+- `sheet_exports.export_status`: `pending`, `completed`, `failed`のみ
 
 3. **必須フィールド**:
    - `projects.person_in_charge`: 必須
@@ -715,6 +856,7 @@ SET OPTIONS(
 
 - **2025-01-13**: 初版作成（全10テーブルの定義を追加）
 - **2025-01-13**: `polygon`フィールドの説明を追加
+- **2025-01-13**: `sheet_exports`と`sheet_export_data`テーブルを追加（全12テーブル）
 
 ---
 

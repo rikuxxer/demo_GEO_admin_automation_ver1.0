@@ -646,11 +646,20 @@ export function ProjectDetail({
               const sheetResult = await exportPoisToSheet(
                 tgPois,
                 project,
-                segments
+                segments,
+                {
+                  useAccumulation: true,
+                  segmentId: segment.segment_id,
+                  exportedBy: user?.email || user?.user_id || 'system',
+                  exportedByName: user?.name || 'システム',
+                }
               );
               
               if (sheetResult.success) {
                 console.log('✅ スプレッドシート出力成功:', sheetResult.message);
+                if (sheetResult.exportId) {
+                  console.log('📊 エクスポートID:', sheetResult.exportId);
+                }
               } else {
                 console.warn('⚠️ スプレッドシート出力失敗:', sheetResult.message);
                 // スプレッドシート出力失敗してもエラーにはしない（格納依頼自体は成功）

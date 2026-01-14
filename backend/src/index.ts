@@ -614,6 +614,117 @@ app.post('/api/sheets/export', async (req, res) => {
   }
 });
 
+// エクスポート（テーブル蓄積付き）
+app.post('/api/sheets/export-with-accumulation', async (req, res) => {
+  try {
+    const { rows, projectId, segmentId, exportedBy, exportedByName } = req.body;
+
+    if (!rows || !Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ error: 'rows配列が必要です' });
+    }
+
+    if (!projectId) {
+      return res.status(400).json({ error: 'projectIdが必要です' });
+    }
+
+    const result = await getBqService().exportToGoogleSheetsWithAccumulation(
+      rows,
+      projectId,
+      segmentId,
+      exportedBy,
+      exportedByName
+    );
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json({ error: result.message });
+    }
+  } catch (error: any) {
+    console.error('エクスポートエラー:', error);
+    res.status(500).json({ error: error.message || 'エクスポート処理中にエラーが発生しました' });
+  }
+});
+
+// エクスポート履歴取得
+app.get('/api/sheets/exports', async (req, res) => {
+  try {
+    const { projectId, status, limit } = req.query;
+    const exports = await getBqService().getSheetExports(
+      projectId as string,
+      status as string,
+      limit ? parseInt(limit as string) : 100
+    );
+    res.json(exports);
+  } catch (error: any) {
+    console.error('エクスポート履歴取得エラー:', error);
+    res.status(500).json({ error: error.message || 'エクスポート履歴の取得に失敗しました' });
+  }
+});
+
+// エクスポートデータ取得
+app.get('/api/sheets/exports/:exportId/data', async (req, res) => {
+  try {
+    const { exportId } = req.params;
+    const exportData = await getBqService().getSheetExportData(exportId);
+    res.json(exportData);
+  } catch (error: any) {
+    console.error('エクスポートデータ取得エラー:', error);
+    res.status(500).json({ error: error.message || 'エクスポートデータの取得に失敗しました' });
+  }
+});
+
+// 再エクスポート
+app.post('/api/sheets/exports/:exportId/reexport', async (req, res) => {
+  try {
+    const { exportId } = req.params;
+    const exportData = await getBqService().getSheetExportData(exportId);
+
+    if (exportData.length === 0) {
+      return res.status(404).json({ error: 'エクスポートデータが見つかりません' });
+    }
+
+    // データをスプレッドシート形式に変換
+    const rows = exportData.map(data => ({
+      category_id: data.category_id,
+      brand_id: data.brand_id,
+      brand_name: data.brand_name,
+      poi_id: data.poi_id,
+      poi_name: data.poi_name,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      prefecture: data.prefecture,
+      city: data.city,
+      radius: data.radius,
+      polygon: data.polygon,
+      setting_flag: data.setting_flag,
+      created: data.created,
+    }));
+
+    // 元のエクスポート履歴を取得
+    const exports = await getBqService().getSheetExports();
+    const exportRecord = exports.find((e: any) => e.export_id === exportId);
+
+    if (!exportRecord) {
+      return res.status(404).json({ error: 'エクスポート履歴が見つかりません' });
+    }
+
+    // 新しいエクスポートとして実行
+    const result = await getBqService().exportToGoogleSheetsWithAccumulation(
+      rows,
+      exportRecord.project_id,
+      exportRecord.segment_id,
+      exportRecord.exported_by,
+      exportRecord.exported_by_name
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('再エクスポートエラー:', error);
+    res.status(500).json({ error: error.message || '再エクスポート処理中にエラーが発生しました' });
+  }
+});
+
 // エラーハンドリングミドルウェア（404ハンドラーの前に配置）
 // すべてのルートで発生したエラーをここでキャッチして統一的なレスポンスを返す
 app.use(errorHandler);

@@ -2303,6 +2303,400 @@ UNIVERSEGEO案件管理システム
       };
     }
   }
+
+  // ==================== スプレッドシートエクスポート（テーブル蓄積付き） ====================
+
+  /**
+   * スプレッドシートへのエクスポート（テーブルに蓄積してから書き出し）
+   */
+  async exportToGoogleSheetsWithAccumulation(
+    rows: any[],
+    projectId: string,
+    segmentId?: string,
+    exportedBy?: string,
+    exportedByName?: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    exportId?: string;
+    rowsAdded?: number;
+  }> {
+    const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
+    const SHEET_NAME = process.env.GOOGLE_SHEET_NAME || 'シート1';
+
+    // エクスポートIDを生成
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+    const randomNum = String(Math.floor(Math.random() * 10000)).padStart(3, '0');
+    const exportId = `EXP-${dateStr}-${randomNum}`;
+    
+    try {
+      // ========== ステップ1: テーブルにデータを保存 ==========
+      console.log('📊 ステップ1: エクスポート履歴をテーブルに保存中...');
+      
+      // 1-1. エクスポート履歴を保存
+      const exportRecord = {
+        export_id: exportId,
+        project_id: projectId,
+        segment_id: segmentId || null,
+        exported_by: exportedBy || 'system',
+        exported_by_name: exportedByName || 'システム',
+        export_status: 'pending',
+        spreadsheet_id: SPREADSHEET_ID,
+        sheet_name: SHEET_NAME,
+        row_count: rows.length,
+        exported_at: now.toISOString(),
+        completed_at: null,
+        error_message: null,
+      };
+
+      await this.createSheetExport(exportRecord);
+
+      // 1-2. エクスポートデータを保存
+      const exportDataRecords = rows.map((row, index) => ({
+        export_data_id: `${exportId}-${String(index + 1).padStart(3, '0')}`,
+        export_id: exportId,
+        project_id: projectId,
+        segment_id: segmentId || null,
+        poi_id: row.poi_id || null,
+        category_id: row.category_id || null,
+        brand_id: row.brand_id || null,
+        brand_name: row.brand_name || null,
+        poi_name: row.poi_name || null,
+        latitude: row.latitude || null,
+        longitude: row.longitude || null,
+        prefecture: row.prefecture || null,
+        city: row.city || null,
+        radius: row.radius || null,
+        polygon: row.polygon || null,
+        setting_flag: row.setting_flag || '2',
+        created: row.created || null,
+        row_index: index + 1,
+      }));
+
+      await this.createSheetExportDataBulk(exportDataRecords);
+
+      console.log('✅ エクスポート履歴とデータをテーブルに保存完了:', {
+        exportId,
+        rowCount: rows.length,
+      });
+
+      // ========== ステップ2: スプレッドシートに書き出し ==========
+      console.log('📤 ステップ2: スプレッドシートに書き出し中...');
+      
+      const exportResult = await this.exportToGoogleSheets(rows);
+
+      // ========== ステップ3: ステータス更新 ==========
+      if (exportResult.success) {
+        // 成功時: ステータスを'completed'に更新
+        await this.updateSheetExportStatus(exportId, 'completed', null);
+        
+        console.log('✅ エクスポート完了:', {
+          exportId,
+          rowsAdded: exportResult.rowsAdded,
+        });
+
+        return {
+          success: true,
+          message: `${exportResult.rowsAdded || rows.length}件のデータをスプレッドシートに追加しました（エクスポートID: ${exportId}）`,
+          exportId,
+          rowsAdded: exportResult.rowsAdded || rows.length,
+        };
+      } else {
+        // 失敗時: ステータスを'failed'に更新
+        await this.updateSheetExportStatus(exportId, 'failed', exportResult.message);
+        
+        console.error('❌ エクスポート失敗:', {
+          exportId,
+          error: exportResult.message,
+        });
+
+        return {
+          success: false,
+          message: `スプレッドシートへの書き出しに失敗しました。データはテーブルに保存されています（エクスポートID: ${exportId}）。エラー: ${exportResult.message}`,
+          exportId,
+        };
+      }
+    } catch (error: any) {
+      // エラー時: ステータスを'failed'に更新
+      const errorMessage = error?.message || 'Unknown error';
+      try {
+        await this.updateSheetExportStatus(exportId, 'failed', errorMessage);
+      } catch (updateError) {
+        // ステータス更新に失敗しても続行
+        console.error('⚠️ ステータス更新に失敗しました:', updateError);
+      }
+
+      console.error('❌ エクスポート処理エラー:', error);
+      return {
+        success: false,
+        message: `エクスポート処理中にエラーが発生しました。エラー: ${errorMessage}`,
+        exportId,
+      };
+    }
+  }
+
+  /**
+   * エクスポート履歴を作成
+   */
+  async createSheetExport(export: any): Promise<void> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getDatasetId();
+
+      const allowedFields = [
+        'export_id',
+        'project_id',
+        'segment_id',
+        'exported_by',
+        'exported_by_name',
+        'export_status',
+        'spreadsheet_id',
+        'sheet_name',
+        'row_count',
+        'exported_at',
+        'completed_at',
+        'error_message',
+      ];
+
+      const cleanedExport: any = {
+        export_id: export.export_id.trim(),
+      };
+
+      for (const field of allowedFields) {
+        if (field in export && export[field] !== undefined && export[field] !== null) {
+          if (field === 'exported_at' || field === 'completed_at') {
+            cleanedExport[field] = formatTimestampForBigQuery(export[field]);
+          } else if (field === 'row_count') {
+            const numValue = typeof export[field] === 'string' ? parseInt(export[field]) : export[field];
+            if (!isNaN(numValue)) {
+              cleanedExport[field] = numValue;
+            }
+          } else {
+            cleanedExport[field] = export[field];
+          }
+        }
+      }
+
+      const now = new Date();
+      cleanedExport.created_at = formatTimestampForBigQuery(export.created_at || now);
+      cleanedExport.updated_at = formatTimestampForBigQuery(export.updated_at || now);
+
+      await getDataset().table('sheet_exports').insert([cleanedExport], { ignoreUnknownValues: true });
+      console.log('✅ エクスポート履歴を作成しました:', export.export_id);
+    } catch (err: any) {
+      console.error('[BQ insert sheet_export] error:', err?.message);
+      throw err;
+    }
+  }
+
+  /**
+   * エクスポートデータを一括作成
+   */
+  async createSheetExportDataBulk(exportData: any[]): Promise<void> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getDatasetId();
+
+      const allowedFields = [
+        'export_data_id',
+        'export_id',
+        'project_id',
+        'segment_id',
+        'poi_id',
+        'category_id',
+        'brand_id',
+        'brand_name',
+        'poi_name',
+        'latitude',
+        'longitude',
+        'prefecture',
+        'city',
+        'radius',
+        'polygon',
+        'setting_flag',
+        'created',
+        'row_index',
+      ];
+
+      const cleanedData = exportData.map(data => {
+        const cleaned: any = {
+          export_data_id: data.export_data_id.trim(),
+          export_id: data.export_id.trim(),
+          project_id: data.project_id.trim(),
+        };
+
+        for (const field of allowedFields) {
+          if (field in data && data[field] !== undefined && data[field] !== null) {
+            if (field === 'latitude' || field === 'longitude') {
+              const numValue = typeof data[field] === 'string' ? parseFloat(data[field]) : data[field];
+              if (!isNaN(numValue)) {
+                cleaned[field] = numValue;
+              }
+            } else if (field === 'row_index') {
+              const numValue = typeof data[field] === 'string' ? parseInt(data[field]) : data[field];
+              if (!isNaN(numValue)) {
+                cleaned[field] = numValue;
+              }
+            } else {
+              cleaned[field] = data[field];
+            }
+          }
+        }
+
+        const now = new Date();
+        cleaned.created_at = formatTimestampForBigQuery(data.created_at || now);
+
+        return cleaned;
+      });
+
+      await getDataset().table('sheet_export_data').insert(cleanedData, { ignoreUnknownValues: true });
+      console.log(`✅ エクスポートデータを一括作成しました: ${cleanedData.length}件`);
+    } catch (err: any) {
+      console.error('[BQ insert sheet_export_data bulk] error:', err?.message);
+      throw err;
+    }
+  }
+
+  /**
+   * エクスポートステータスを更新
+   */
+  async updateSheetExportStatus(
+    exportId: string,
+    status: 'pending' | 'completed' | 'failed',
+    errorMessage?: string | null
+  ): Promise<void> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getDatasetId();
+
+      const updateFields: string[] = ['export_status', 'updated_at'];
+      const updateValues: any = {
+        export_status: status,
+        updated_at: formatTimestampForBigQuery(new Date()),
+      };
+
+      if (status === 'completed') {
+        updateFields.push('completed_at');
+        updateValues.completed_at = formatTimestampForBigQuery(new Date());
+      }
+
+      if (status === 'failed' && errorMessage) {
+        updateFields.push('error_message');
+        updateValues.error_message = errorMessage;
+      }
+
+      const setClause = updateFields.map(field => `${field} = @${field}`).join(', ');
+
+      const query = `
+        UPDATE \`${currentProjectId}.${cleanDatasetId}.sheet_exports\`
+        SET ${setClause}
+        WHERE export_id = @export_id
+      `;
+
+      const queryOptions: any = {
+        query,
+        params: {
+          export_id: exportId,
+          ...updateValues,
+        },
+      };
+
+      if (BQ_LOCATION && BQ_LOCATION.trim()) {
+        queryOptions.location = BQ_LOCATION.trim();
+      }
+
+      await initializeBigQueryClient().query(queryOptions);
+      console.log('✅ エクスポートステータスを更新しました:', { exportId, status });
+    } catch (err: any) {
+      console.error('[BQ update sheet_export status] error:', err?.message);
+      throw err;
+    }
+  }
+
+  /**
+   * エクスポート履歴を取得
+   */
+  async getSheetExports(
+    projectId?: string,
+    status?: string,
+    limit: number = 100
+  ): Promise<any[]> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getDatasetId();
+
+      let query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.sheet_exports\`
+        WHERE 1=1
+      `;
+
+      const params: any = {};
+
+      if (projectId) {
+        query += ` AND project_id = @project_id`;
+        params.project_id = projectId;
+      }
+
+      if (status) {
+        query += ` AND export_status = @export_status`;
+        params.export_status = status;
+      }
+
+      query += ` ORDER BY exported_at DESC LIMIT @limit`;
+      params.limit = limit;
+
+      const queryOptions: any = {
+        query,
+        params,
+      };
+
+      if (BQ_LOCATION && BQ_LOCATION.trim()) {
+        queryOptions.location = BQ_LOCATION.trim();
+      }
+
+      const [rows] = await initializeBigQueryClient().query(queryOptions);
+      return rows;
+    } catch (err: any) {
+      console.error('[BQ get sheet_exports] error:', err?.message);
+      return [];
+    }
+  }
+
+  /**
+   * エクスポートデータを取得（再エクスポート用）
+   */
+  async getSheetExportData(exportId: string): Promise<any[]> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getDatasetId();
+
+      const query = `
+        SELECT *
+        FROM \`${currentProjectId}.${cleanDatasetId}.sheet_export_data\`
+        WHERE export_id = @export_id
+        ORDER BY row_index ASC
+      `;
+
+      const queryOptions: any = {
+        query,
+        params: {
+          export_id: exportId,
+        },
+      };
+
+      if (BQ_LOCATION && BQ_LOCATION.trim()) {
+        queryOptions.location = BQ_LOCATION.trim();
+      }
+
+      const [rows] = await initializeBigQueryClient().query(queryOptions);
+      return rows;
+    } catch (err: any) {
+      console.error('[BQ get sheet_export_data] error:', err?.message);
+      return [];
+    }
+  }
 }
 
 // BigQueryServiceのインスタンスを作成
