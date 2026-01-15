@@ -282,5 +282,8 @@ export function downloadErrorReportCSV(errors: CSVValidationError[]) {
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  // ノードが存在することを確認してから削除
+  if (link.parentNode) {
+    document.body.removeChild(link);
+  }
 }

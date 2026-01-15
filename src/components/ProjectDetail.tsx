@@ -101,6 +101,9 @@ export function ProjectDetail({
   const [editedProject, setEditedProject] = useState<Partial<Project>>({});
   const [showSegmentSelectForPoi, setShowSegmentSelectForPoi] = useState(false);
   const [expandedSegmentId, setExpandedSegmentId] = useState<string | undefined>(undefined);
+  
+  // Accordionの制御状態を維持（undefinedではなく空文字列を使用）
+  const accordionValue = expandedSegmentId ?? '';
   const [selectedPoiCategory, setSelectedPoiCategory] = useState<'tg' | 'visit_measurement'>('tg');
   
   // 計測地点グループ関連の状態
@@ -1369,7 +1372,7 @@ export function ProjectDetail({
                       </Button>
                     </div>
                   ) : (
-                    <Accordion type="single" collapsible className="space-y-4" value={expandedSegmentId} onValueChange={setExpandedSegmentId}>
+                    <Accordion type="single" collapsible className="space-y-4" value={accordionValue} onValueChange={(value) => setExpandedSegmentId(value || undefined)}>
                       {segments.map((segment) => {
                         const segmentPois = pois.filter(poi => poi.segment_id === segment.segment_id && (poi.poi_category === 'tg' || !poi.poi_category));
                         const poiCount = segmentPois.length;

@@ -91,7 +91,10 @@ export function downloadCompleteBulkTemplate(type: 'basic' | 'full') {
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  // ノードが存在することを確認してから削除
+  if (link.parentNode) {
+    document.body.removeChild(link);
+  }
 }
 
 // CSVパース

@@ -430,7 +430,10 @@ export async function downloadExcelTemplate() {
     link.setAttribute('download', 'UNIVERSEGEO_一括登録テンプレート_v4.7.xlsx');
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    // ノードが存在することを確認してから削除
+    if (link.parentNode) {
+      document.body.removeChild(link);
+    }
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error(error);

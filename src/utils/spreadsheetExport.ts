@@ -285,7 +285,10 @@ export function downloadCSV(csvContent: string, filename: string = 'poi_export.c
   
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
+  // ノードが存在することを確認してから削除
+  if (link.parentNode) {
+    document.body.removeChild(link);
+  }
   
   URL.revokeObjectURL(url);
 }
