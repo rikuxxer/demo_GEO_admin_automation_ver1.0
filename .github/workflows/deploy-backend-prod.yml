@@ -25,7 +25,7 @@ jobs:
     
     # 本番環境用のEnvironment secretsを使用
     environment:
-      name: production
+      name: Environment secrets
     
     permissions:
       contents: read
@@ -38,12 +38,12 @@ jobs:
       - name: Verify required secrets
         run: |
           echo "🔍 必須Secretsの確認中（本番環境）..."
-          echo "  Environment: production"
+          echo "  Environment: Environment secrets"
           echo ""
           
           if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
             echo "❌ GCP_SA_KEY is missing"
-            echo "   Settings > Environments > production > Secrets に GCP_SA_KEY を設定してください"
+            echo "   Settings > Environments > Environment secrets > Secrets に GCP_SA_KEY を設定してください"
             exit 1
           fi
           
