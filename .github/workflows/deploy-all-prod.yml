@@ -56,6 +56,30 @@ jobs:
         run: |
           REGION_VALUE="${{ env.REGION }}"
           
+          # 環境変数を構築（デプロイ時に一緒に設定してバージョン競合を回避）
+          ENV_VARS="GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},BQ_DATASET=${{ secrets.BQ_DATASET }},NODE_ENV=production,DEBUG=false,LOG_LEVEL=info"
+          
+          if [ -n "${{ secrets.GOOGLE_SPREADSHEET_ID }}" ]; then
+            ENV_VARS="$ENV_VARS,GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }}"
+          fi
+          
+          if [ -n "${{ secrets.GOOGLE_SHEETS_API_KEY }}" ]; then
+            ENV_VARS="$ENV_VARS,GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }}"
+          fi
+          
+          if [ -n "${{ secrets.GOOGLE_SHEET_NAME }}" ]; then
+            ENV_VARS="$ENV_VARS,GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME }}"
+          else
+            ENV_VARS="$ENV_VARS,GOOGLE_SHEET_NAME=シート1"
+          fi
+          
+          if [ -n "${{ secrets.FRONTEND_URL }}" ]; then
+            ENV_VARS="$ENV_VARS,FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
+          fi
+          
+          echo ""
+          echo "🔧 環境変数をデプロイ時に設定します（バージョン競合を回避）..."
+          
           gcloud run deploy universegeo-backend \
             --source . \
             --region "$REGION_VALUE" \
@@ -63,15 +87,10 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --max-instances 10 \
+            --update-env-vars "$ENV_VARS" \
             --project ${{ env.PROJECT_ID }}
           
-          sleep 5
-          
-          gcloud run services update universegeo-backend \
-            --update-env-vars "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},BQ_DATASET=${{ secrets.BQ_DATASET }},GOOGLE_SPREADSHEET_ID=${{ secrets.GOOGLE_SPREADSHEET_ID }},GOOGLE_SHEETS_API_KEY=${{ secrets.GOOGLE_SHEETS_API_KEY }},GOOGLE_SHEET_NAME=${{ secrets.GOOGLE_SHEET_NAME || 'シート1' }},FRONTEND_URL=${{ secrets.FRONTEND_URL }},NODE_ENV=production,DEBUG=false,LOG_LEVEL=info" \
-            --region "$REGION_VALUE" \
-            --project ${{ env.PROJECT_ID }} \
-            --quiet
+          echo "✅ デプロイと環境変数の設定が完了しました"
 
       - name: Get Backend URL
         id: backend-url
@@ -190,10 +209,40 @@ jobs:
           REGION_VALUE="${{ env.REGION }}"
           FRONTEND_URL="${{ steps.frontend-url.outputs.frontend_url }}"
           
-          gcloud run services update universegeo-backend \
-            --update-env-vars FRONTEND_URL="$FRONTEND_URL" \
-            --region "$REGION_VALUE" \
-            --project ${{ env.PROJECT_ID }}
+          # バージョン競合を回避するため、リトライロジックを追加
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          SUCCESS=false
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+            if [ $RETRY_COUNT -gt 0 ]; then
+              echo "⏳ リトライ $RETRY_COUNT/$MAX_RETRIES: 5秒待機中..."
+              sleep 5
+            fi
+            
+            set +e
+            gcloud run services update universegeo-backend \
+              --update-env-vars FRONTEND_URL="$FRONTEND_URL" \
+              --region "$REGION_VALUE" \
+              --project ${{ env.PROJECT_ID }} \
+              --quiet
+            UPDATE_EXIT_CODE=$?
+            set -e
+            
+            if [ $UPDATE_EXIT_CODE -eq 0 ]; then
+              SUCCESS=true
+              echo "✅ バックエンドのCORS設定が完了しました"
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️ 環境変数の更新に失敗しました。リトライします..."
+              else
+                echo "❌ 環境変数の更新に失敗しました（最大リトライ回数に達しました）"
+                echo "💡 手動で設定してください: FRONTEND_URL=$FRONTEND_URL"
+                exit 1
+              fi
+            fi
+          done
 
       - name: Deployment Summary
         run: |
