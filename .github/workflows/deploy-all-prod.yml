@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     
     environment:
-      name: production
+      name: Environment secrets
     
     permissions:
       contents: read
@@ -38,7 +38,7 @@ jobs:
       - name: Verify Secrets
         run: |
           echo "🔍 Secrets確認中（本番環境）..."
-          echo "Environment: production"
+          echo "Environment: Environment secrets"
           echo ""
           
           # GCP_SA_KEY の確認
@@ -47,7 +47,7 @@ jobs:
             echo "❌ エラー: GCP_SA_KEY が設定されていません（本番環境）"
             echo ""
             echo "📝 設定方法:"
-            echo "1. https://github.com/${{ github.repository }}/settings/environments/production を開く"
+            echo "1. https://github.com/${{ github.repository }}/settings/environments/Environment%20secrets を開く"
             echo "2. Secrets セクションで「Add secret」をクリック"
             echo "3. Name: GCP_SA_KEY（大文字・小文字を正確に）"
             echo "   ⚠️ 重要: Secret名は 'GCP_SA_KEY' と完全に一致する必要があります"
@@ -66,7 +66,7 @@ jobs:
           
           # 長さを確認（値は表示しない）
           GCP_SA_KEY_LENGTH=$(echo -n "$GCP_SA_KEY_VALUE" | wc -c)
-          echo "✅ GCP_SA_KEY が設定されています（本番環境、長さ: $GCP_SA_KEY_LENGTH 文字）"
+          echo "✅ GCP_SA_KEY が設定されています（Environment secrets、長さ: $GCP_SA_KEY_LENGTH 文字）"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -142,7 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     
     environment:
-      name: production
+      name: Environment secrets
     
     permissions:
       contents: read
@@ -167,12 +167,13 @@ jobs:
       - name: Verify Secrets
         run: |
           echo "🔍 Secrets確認中（本番環境 - フロントエンド）..."
+          echo "Environment: Environment secrets"
           if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
             echo "❌ エラー: GCP_SA_KEY が設定されていません（本番環境）"
-            echo "   Settings > Environments > production > Secrets に GCP_SA_KEY を設定してください"
+            echo "   Settings > Environments > Environment secrets > Secrets に GCP_SA_KEY を設定してください"
             exit 1
           fi
-          echo "✅ GCP_SA_KEY が設定されています（本番環境）"
+          echo "✅ GCP_SA_KEY が設定されています（Environment secrets）"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
