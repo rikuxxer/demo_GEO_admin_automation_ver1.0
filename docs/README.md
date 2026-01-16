@@ -21,6 +21,9 @@ docs/
 │   ├── README.md
 │   ├── BIGQUERY_TABLE_DEFINITIONS.md
 │   └── troubleshooting/
+├── security/        # セキュリティ部門向けドキュメント
+│   ├── README.md
+│   └── AUTHORIZATION_SPECIFICATION.md
 └── scripts/          # BigQueryスクリプト
 ```
 
@@ -36,6 +39,10 @@ docs/
 - [`MULTI_API_KEY_STRATEGY.md`](./shared/MULTI_API_KEY_STRATEGY.md) - APIキー戦略
 - [`VERTEX_AI_AGENT_IMPLEMENTATION.md`](./shared/VERTEX_AI_AGENT_IMPLEMENTATION.md) - Vertex AI実装
 - [`BIGQUERY_TABLE_DEFINITIONS.md`](./shared/BIGQUERY_TABLE_DEFINITIONS.md) - BigQueryテーブル定義書
+
+セキュリティ関連のドキュメントは [`docs/security/`](./security/) ディレクトリに配置されています：
+
+- [`AUTHORIZATION_SPECIFICATION.md`](./security/AUTHORIZATION_SPECIFICATION.md) - 権限管理仕様書（セキュリティ部門向け）
 
 メインドキュメントはプロジェクトルートの [`README.md`](../README.md) を参照してください。
 
@@ -54,6 +61,13 @@ docs/
 開発環境と本番環境で共通して使用するドキュメント：
 - BigQueryテーブル定義書
 - 共通のトラブルシューティングガイド
+
+### security/ - セキュリティドキュメント
+
+セキュリティ部門向けの技術文書：
+- 権限管理仕様書
+- 認証・認可の詳細仕様
+- セキュリティ対策とリスク評価
 
 ### scripts/ - BigQueryスクリプト
 

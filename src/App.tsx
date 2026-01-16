@@ -37,6 +37,7 @@ import { bigQueryService } from "./utils/bigquery";
 // 開発環境でのみGoogle Sheetsテストユーティリティを読み込む
 if (import.meta.env.DEV) {
   import("./utils/testSheets");
+  import("./utils/testSpreadsheetExport");
 }
 
 function AppContent() {
