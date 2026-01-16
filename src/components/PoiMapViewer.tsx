@@ -71,19 +71,24 @@ export function PoiMapViewer({ pois, segments, onPoiUpdate }: PoiMapViewerProps)
       const segmentIds = segments.map(s => s.segment_id);
       const segmentIdsSet = new Set(segmentIds);
       
-      // 現在選択されているセグメントと比較
-      const currentSelected = Array.from(selectedSegments).sort();
-      const newSelected = segmentIds.sort();
-      const hasChanged = currentSelected.length !== newSelected.length || 
-                        currentSelected.some((id, i) => id !== newSelected[i]);
+      // セグメントIDの文字列を比較して変更を検出（無限ループを防ぐため）
+      const segmentIdsString = segmentIds.sort().join(',');
       
-      // 初期化時（selectedSegmentsが空）またはセグメントが変更された場合は全て選択
-      if (selectedSegments.size === 0 || hasChanged) {
-        console.log('🎯 Setting selected segments:', segmentIds);
-        setSelectedSegments(segmentIdsSet);
-      }
+      setSelectedSegments(prev => {
+        // 現在選択されているセグメントIDの文字列
+        const currentSelectedString = Array.from(prev).sort().join(',');
+        
+        // 初期化時（prevが空）またはセグメントが変更された場合は全て選択
+        if (prev.size === 0 || currentSelectedString !== segmentIdsString) {
+          console.log('🎯 Setting selected segments:', segmentIds);
+          return segmentIdsSet;
+        }
+        
+        // 変更がない場合は現在の状態を維持
+        return prev;
+      });
     }
-  }, [segments]); // selectedSegmentsを依存配列から削除して無限ループを防ぐ
+  }, [segments]); // segmentsのみを依存配列に含める（selectedSegmentsは関数内で安全に参照）
 
   // 座標を持つ地点のみをフィルタリング（NaNを除外）
   const poisWithCoords = useMemo(
@@ -369,66 +374,91 @@ export function PoiMapViewer({ pois, segments, onPoiUpdate }: PoiMapViewerProps)
       }).addTo(mapRef.current);
       console.log('✅ Map created');
     } else {
-      // 地図の中心とズームを更新
+      // 地図の中心とズームを更新（現在の中心と大きく異なる場合のみ更新）
       const { centerLat, centerLng, zoom } = mapBounds;
-      console.log('🔄 Updating map view to', centerLat, centerLng, 'zoom:', zoom);
-      mapRef.current.setView([centerLat, centerLng], zoom);
+      const currentCenter = mapRef.current.getCenter();
+      const currentZoom = mapRef.current.getZoom();
+      
+      // 中心が大きく異なる場合（約1km以上）またはズームが異なる場合のみ更新
+      const latDiff = Math.abs(currentCenter.lat - centerLat);
+      const lngDiff = Math.abs(currentCenter.lng - centerLng);
+      const shouldUpdate = latDiff > 0.01 || lngDiff > 0.01 || currentZoom !== zoom;
+      
+      if (shouldUpdate) {
+        console.log('🔄 Updating map view to', centerLat, centerLng, 'zoom:', zoom);
+        mapRef.current.setView([centerLat, centerLng], zoom);
+      }
     }
 
-    // マーカーと円を追加
-    validPois.forEach(poi => {
-      const lat = getLat(poi);
-      const lng = getLng(poi);
-      const color = segmentColorMap.get(poi.segment_id) || SEGMENT_COLORS[0];
-      const radius = parseRadius(poi.designated_radius);
+    // マーカーと円を追加（大量のPOIがある場合でも応答性を保つため、バッチ処理）
+    const addMarkersBatch = (pois: typeof validPois, startIndex: number = 0, batchSize: number = 50) => {
+      const endIndex = Math.min(startIndex + batchSize, pois.length);
+      
+      for (let i = startIndex; i < endIndex; i++) {
+        const poi = pois[i];
+        const lat = getLat(poi);
+        const lng = getLng(poi);
+        const color = segmentColorMap.get(poi.segment_id) || SEGMENT_COLORS[0];
+        const radius = parseRadius(poi.designated_radius);
 
-      // カスタムアイコンを作成
-      const icon = window.L.divIcon({
-        className: 'custom-marker',
-        html: `<div style="
-          background-color: ${color};
-          width: 24px;
-          height: 24px;
-          border-radius: 50% 50% 50% 0;
-          transform: rotate(-45deg);
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        "></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 24],
-      });
+        // カスタムアイコンを作成
+        const icon = window.L.divIcon({
+          className: 'custom-marker',
+          html: `<div style="
+            background-color: ${color};
+            width: 24px;
+            height: 24px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          "></div>`,
+          iconSize: [24, 24],
+          iconAnchor: [12, 24],
+        });
 
-      // マーカーを追加
-      const marker = window.L.marker([lat, lng], { icon })
-        .bindPopup(`
-          <div style="font-family: system-ui, sans-serif;">
-            <strong style="color: ${color}; font-size: 14px;">${poi.poi_name}</strong>
-            ${poi.location_id ? `<p style="font-size: 11px; margin: 2px 0; color: #666; font-family: monospace;">ID: ${poi.location_id}</p>` : ''}
-            ${poi.address ? `<p style="font-size: 12px; margin: 4px 0; color: #666;">${poi.address}</p>` : ''}
-            <p style="font-size: 11px; margin: 4px 0; color: #999;">
-              緯度: ${lat.toFixed(6)}<br/>
-              経度: ${lng.toFixed(6)}
-            </p>
-            ${poi.designated_radius ? `<p style="font-size: 11px; margin: 4px 0; color: #666;">半径: ${poi.designated_radius}</p>` : ''}
-          </div>
-        `)
-        .addTo(mapRef.current);
+        // マーカーを追加
+        const marker = window.L.marker([lat, lng], { icon })
+          .bindPopup(`
+            <div style="font-family: system-ui, sans-serif;">
+              <strong style="color: ${color}; font-size: 14px;">${poi.poi_name}</strong>
+              ${poi.location_id ? `<p style="font-size: 11px; margin: 2px 0; color: #666; font-family: monospace;">ID: ${poi.location_id}</p>` : ''}
+              ${poi.address ? `<p style="font-size: 12px; margin: 4px 0; color: #666;">${poi.address}</p>` : ''}
+              <p style="font-size: 11px; margin: 4px 0; color: #999;">
+                緯度: ${lat.toFixed(6)}<br/>
+                経度: ${lng.toFixed(6)}
+              </p>
+              ${poi.designated_radius ? `<p style="font-size: 11px; margin: 4px 0; color: #666;">半径: ${poi.designated_radius}</p>` : ''}
+            </div>
+          `)
+          .addTo(mapRef.current);
 
-      markersRef.current.push(marker);
+        markersRef.current.push(marker);
 
-      // 半径の円を追加
-      if (poi.designated_radius) {
-        const circle = window.L.circle([lat, lng], {
-          color: color,
-          fillColor: color,
-          fillOpacity: 0.15,
-          radius: radius,
-          weight: 2,
-        }).addTo(mapRef.current);
+        // 半径の円を追加
+        if (poi.designated_radius) {
+          const circle = window.L.circle([lat, lng], {
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.15,
+            radius: radius,
+            weight: 2,
+          }).addTo(mapRef.current);
 
-        markersRef.current.push(circle);
+          markersRef.current.push(circle);
+        }
       }
-    });
+      
+      // 次のバッチをスケジュール
+      if (endIndex < pois.length) {
+        requestAnimationFrame(() => {
+          addMarkersBatch(pois, endIndex, batchSize);
+        });
+      }
+    };
+    
+    // バッチ処理でマーカーを追加
+    addMarkersBatch(validPois);
 
     // クリーンアップ
     return () => {
