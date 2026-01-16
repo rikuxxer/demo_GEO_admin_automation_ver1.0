@@ -24,7 +24,7 @@ ENV VITE_GOOGLE_SHEETS_API_KEY=$VITE_GOOGLE_SHEETS_API_KEY
 RUN npm run build
 
 # ビルド成果物の確認（デバッグ用）
-# vite.config.tsでoutDir: 'build'が設定されているため、成果物は/app/buildに生成される
+# vite.config.prod.tsでoutDir: 'build'が設定されているため、成果物は/app/buildに生成される
 RUN echo "📋 ビルド成果物の確認:" && \
     ls -la /app/ && \
     echo "" && \
@@ -32,14 +32,21 @@ RUN echo "📋 ビルド成果物の確認:" && \
     if [ -d "/app/build" ]; then \
       ls -la /app/build/ && \
       echo "✅ /app/build が存在します"; \
+    elif [ -d "/build" ]; then \
+      echo "⚠️ /app/build が見つかりませんが、/build が見つかりました" && \
+      ls -la /build/ && \
+      echo "✅ /build が存在します（vite.config.prod.tsのoutDir設定を確認してください）"; \
     else \
-      echo "❌ エラー: /app/build が見つかりません！" && \
-      echo "vite.config.tsのoutDir設定を確認してください" && \
+      echo "❌ エラー: /app/build も /build も見つかりません！" && \
+      echo "vite.config.prod.tsのoutDir設定を確認してください" && \
+      echo "現在の作業ディレクトリ: $(pwd)" && \
+      echo "ディレクトリ一覧:" && \
+      find /app -maxdepth 2 -type d -name "build" -o -name "dist" 2>/dev/null || echo "build/distディレクトリが見つかりません" && \
       exit 1; \
     fi && \
     echo "" && \
     echo "📁 distディレクトリの内容（存在しないはず）:" && \
-    ls -la /app/dist/ 2>/dev/null || echo "⚠️ /app/dist が見つかりません（これは正常です。vite.config.tsでoutDir: 'build'が設定されているため）"
+    ls -la /app/dist/ 2>/dev/null || echo "⚠️ /app/dist が見つかりません（これは正常です。vite.config.prod.tsでoutDir: 'build'が設定されているため）"
 
 # 本番環境用の軽量イメージ
 FROM nginx:alpine
