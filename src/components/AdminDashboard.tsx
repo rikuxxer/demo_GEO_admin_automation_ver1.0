@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { BarChart3, ClipboardCheck, AlertCircle, CheckCircle, Clock, TrendingDown, Target, DollarSign, Loader2, FileText, Package, MapPin, Activity } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { BarChart3, ClipboardCheck, AlertCircle, CheckCircle, Clock, TrendingDown, Target, DollarSign, Package, MapPin, Activity, FileText } from 'lucide-react';
 import { Card } from './ui/card';
-import { Button } from './ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import type { Project, Segment, EditRequest } from '../types/schema';
 import { 
@@ -9,10 +8,7 @@ import {
   getRegistrationTimeTrend,
   getRegistrationTimeInMinutes
 } from '../utils/registrationTime';
-import { addSampleRegistrationData } from '../utils/addSampleRegistrationData';
-import { addSampleChangeHistory } from '../utils/addSampleChangeHistory';
 import { analyzeWorkTime, formatWorkTime } from '../utils/workTimeAnalysis';
-import { exportQueueToCSV, getExportQueue, exportQueueToGoogleSheets } from '../utils/spreadsheetExport';
 import { SheetExportHistory } from './SheetExportHistory';
 
 interface AdminDashboardProps {
@@ -36,80 +32,81 @@ export function AdminDashboard({
   currentUserId: _currentUserId = '',
   onRefresh: _onRefresh
 }: AdminDashboardProps) {
-  const [isAddingSample, setIsAddingSample] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'exports'>('dashboard');
-
-  const handleAddSampleData = async () => {
-    setIsAddingSample(true);
-    try {
-      console.log('🔄 サンプルデータ追加処理を開始します...');
-      addSampleRegistrationData();
-      await addSampleChangeHistory(); // 変更履歴のサンプルデータも追加
-      console.log('✅ サンプルデータを追加しました');
-      
-      // localStorageの更新を確実にするため、少し待ってからリロード
-      setTimeout(() => {
-        console.log('🔄 ページをリロードします...');
-        window.location.reload();
-      }, 2000);
-    } catch (error) {
-      console.error('❌ サンプルデータの追加に失敗しました:', error);
-      setIsAddingSample(false);
-    }
-  };
-  // 案件ステータス別カウント
-  const projectsByStatus = {
+  
+  // 案件ステータス別カウント（メモ化）
+  const projectsByStatus = useMemo(() => ({
     draft: projects.filter(p => p.project_status === 'draft').length,
     in_progress: projects.filter(p => p.project_status === 'in_progress').length,
     pending: projects.filter(p => p.project_status === 'pending').length,
     completed: projects.filter(p => p.project_status === 'completed').length,
     cancelled: projects.filter(p => p.project_status === 'cancelled').length,
-  };
+  }), [projects]);
 
-  // セグメントステータス別カウント
-  const segmentsByStatus = {
+  // セグメントステータス別カウント（メモ化）
+  const segmentsByStatus = useMemo(() => ({
     before_poi_registration: segments.filter(s => s.data_link_status === 'before_poi_registration').length,
     requested: segments.filter(s => s.data_link_status === 'requested').length,
     linking: segments.filter(s => s.data_link_status === 'linking').length,
     completed: segments.filter(s => s.data_link_status === 'completed').length,
     error: segments.filter(s => s.data_link_status === 'error').length,
-  };
+  }), [segments]);
 
-  // 営業全員の平均登録時間
-  const averageRegistrationTime = calculateAverageRegistrationTime(projects);
+  // 営業全員の平均登録時間（メモ化）
+  const averageRegistrationTime = useMemo(() => 
+    calculateAverageRegistrationTime(projects), 
+    [projects]
+  );
   
-  // 時系列での推移データ（過去30日）
-  const registrationTimeTrend = getRegistrationTimeTrend(projects, 30);
+  // 時系列での推移データ（過去30日）（メモ化）
+  const registrationTimeTrend = useMemo(() => 
+    getRegistrationTimeTrend(projects, 30), 
+    [projects]
+  );
 
-  // デバッグ: 参照しているデータを確認
-  const projectsWithStartTime = projects.filter(p => p.project_registration_started_at);
-  const registrationTimes = projectsWithStartTime
-    .map(p => getRegistrationTimeInMinutes(p))
-    .filter((t): t is number => t !== null);
+  // デバッグ: 参照しているデータを確認（開発環境のみ）
+  const projectsWithStartTime = useMemo(() => 
+    projects.filter(p => p.project_registration_started_at), 
+    [projects]
+  );
   
-  console.log('🔍 削減時間の計算に使用しているデータ:');
-  console.log(`  全案件数: ${projects.length}件`);
-  console.log(`  登録開始時点が記録されている案件数: ${projectsWithStartTime.length}件`);
-  console.log(`  有効な登録時間データ数: ${registrationTimes.length}件`);
-  if (registrationTimes.length > 0) {
-    const calculatedAvg = registrationTimes.reduce((a, b) => a + b, 0) / registrationTimes.length;
-    console.log(`  計算された平均登録時間: ${Math.round(calculatedAvg * 100) / 100}分`);
-    console.log(`  最小: ${Math.min(...registrationTimes)}分, 最大: ${Math.max(...registrationTimes)}分`);
-    console.log(`  calculateAverageRegistrationTimeの結果: ${averageRegistrationTime}分`);
-    
-    // 登録時間の分布を確認（5分未満、5-10分、10分超）
-    const under5 = registrationTimes.filter(t => t < 5).length;
-    const between5and10 = registrationTimes.filter(t => t >= 5 && t <= 10).length;
-    const over10 = registrationTimes.filter(t => t > 10).length;
-    console.log(`  登録時間の分布: 5分未満=${under5}件, 5-10分=${between5and10}件, 10分超=${over10}件`);
-    console.log(`  登録時間の範囲: ${Math.min(...registrationTimes)}分 ～ ${Math.max(...registrationTimes)}分`);
-    console.log(`  登録時間の詳細（最初の10件）:`, registrationTimes.slice(0, 10));
-  }
+  const registrationTimes = useMemo(() => 
+    projectsWithStartTime
+      .map(p => getRegistrationTimeInMinutes(p))
+      .filter((t): t is number => t !== null),
+    [projectsWithStartTime]
+  );
+  
+  // デバッグログは開発環境のみ（useEffectで副作用として実行）
+  useEffect(() => {
+    if (import.meta.env.MODE === 'development') {
+      console.log('🔍 削減時間の計算に使用しているデータ:');
+      console.log(`  全案件数: ${projects.length}件`);
+      console.log(`  登録開始時点が記録されている案件数: ${projectsWithStartTime.length}件`);
+      console.log(`  有効な登録時間データ数: ${registrationTimes.length}件`);
+      if (registrationTimes.length > 0) {
+        const calculatedAvg = registrationTimes.reduce((a, b) => a + b, 0) / registrationTimes.length;
+        console.log(`  計算された平均登録時間: ${Math.round(calculatedAvg * 100) / 100}分`);
+        console.log(`  最小: ${Math.min(...registrationTimes)}分, 最大: ${Math.max(...registrationTimes)}分`);
+        console.log(`  calculateAverageRegistrationTimeの結果: ${averageRegistrationTime}分`);
+        
+        // 登録時間の分布を確認（5分未満、5-10分、10分超）
+        const under5 = registrationTimes.filter(t => t < 5).length;
+        const between5and10 = registrationTimes.filter(t => t >= 5 && t <= 10).length;
+        const over10 = registrationTimes.filter(t => t > 10).length;
+        console.log(`  登録時間の分布: 5分未満=${under5}件, 5-10分=${between5and10}件, 10分超=${over10}件`);
+        console.log(`  登録時間の範囲: ${Math.min(...registrationTimes)}分 ～ ${Math.max(...registrationTimes)}分`);
+        console.log(`  登録時間の詳細（最初の10件）:`, registrationTimes.slice(0, 10));
+      }
+    }
+  }, [projects.length, projectsWithStartTime.length, registrationTimes, averageRegistrationTime]);
 
-  // 削減時間、想定アポ創出数、想定売上金額を計算
-  const calculateMetrics = () => {
+  // 削減時間、想定アポ創出数、想定売上金額を計算（メモ化）
+  const metrics = useMemo(() => {
     if (averageRegistrationTime === null || averageRegistrationTime === undefined) {
-      console.log('⚠️ 平均登録時間がnullまたはundefinedです');
+      if (import.meta.env.MODE === 'development') {
+        console.log('⚠️ 平均登録時間がnullまたはundefinedです');
+      }
       return {
         reducedTime: null,
         estimatedAppointments: null,
@@ -126,8 +123,10 @@ export function AdminDashboard({
     // 削減時間を時間に変換
     const reducedTimeHours = reducedTimeMinutes / 60;
     
-    console.log(`📐 削減時間の計算: (20分 - ${averageRegistrationTime}分) × ${projects.length}件 = ${reducedTimeMinutes}分 (${reducedTimeHours.toFixed(2)}時間)`);
-    console.log(`   1件あたりの削減時間: ${reducedTimePerProject}分`);
+    if (import.meta.env.MODE === 'development') {
+      console.log(`📐 削減時間の計算: (20分 - ${averageRegistrationTime}分) × ${projects.length}件 = ${reducedTimeMinutes}分 (${reducedTimeHours.toFixed(2)}時間)`);
+      console.log(`   1件あたりの削減時間: ${reducedTimePerProject}分`);
+    }
 
     // 想定アポ創出数 = 削減時間（時間） ÷ 0.5
     const estimatedAppointments = reducedTimeHours / 0.5;
@@ -141,56 +140,58 @@ export function AdminDashboard({
       estimatedSales: Math.round(estimatedSales),
     };
 
-    console.log('📊 効果計測指標の計算結果:', {
-      averageRegistrationTime,
-      totalProjects: projects.length,
-      reducedTimePerProject,
-      reducedTimeMinutes: result.reducedTime,
-      reducedTimeHours: reducedTimeHours.toFixed(2),
-      estimatedAppointments: result.estimatedAppointments,
-      estimatedSales: result.estimatedSales,
-    });
+    if (import.meta.env.MODE === 'development') {
+      console.log('📊 効果計測指標の計算結果:', {
+        averageRegistrationTime,
+        totalProjects: projects.length,
+        reducedTimePerProject,
+        reducedTimeMinutes: result.reducedTime,
+        reducedTimeHours: reducedTimeHours.toFixed(2),
+        estimatedAppointments: result.estimatedAppointments,
+        estimatedSales: result.estimatedSales,
+      });
+    }
 
     return result;
-  };
+  }, [averageRegistrationTime, projects.length]);
 
-  const metrics = calculateMetrics();
-
-  // 変更履歴から工数分析
-  let workTimeStats;
-  try {
-    workTimeStats = analyzeWorkTime(projects);
-  } catch (error) {
-    console.error('Error analyzing work time:', error);
-    // エラー時は空の統計を返す
-    workTimeStats = {
-      projectCreation: null,
-      segmentCreation: null,
-      poiCreation: null,
-      projectUpdate: null,
-      segmentUpdate: null,
-      poiUpdate: null,
-    };
-  }
-
-  // デバッグ: データの確認
-  if (import.meta.env.MODE === 'development') {
-    const projectsWithStartTime = projects.filter(p => p.project_registration_started_at);
-    console.log('📊 登録時間データの確認:');
-    console.log(`  全案件数: ${projects.length}`);
-    console.log(`  開始時点が記録されている案件数: ${projectsWithStartTime.length}`);
-    if (projectsWithStartTime.length > 0) {
-      console.log('  サンプル案件:', projectsWithStartTime[0]);
-      const sampleTime = getRegistrationTimeInMinutes(projectsWithStartTime[0]);
-      console.log(`  サンプル案件の登録時間: ${sampleTime}分`);
+  // 変更履歴から工数分析（メモ化）
+  const workTimeStats = useMemo(() => {
+    try {
+      return analyzeWorkTime(projects);
+    } catch (error) {
+      console.error('Error analyzing work time:', error);
+      // エラー時は空の統計を返す
+      return {
+        projectCreation: null,
+        segmentCreation: null,
+        poiCreation: null,
+        projectUpdate: null,
+        segmentUpdate: null,
+        poiUpdate: null,
+      };
     }
-    console.log(`  平均登録時間: ${averageRegistrationTime}分`);
-    console.log(`  推移データ件数: ${registrationTimeTrend.filter(d => d.count > 0).length}`);
-    console.log('📈 効果計測指標:');
-    console.log(`  削減時間: ${metrics.reducedTime}分`);
-    console.log(`  想定アポ創出数: ${metrics.estimatedAppointments}件`);
-    console.log(`  想定売上金額: ¥${metrics.estimatedSales?.toLocaleString() || 'なし'}`);
-  }
+  }, [projects]);
+
+  // デバッグ: データの確認（開発環境のみ、useEffectで副作用として実行）
+  useEffect(() => {
+    if (import.meta.env.MODE === 'development') {
+      console.log('📊 登録時間データの確認:');
+      console.log(`  全案件数: ${projects.length}`);
+      console.log(`  開始時点が記録されている案件数: ${projectsWithStartTime.length}`);
+      if (projectsWithStartTime.length > 0) {
+        console.log('  サンプル案件:', projectsWithStartTime[0]);
+        const sampleTime = getRegistrationTimeInMinutes(projectsWithStartTime[0]);
+        console.log(`  サンプル案件の登録時間: ${sampleTime}分`);
+      }
+      console.log(`  平均登録時間: ${averageRegistrationTime}分`);
+      console.log(`  推移データ件数: ${registrationTimeTrend.filter(d => d.count > 0).length}`);
+      console.log('📈 効果計測指標:');
+      console.log(`  削減時間: ${metrics.reducedTime}分`);
+      console.log(`  想定アポ創出数: ${metrics.estimatedAppointments}件`);
+      console.log(`  想定売上金額: ¥${metrics.estimatedSales?.toLocaleString() || 'なし'}`);
+    }
+  }, [projects.length, projectsWithStartTime, averageRegistrationTime, registrationTimeTrend, metrics]);
 
   return (
     <div className="space-y-6">
@@ -231,53 +232,6 @@ export function AdminDashboard({
         <SheetExportHistory currentUserId={_currentUserId} />
       ) : (
         <>
-          {/* ダッシュボードコンテンツ */}
-          <div className="flex items-center justify-end">
-            <div className="flex gap-2">
-              <Button
-                onClick={async () => {
-                  const queue = getExportQueue();
-                  if (queue.length === 0) {
-                    alert('エクスポートする地点登録データがありません');
-                    return;
-                  }
-                  
-                  // まずGoogle Sheetsへの自動入力を試みる
-                  const result = await exportQueueToGoogleSheets();
-                  
-                  if (result.success) {
-                    alert(result.message);
-                  } else {
-                    // 失敗した場合はCSVダウンロードにフォールバック
-                    if (confirm(`${result.message}\n\nCSVファイルとしてダウンロードしますか？`)) {
-                      exportQueueToCSV();
-                    }
-                  }
-                }}
-                variant="outline"
-                className="border-gray-200"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                地点登録データをエクスポート ({getExportQueue().length}件)
-              </Button>
-              <Button
-                onClick={handleAddSampleData}
-                disabled={isAddingSample}
-                variant="outline"
-                className="border-gray-200"
-              >
-                {isAddingSample ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    追加中...
-                  </>
-                ) : (
-                  'サンプルデータを追加'
-                )}
-              </Button>
-            </div>
-          </div>
-
           {/* 統計カード */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="p-6 border border-gray-200">
@@ -533,62 +487,62 @@ export function AdminDashboard({
           <p className="text-muted-foreground mt-0.5">過去30日間の平均登録時間の推移</p>
         </div>
         <div className="p-6">
-          {registrationTimeTrend.filter(d => d.count > 0).length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              データがありません
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={registrationTimeTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis 
+                dataKey="date" 
+                stroke="#6b7280"
+                tickFormatter={(value) => {
+                  const date = new Date(value);
+                  return `${date.getMonth() + 1}/${date.getDate()}`;
+                }}
+              />
+              <YAxis 
+                stroke="#6b7280"
+                label={{ value: '時間（分）', angle: -90, position: 'insideLeft' }}
+                domain={[0, 'auto']}
+              />
+              <Tooltip 
+                formatter={(value: number, name: string, _props: any) => {
+                  if (name === 'averageTime') {
+                    return [`${value}分`, '平均登録時間'];
+                  }
+                  return [value, name];
+                }}
+                labelFormatter={(label) => {
+                  if (!label) return '-';
+                  const date = new Date(label);
+                  if (isNaN(date.getTime())) return '-';
+                  try {
+                    return date.toLocaleDateString('ja-JP', { 
+                      month: 'long', 
+                      day: 'numeric',
+                      weekday: 'short'
+                    });
+                  } catch (e) {
+                    console.warn('⚠️ labelFormatter() failed:', label, e);
+                    return '-';
+                  }
+                }}
+              />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="averageTime" 
+                stroke="#5b5fff" 
+                strokeWidth={2}
+                name="平均登録時間"
+                dot={{ fill: '#5b5fff', r: 4 }}
+                activeDot={{ r: 6 }}
+                connectNulls={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          {registrationTimeTrend.filter(d => d.count > 0).length === 0 && (
+            <div className="text-center text-muted-foreground mt-4 text-sm">
+              データがありません（過去30日間に登録開始時点が記録されている案件がありません）
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={registrationTimeTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#6b7280"
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return `${date.getMonth() + 1}/${date.getDate()}`;
-                  }}
-                />
-                <YAxis 
-                  stroke="#6b7280"
-                  label={{ value: '時間（分）', angle: -90, position: 'insideLeft' }}
-                  domain={[0, 'dataMax']}
-                />
-                <Tooltip 
-                  formatter={(value: number, name: string, _props: any) => {
-                    if (name === 'averageTime') {
-                      return [`${value}分`, '平均登録時間'];
-                    }
-                    return [value, name];
-                  }}
-                  labelFormatter={(label) => {
-                    if (!label) return '-';
-                    const date = new Date(label);
-                    if (isNaN(date.getTime())) return '-';
-                    try {
-                      return date.toLocaleDateString('ja-JP', { 
-                        month: 'long', 
-                        day: 'numeric',
-                        weekday: 'short'
-                      });
-                    } catch (e) {
-                      console.warn('⚠️ labelFormatter() failed:', label, e);
-                      return '-';
-                    }
-                  }}
-                />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="averageTime" 
-                  stroke="#5b5fff" 
-                  strokeWidth={2}
-                  name="平均登録時間"
-                  dot={{ fill: '#5b5fff', r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
           )}
         </div>
       </Card>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { 
@@ -25,7 +25,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { XCircle } from 'lucide-react';
 
 interface SheetExport {
   export_id: string;
@@ -79,8 +78,8 @@ export function SheetExportHistory({ currentUserId, currentUserName }: SheetExpo
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterProjectId, setFilterProjectId] = useState<string>('');
 
-  // エクスポート履歴を取得
-  const fetchExports = async () => {
+  // エクスポート履歴を取得（メモ化）
+  const fetchExports = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -104,7 +103,7 @@ export function SheetExportHistory({ currentUserId, currentUserName }: SheetExpo
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus, filterProjectId]);
 
   // エクスポートデータを取得
   const fetchExportData = async (exportId: string) => {
@@ -158,7 +157,7 @@ export function SheetExportHistory({ currentUserId, currentUserName }: SheetExpo
 
   useEffect(() => {
     fetchExports();
-  }, [filterStatus, filterProjectId]);
+  }, [fetchExports]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
