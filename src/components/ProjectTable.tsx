@@ -152,7 +152,19 @@ export function ProjectTable({
       project.advertiser_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.appeal_point.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.person_in_charge && project.person_in_charge.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    )
+    .sort((a, b) => {
+      // 最新のものが上に来るようにソート（_register_datetime, created_at, updated_atの順で比較）
+      const getDate = (project: Project): number => {
+        if (project._register_datetime) {
+          const date = new Date(project._register_datetime);
+          return isNaN(date.getTime()) ? 0 : date.getTime();
+        }
+        // フォールバック（通常は発生しない）
+        return 0;
+      };
+      return getDate(b) - getDate(a); // DESC（降順）
+    });
 
   // デバッグ用：フィルター後の件数とサマリーをログ出力
   useEffect(() => {
