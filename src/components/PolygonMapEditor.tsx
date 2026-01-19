@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { geocodeAddress } from '../utils/geocoding';
 import { X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { validatePolygonRange } from '../utils/polygonUtils';
@@ -40,6 +41,8 @@ export function PolygonMapEditor({
   const [polygons, setPolygons] = useState<PolygonData[]>(initialPolygons);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isLeafletDrawLoaded, setIsLeafletDrawLoaded] = useState(false);
+  const [searchAddress, setSearchAddress] = useState('');
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
   // LeafletとLeaflet Drawを読み込む
   useEffect(() => {
@@ -586,6 +589,38 @@ export function PolygonMapEditor({
     onPolygonsChange(updatedPolygons);
   };
 
+  const handleSearchAddress = async () => {
+    if (!searchAddress.trim()) {
+      toast.error('住所を入力してください');
+      return;
+    }
+    if (!mapRef.current || !isMapReady) {
+      toast.error('地図の読み込みが完了していません');
+      return;
+    }
+    setIsGeocoding(true);
+    try {
+      const result = await geocodeAddress(searchAddress.trim());
+      if (result.isJapan === false) {
+        toast.error('海外の地点が検出されました', {
+          description: `住所「${searchAddress}」は日本国外の地点です。日本国内の住所を入力してください。`,
+          duration: 5000,
+        });
+        return;
+      }
+      mapRef.current.setView([result.latitude, result.longitude], 15, {
+        animate: true,
+        duration: 0.5,
+      });
+      toast.success('住所検索が完了しました');
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      toast.error(error instanceof Error ? error.message : '住所検索に失敗しました');
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
@@ -594,6 +629,23 @@ export function PolygonMapEditor({
           <p className="text-sm text-gray-500 mt-1">
             地図上でポリゴンを描画してください（最大{maxPolygons}個）
           </p>
+          <div className="mt-3 flex items-center gap-2">
+            <Input
+              value={searchAddress}
+              onChange={(e) => setSearchAddress(e.target.value)}
+              placeholder="住所で検索（例：東京都渋谷区）"
+              className="h-8 text-sm w-80"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSearchAddress}
+              disabled={isGeocoding}
+              className="h-8"
+            >
+              {isGeocoding ? '検索中...' : '住所検索'}
+            </Button>
+          </div>
         </div>
         {onClose && (
           <Button variant="ghost" size="icon" onClick={onClose}>

@@ -200,6 +200,13 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     }
   };
 
+  const handlePolygonNameUpdate = (polygonId: string, value: string) => {
+    const updatedPolygons = polygons.map((polygon) =>
+      polygon.id === polygonId ? { ...polygon, name: value } : polygon
+    );
+    handlePolygonsChange(updatedPolygons);
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -2470,7 +2477,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     </p>
                     
                     <p className="text-xs text-gray-500">
-                      地点名は地図モーダル内で入力してください（未入力の場合は自動生成されます）。
+                      地点名はポリゴン一覧から入力できます（未入力の場合は自動生成されます）。
                     </p>
                     
                     {/* 既存のポリゴン数をチェック */}
@@ -2518,39 +2525,50 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           {polygons.map((polygon, index) => (
                             <div
                               key={polygon.id}
-                              className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-[#5b5fff] cursor-pointer transition-colors"
-                              onClick={() => {
-                                // ポリゴンエディタが開いている場合は、地図を移動
-                                if (showPolygonEditor) {
-                                  setSelectedPolygonId(polygon.id);
-                                } else {
-                                  // ポリゴンエディタが閉じている場合は開く
-                                  setSelectedPolygonId(polygon.id);
-                                  setShowPolygonEditor(true);
-                                }
-                              }}
+                              className="p-2 bg-white rounded border border-gray-200 hover:border-[#5b5fff] transition-colors"
                             >
-                              <div className="text-sm flex-1">
-                                <div className="font-medium">
-                                  {polygon.name?.trim() ? polygon.name : `ポリゴン ${index + 1}`}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  座標数: {polygon.coordinates.length}点
-                                </div>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e: React.MouseEvent) => {
-                                  e.stopPropagation();
-                                  const newPolygons = polygons.filter(p => p.id !== polygon.id);
-                                  handlePolygonsChange(newPolygons);
+                              <div
+                                className="flex items-center justify-between gap-2 cursor-pointer"
+                                onClick={() => {
+                                  // ポリゴンエディタが開いている場合は、地図を移動
+                                  if (showPolygonEditor) {
+                                    setSelectedPolygonId(polygon.id);
+                                  } else {
+                                    // ポリゴンエディタが閉じている場合は開く
+                                    setSelectedPolygonId(polygon.id);
+                                    setShowPolygonEditor(true);
+                                  }
                                 }}
-                                className="text-red-600 hover:text-red-700"
                               >
-                                <X className="w-4 h-4" />
-                              </Button>
+                                <div className="text-sm flex-1">
+                                  <div className="font-medium">
+                                    {polygon.name?.trim() ? polygon.name : `ポリゴン ${index + 1}`}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    座標数: {polygon.coordinates.length}点
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    const newPolygons = polygons.filter(p => p.id !== polygon.id);
+                                    handlePolygonsChange(newPolygons);
+                                  }}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <Input
+                                value={polygon.name || ''}
+                                onChange={(e) => handlePolygonNameUpdate(polygon.id, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                placeholder="地点名を入力"
+                                className="mt-2 h-8 text-sm bg-white"
+                              />
                             </div>
                           ))}
                         </div>
