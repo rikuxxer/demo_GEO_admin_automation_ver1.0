@@ -232,11 +232,9 @@ export function SegmentTable({ segments, pois = [], project, onEdit, onDelete, o
                 <tr key={segment.segment_id} className="hover:bg-[#5b5fff]/5 transition-colors">
                   {/* セグメントID */}
                   <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-[#5b5fff]/10 rounded-lg flex items-center justify-center">
-                        <span className="text-[#5b5fff] text-xs">{segment.segment_id}</span>
-                      </div>
-                    </div>
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 font-mono px-2.5 py-1 whitespace-nowrap text-xs">
+                      {segment.segment_id}
+                    </Badge>
                   </td>
 
                   {/* セグメント名 */}
