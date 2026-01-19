@@ -2541,10 +2541,14 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                 }}
                               >
                                 <div className="text-sm flex-1">
-                                  <div className="font-medium">
-                                    {polygon.name?.trim() ? polygon.name : `ポリゴン ${index + 1}`}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
+                                  <Input
+                                    value={polygon.name || ''}
+                                    onChange={(e) => handlePolygonNameUpdate(polygon.id, e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    placeholder={`ポリゴン ${index + 1}`}
+                                    className="h-8 text-sm bg-white"
+                                  />
+                                  <div className="text-xs text-gray-500 mt-1">
                                     座標数: {polygon.coordinates.length}点
                                   </div>
                                 </div>
@@ -2562,13 +2566,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                   <X className="w-4 h-4" />
                                 </Button>
                               </div>
-                              <Input
-                                value={polygon.name || ''}
-                                onChange={(e) => handlePolygonNameUpdate(polygon.id, e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                placeholder="地点名を入力"
-                                className="mt-2 h-8 text-sm bg-white"
-                              />
                             </div>
                           ))}
                         </div>
