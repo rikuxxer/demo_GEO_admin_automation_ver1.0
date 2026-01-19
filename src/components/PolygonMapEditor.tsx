@@ -634,7 +634,7 @@ export function PolygonMapEditor({
               value={searchAddress}
               onChange={(e) => setSearchAddress(e.target.value)}
               placeholder="住所で検索（例：東京都渋谷区）"
-              className="h-8 text-sm w-80"
+              className="h-8 text-sm w-80 bg-white border-gray-300 focus-visible:border-[#5b5fff] focus-visible:ring-[#5b5fff]/50"
             />
             <Button
               type="button"
