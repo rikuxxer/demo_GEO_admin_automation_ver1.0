@@ -228,7 +228,6 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         {poi.poi_type === 'prefecture' ? (
                           <>
                             <div className="max-w-full truncate">{poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}</div>
-                            <span className="text-xs text-white bg-green-600 px-2 py-0.5 rounded">都道府県指定</span>
                           </>
                         ) : isPolygonPoi ? (
                           <>
