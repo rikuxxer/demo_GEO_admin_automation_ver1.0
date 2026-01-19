@@ -183,6 +183,7 @@ export function useProjectSystem() {
         extraction_period_type: segmentData.extraction_period_type,
         extraction_start_date: segmentData.extraction_start_date,
         extraction_end_date: segmentData.extraction_end_date,
+        extraction_dates: segmentData.extraction_dates,
         attribute: segmentData.attribute,
         detection_count: segmentData.detection_count,
         detection_time_start: segmentData.detection_time_start,

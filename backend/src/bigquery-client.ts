@@ -939,8 +939,10 @@ export class BigQueryService {
         'media_id',
         'attribute',
         'extraction_period',
+        'extraction_period_type',
         'extraction_start_date',
         'extraction_end_date',
+        'extraction_dates',
         'detection_count',
         'detection_time_start',
         'detection_time_end',
@@ -970,6 +972,14 @@ export class BigQueryService {
           } else if (field === 'media_id') {
             // media_idは配列の場合はカンマ区切りの文字列に変換
             cleanedSegment[field] = formatMediaIdForBigQuery(segment[field]);
+          } else if (field === 'extraction_dates') {
+            // extraction_dates: ARRAY<STRING> 形式（YYYY-MM-DDの配列）
+            if (Array.isArray(segment[field])) {
+              const arr = (segment[field] as any[]).filter((s: any) => s != null && String(s).trim() !== '');
+              if (arr.length > 0) {
+                cleanedSegment[field] = arr;
+              }
+            }
           } else {
             cleanedSegment[field] = segment[field];
           }
@@ -1012,10 +1022,14 @@ export class BigQueryService {
   async updateSegment(segment_id: string, updates: any): Promise<void> {
     const currentProjectId = validateProjectId();
     
-    // media_idが配列の場合は文字列に変換
     const processedUpdates = { ...updates };
+    // media_idが配列の場合は文字列に変換
     if ('media_id' in processedUpdates && processedUpdates.media_id !== undefined && processedUpdates.media_id !== null) {
       processedUpdates.media_id = formatMediaIdForBigQuery(processedUpdates.media_id);
+    }
+    // extraction_dates: 空文字を除いた配列（ARRAY<STRING>）
+    if ('extraction_dates' in processedUpdates && Array.isArray(processedUpdates.extraction_dates)) {
+      processedUpdates.extraction_dates = processedUpdates.extraction_dates.filter((s: any) => s != null && String(s).trim() !== '');
     }
     
     const setClause = Object.keys(processedUpdates)

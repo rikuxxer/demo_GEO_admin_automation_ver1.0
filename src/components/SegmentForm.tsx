@@ -61,6 +61,7 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
     extraction_period_type: segment?.extraction_period_type || 'preset',
     extraction_start_date: segment?.extraction_start_date || '',
     extraction_end_date: segment?.extraction_end_date || '',
+    extraction_dates: segment?.extraction_dates || [],
     attribute: segment?.attribute || 'detector',
     detection_count: segment?.detection_count || 1,
     detection_time_start: segment?.detection_time_start || '',
@@ -75,6 +76,7 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
         ...prev,
         extraction_period: '3month',
         extraction_period_type: 'preset',
+        extraction_dates: [],
       }));
     }
   }, [formData.attribute]);
@@ -440,6 +442,7 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
                             extraction_period_type: sourceSegment.extraction_period_type || prev.extraction_period_type,
                             extraction_start_date: sourceSegment.extraction_start_date || prev.extraction_start_date,
                             extraction_end_date: sourceSegment.extraction_end_date || prev.extraction_end_date,
+                            extraction_dates: sourceSegment.extraction_dates || prev.extraction_dates || [],
                             attribute: sourceSegment.attribute || prev.attribute,
                             detection_count: sourceSegment.detection_count || prev.detection_count,
                             detection_time_start: sourceSegment.detection_time_start || prev.detection_time_start,

@@ -93,7 +93,7 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
           抽出期間 <span className="text-red-600">*</span>
         </Label>
         <div className="space-y-3">
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2">
               <input
                 type="radio"
@@ -114,6 +114,16 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
               />
               <span className="text-sm">期間指定</span>
             </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                checked={formData.extraction_period_type === 'specific_dates'}
+                onChange={() => onChange('extraction_period_type', 'specific_dates')}
+                className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
+              />
+              <span className="text-sm">特定日付</span>
+            </label>
           </div>
 
           {formData.extraction_period_type === 'preset' ? (
@@ -130,6 +140,43 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
                 </option>
               ))}
             </select>
+          ) : formData.extraction_period_type === 'specific_dates' ? (
+            <div className="space-y-2">
+              <p className="text-xs text-purple-700">抽出対象とする日付を複数選択できます</p>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {(formData.extraction_dates || []).map((d, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={d}
+                      onChange={(e) => {
+                        const arr = [...(formData.extraction_dates || [])];
+                        arr[i] = e.target.value;
+                        onChange('extraction_dates', arr);
+                      }}
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const arr = (formData.extraction_dates || []).filter((_, j) => j !== i);
+                        onChange('extraction_dates', arr);
+                      }}
+                      className="text-red-600 hover:text-red-800 text-sm px-2"
+                    >
+                      削除
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => onChange('extraction_dates', [...(formData.extraction_dates || []), ''])}
+                className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+              >
+                + 日付を追加
+              </button>
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <div>

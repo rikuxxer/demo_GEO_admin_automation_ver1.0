@@ -133,8 +133,10 @@ CREATE TABLE `universegeo_dataset.segments` (
   media_id STRING,
   attribute STRING,
   extraction_period STRING,
+  extraction_period_type STRING,
   extraction_start_date DATE,
   extraction_end_date DATE,
+  extraction_dates ARRAY<STRING>,
   detection_count STRING,
   detection_time_start TIME,
   detection_time_end TIME,
@@ -164,8 +166,10 @@ OPTIONS(
 | `media_id` | STRING | YES | 配信媒体ID | `MEDIA-001` |
 | `attribute` | STRING | YES | 属性 | `detector`, `resident`, `worker` |
 | `extraction_period` | STRING | YES | 抽出期間 | `1month`, `2month`, `3month` |
+| `extraction_period_type` | STRING | YES | 抽出期間タイプ | `preset`, `custom`, `specific_dates` |
 | `extraction_start_date` | DATE | YES | 抽出開始日 | `2025-01-01` |
 | `extraction_end_date` | DATE | YES | 抽出終了日 | `2025-03-31` |
+| `extraction_dates` | ARRAY<STRING> | YES | 抽出対象日付（特定日付指定時） | `['2025-01-01','2025-01-15']` |
 | `detection_count` | STRING | YES | 検知回数 | `1回以上` |
 | `detection_time_start` | TIME | YES | 検知時間開始 | `09:00:00` |
 | `detection_time_end` | TIME | YES | 検知時間終了 | `18:00:00` |

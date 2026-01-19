@@ -37,9 +37,10 @@ export interface Segment {
   // セグメント共通条件（このセグメントに属する全地点に適用される）
   designated_radius?: string; // 指定半径
   extraction_period?: string; // 抽出期間
-  extraction_period_type?: 'preset' | 'custom'; // プリセット or 期間指定
+  extraction_period_type?: 'preset' | 'custom' | 'specific_dates'; // プリセット or 期間指定 or 特定日付
   extraction_start_date?: string; // 抽出開始日（期間指定の場合）
   extraction_end_date?: string; // 抽出終了日（期間指定の場合）
+  extraction_dates?: string[]; // 抽出対象日付（特定日付の場合）['YYYY-MM-DD', ...]
   attribute?: 'detector' | 'resident' | 'worker'; // 検知者 | 居住者 | 勤務者
   detection_count?: number; // 検知回数（〇回以上）
   detection_time_start?: string; // 検知時間開始
@@ -82,9 +83,10 @@ export interface PoiInfo {
   // 1つのセグメントに属する全地点は同じ条件を共有します。
   designated_radius?: string; // 指定半径（セグメント共通条件から継承）
   extraction_period?: string; // 抽出期間���セグメント共通条件から継承）
-  extraction_period_type?: 'preset' | 'custom'; // プリセット or 期間指定（セグメント共通条件から継承）
+  extraction_period_type?: 'preset' | 'custom' | 'specific_dates'; // プリセット or 期間指定 or 特定日付（セグメント共通条件から継承）
   extraction_start_date?: string; // 抽出開始日（セグメント共通条件から継承）
   extraction_end_date?: string; // 抽出終了日（セグメント共通条件から継承）
+  extraction_dates?: string[]; // 抽出対象日付（特定日付の場合、セグメント共通条件から継承）
   attribute?: 'detector' | 'resident' | 'worker' | 'resident_and_worker'; // 検知者 | 居住者 | 勤務者 | 居住者&勤務者（セグメント共通条件から継承）
   detection_time_start?: string; // 検知時間開始（セグメント共通条件から継承）
   detection_time_end?: string; // 検知時間終了（セグメント共通条件から継承）

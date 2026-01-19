@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2 } from 'lucide-react';
 import { EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { toast } from 'sonner';
@@ -475,9 +475,13 @@ export function ProjectDetail({
       return;
     }
 
-    // 指定半径のバリデーション（都道府県指定の地点を除く）
-    const nonPrefecturePois = segmentPois.filter(poi => poi.poi_type !== 'prefecture');
-    if (nonPrefecturePois.length > 0) {
+    // 指定半径のバリデーション（都道府県指定とポリゴン地点を除く）
+    const nonPrefectureNonPolygonPois = segmentPois.filter(poi => 
+      poi.poi_type !== 'prefecture' && 
+      poi.poi_type !== 'polygon' &&
+      !(poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)
+    );
+    if (nonPrefectureNonPolygonPois.length > 0) {
       // セグメントの指定半径をチェック
       if (!segment.designated_radius || segment.designated_radius.trim() === '') {
         toast.error('指定半径が設定されていません。セグメント共通条件で指定半径を設定してください。');
@@ -486,7 +490,7 @@ export function ProjectDetail({
       }
       
       // 地点ごとの指定半径もチェック（地点に設定されていない場合はセグメントの値を使用）
-      const poisWithoutRadius = nonPrefecturePois.filter(poi => 
+      const poisWithoutRadius = nonPrefectureNonPolygonPois.filter(poi => 
         !poi.designated_radius || poi.designated_radius.trim() === ''
       );
       if (poisWithoutRadius.length > 0 && !segment.designated_radius) {
@@ -509,7 +513,18 @@ export function ProjectDetail({
       hasPrefecture: !!(poi.prefectures && poi.prefectures.length > 0),
     })));
     
+    // ポリゴン地点があるかチェック
+    const hasPolygonPois = segmentPois.some(poi => 
+      poi.poi_type === 'polygon' || (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)
+    );
+
     const needsGeocoding = segmentPois.filter(poi => {
+      // ポリゴン地点はジオコーディング不要
+      if (poi.poi_type === 'polygon' || (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)) {
+        console.log(`🔵 POI ${poi.poi_id} (${poi.poi_name}): ポリゴン地点（ジオコーディング不要）`);
+        return false;
+      }
+
       const hasCoords = poi.latitude !== undefined && poi.latitude !== null && 
                         poi.longitude !== undefined && poi.longitude !== null &&
                         poi.latitude !== 0 && poi.longitude !== 0;
@@ -534,8 +549,49 @@ export function ProjectDetail({
       return false;
     });
 
-    if (needsGeocoding.length === 0) {
+    // ジオコーディングが必要な地点がない場合でも、ポリゴン地点がある場合は格納依頼を実行
+    if (needsGeocoding.length === 0 && !hasPolygonPois) {
       toast.info('ジオコーディングが必要な地点がありません');
+      setIsGeocodingRunning(false);
+      return;
+    }
+
+    // ポリゴン地点のみの場合は、ジオコーディングをスキップして直接格納依頼を実行
+    if (needsGeocoding.length === 0 && hasPolygonPois) {
+      console.log('🔵 ポリゴン地点のみのため、ジオコーディングをスキップして格納依頼を実行します');
+      
+      const requestDateTime = new Date().toISOString();
+      const coordinationDate = calculateDataCoordinationDate(requestDateTime);
+
+      onSegmentUpdate(segment.segment_id, {
+        location_request_status: 'storing',
+        data_coordination_date: coordinationDate,
+      });
+
+      // スプレッドシートに自動出力（営業ユーザーの場合、ポリゴン地点はスプレッドシート出力対象外）
+      if (user?.role === 'sales') {
+        console.log('⚠️ ポリゴン地点はスプレッドシート出力対象外のため、スキップします');
+      }
+
+      // お知らせに通知を送信
+      if (user) {
+        const messageContent = `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n地点数: ${segmentPois.length}件（ポリゴン地点）`;
+
+        await bigQueryService.sendProjectMessage({
+          project_id: project.project_id,
+          sender_id: 'system',
+          sender_name: 'システム',
+          sender_role: 'admin',
+          content: messageContent,
+          message_type: 'system',
+        });
+
+        if (onUnreadCountUpdate) {
+          onUnreadCountUpdate();
+        }
+      }
+
+      toast.success(`地点データの格納依頼が完了しました（${segmentPois.length}件）`);
       setIsGeocodingRunning(false);
       return;
     }
@@ -560,8 +616,13 @@ export function ProjectDetail({
     // バックグラウンドで実行
     (async () => {
       try {
-        // ジオコーディングが必要なPOIのみを処理
+        // ジオコーディングが必要なPOIのみを処理（ポリゴン地点は除外）
         const poisToGeocode = segmentPois.filter(poi => {
+          // ポリゴン地点はジオコーディング不要
+          if (poi.poi_type === 'polygon' || (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)) {
+            return false;
+          }
+
           const hasCoords = poi.latitude !== undefined && poi.latitude !== null && 
                             poi.longitude !== undefined && poi.longitude !== null &&
                             poi.latitude !== 0 && poi.longitude !== 0;
@@ -661,9 +722,11 @@ export function ProjectDetail({
           try {
             console.log('📊 スプレッドシートに出力中...');
             
-            // TG地点のみをフィルタリング
+            // TG地点のみをフィルタリング（ポリゴン地点は除外）
             const tgPois = segmentPois.filter(poi => 
-              poi.poi_category === 'tg' || !poi.poi_category
+              (poi.poi_category === 'tg' || !poi.poi_category) &&
+              poi.poi_type !== 'polygon' &&
+              !(poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)
             );
             
             console.log(`📊 出力対象: TG地点=${tgPois.length}件（全地点=${segmentPois.length}件）`);
@@ -699,11 +762,28 @@ export function ProjectDetail({
           }
         }
 
+        // ポリゴン地点の数をカウント
+        const polygonPoiCount = segmentPois.filter(poi => 
+          poi.poi_type === 'polygon' || (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)
+        ).length;
+        
+        // 総地点数（ジオコーディング成功 + ポリゴン地点）
+        const totalSuccessCount = successCount + polygonPoiCount;
+
         // お知らせに通知を送信（1回だけ）
         if (user) {
-          const messageContent = errorCount === 0
-            ? `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${successCount}件`
-            : `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${successCount}件、エラー: ${errorCount}件\n\nエラーの詳細は案件詳細画面で確認できます。`;
+          let messageContent: string;
+          if (polygonPoiCount > 0) {
+            // ポリゴン地点がある場合
+            messageContent = errorCount === 0
+              ? `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n総地点数: ${totalSuccessCount}件（ジオコーディング成功: ${successCount}件、ポリゴン地点: ${polygonPoiCount}件）`
+              : `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${totalSuccessCount}件（ジオコーディング成功: ${successCount}件、ポリゴン地点: ${polygonPoiCount}件）、エラー: ${errorCount}件\n\nエラーの詳細は案件詳細画面で確認できます。`;
+          } else {
+            // ポリゴン地点がない場合（従来通り）
+            messageContent = errorCount === 0
+              ? `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${successCount}件`
+              : `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${successCount}件、エラー: ${errorCount}件\n\nエラーの詳細は案件詳細画面で確認できます。`;
+          }
 
           await bigQueryService.sendProjectMessage({
             project_id: project.project_id,
@@ -721,9 +801,17 @@ export function ProjectDetail({
         }
 
         if (errorCount === 0) {
-          toast.success(`地点データの格納依頼が完了しました（${successCount}件）`);
+          if (polygonPoiCount > 0) {
+            toast.success(`地点データの格納依頼が完了しました（総${totalSuccessCount}件: ジオコーディング${successCount}件、ポリゴン${polygonPoiCount}件）`);
+          } else {
+            toast.success(`地点データの格納依頼が完了しました（${successCount}件）`);
+          }
         } else {
-          toast.warning(`格納依頼完了: 成功${successCount}件、エラー${errorCount}件`);
+          if (polygonPoiCount > 0) {
+            toast.warning(`格納依頼完了: 成功${totalSuccessCount}件（ジオコーディング${successCount}件、ポリゴン${polygonPoiCount}件）、エラー${errorCount}件`);
+          } else {
+            toast.warning(`格納依頼完了: 成功${successCount}件、エラー${errorCount}件`);
+          }
         }
 
         // バックグラウンド実行の場合はダイアログを閉じる
@@ -1442,6 +1530,7 @@ export function ProjectDetail({
                                     extraction_period_type: (firstPoi?.extraction_period_type) || segment.extraction_period_type || 'preset',
                                     extraction_start_date: (firstPoi?.extraction_start_date) || segment.extraction_start_date || '',
                                     extraction_end_date: (firstPoi?.extraction_end_date) || segment.extraction_end_date || '',
+                                    extraction_dates: (firstPoi?.extraction_dates || segment.extraction_dates || []).slice(),
                                     attribute: (firstPoi?.attribute) || segment.attribute || 'detector',
                                     detection_count: (firstPoi?.detection_count) || segment.detection_count || 1,
                                     detection_time_start: (firstPoi?.detection_time_start) || segment.detection_time_start || '',
@@ -1483,13 +1572,21 @@ export function ProjectDetail({
                                     <span className="text-xs">
                                       {segment.extraction_start_date} ~<br/>{segment.extraction_end_date}
                                     </span>
+                                  ) : segment.extraction_period_type === 'specific_dates' ? (
+                                    <span className="text-xs">
+                                      {((segment.extraction_dates || []).filter(Boolean).length) > 0
+                                        ? (segment.extraction_dates || []).filter(Boolean).slice(0, 3).join(', ') + ((segment.extraction_dates || []).filter(Boolean).length > 3 ? ' 他' + ((segment.extraction_dates || []).filter(Boolean).length - 3) + '日' : '')
+                                        : '未設定'}
+                                    </span>
                                   ) : (
                                     (() => {
                                       const labels: Record<string, string> = {
-                                        '1month': '過去1ヶ月',
-                                        '3month': '過去3ヶ月',
-                                        '6month': '過去6ヶ月',
-                                        '12month': '過去12ヶ月',
+                                        '1month': '直近1ヶ月',
+                                        '2month': '直近2ヶ月',
+                                        '3month': '直近3ヶ月',
+                                        '4month': '直近4ヶ月',
+                                        '5month': '直近5ヶ月',
+                                        '6month': '直近6ヶ月',
                                       };
                                       return labels[segment.extraction_period || ''] || segment.extraction_period || '指定なし';
                                     })()
@@ -1994,7 +2091,7 @@ export function ProjectDetail({
                     <Calendar className="w-4 h-4 text-[#5b5fff]" />
                     抽出期間
                   </Label>
-                  <div className="flex gap-4 mb-4">
+                  <div className="flex flex-wrap gap-4 mb-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
@@ -2017,6 +2114,17 @@ export function ProjectDetail({
                       />
                       <span className="text-sm text-gray-700">期間指定</span>
                     </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="period_type_popup"
+                        checked={extractionConditionsFormData.extraction_period_type === 'specific_dates'}
+                        onChange={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period_type: 'specific_dates', extraction_dates: prev.extraction_dates?.length ? prev.extraction_dates : [''] }))}
+                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
+                        className="text-[#5b5fff] focus:ring-[#5b5fff]"
+                      />
+                      <span className="text-sm text-gray-700">特定日付</span>
+                    </label>
                   </div>
 
                   {extractionConditionsFormData.extraction_period_type === 'preset' ? (
@@ -2036,6 +2144,43 @@ export function ProjectDetail({
                           {option.label}
                         </button>
                       ))}
+                    </div>
+                  ) : extractionConditionsFormData.extraction_period_type === 'specific_dates' ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-600">抽出対象とする日付を複数選択できます</p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {(extractionConditionsFormData.extraction_dates || []).map((d, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <Input
+                              type="date"
+                              value={d}
+                              onChange={(e) => {
+                                const arr = [...(extractionConditionsFormData.extraction_dates || [])];
+                                arr[i] = e.target.value;
+                                setExtractionConditionsFormData(prev => ({ ...prev, extraction_dates: arr }));
+                              }}
+                              className="flex-1 bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const arr = (extractionConditionsFormData.extraction_dates || []).filter((_, j) => j !== i);
+                                setExtractionConditionsFormData(prev => ({ ...prev, extraction_dates: arr }));
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm px-2"
+                            >
+                              削除
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_dates: [...(prev.extraction_dates || []), ''] }))}
+                        className="text-sm text-[#5b5fff] hover:text-[#5b5fff]/80 font-medium"
+                      >
+                        + 日付を追加
+                      </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
@@ -2078,6 +2223,7 @@ export function ProjectDetail({
                           if (option.value === 'resident' || option.value === 'worker' || option.value === 'resident_and_worker') {
                             updates.extraction_period = '3month';
                             updates.extraction_period_type = 'preset';
+                            updates.extraction_dates = [];
                           }
                           setExtractionConditionsFormData(prev => ({ ...prev, ...updates }));
                         }}
@@ -2191,6 +2337,7 @@ export function ProjectDetail({
                       extraction_period_type: extractionConditionsFormData.extraction_period_type,
                       extraction_start_date: extractionConditionsFormData.extraction_start_date,
                       extraction_end_date: extractionConditionsFormData.extraction_end_date,
+                      extraction_dates: (extractionConditionsFormData.extraction_dates || []).filter(Boolean),
                       attribute: extractionConditionsFormData.attribute,
                       detection_count: extractionConditionsFormData.detection_count,
                       detection_time_start: extractionConditionsFormData.detection_time_start,
