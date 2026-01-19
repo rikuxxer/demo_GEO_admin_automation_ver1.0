@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { validatePolygonRange } from '../utils/polygonUtils';
@@ -22,6 +24,8 @@ interface PolygonMapEditorProps {
   onPolygonsChange: (polygons: PolygonData[]) => void;
   onClose?: () => void;
   selectedPolygonId?: string; // 選択されたポリゴンID
+  poiName?: string;
+  onPoiNameChange?: (value: string) => void;
 }
 
 export function PolygonMapEditor({ 
@@ -29,7 +33,9 @@ export function PolygonMapEditor({
   maxPolygons = 10,
   onPolygonsChange,
   onClose,
-  selectedPolygonId
+  selectedPolygonId,
+  poiName,
+  onPoiNameChange
 }: PolygonMapEditorProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -583,6 +589,21 @@ export function PolygonMapEditor({
           <p className="text-sm text-gray-500 mt-1">
             地図上でポリゴンを描画してください（最大{maxPolygons}個）
           </p>
+          {onPoiNameChange && (
+            <div className="mt-3">
+              <Label htmlFor="polygon_poi_name" className="text-xs text-gray-600">
+                地点名
+              </Label>
+              <Input
+                id="polygon_poi_name"
+                type="text"
+                value={poiName || ''}
+                onChange={(e) => onPoiNameChange(e.target.value)}
+                placeholder="例：渋谷エリア、新宿駅周辺"
+                className="mt-1 h-8 text-sm w-72"
+              />
+            </div>
+          )}
         </div>
         {onClose && (
           <Button variant="ghost" size="icon" onClick={onClose}>
