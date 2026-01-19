@@ -1013,7 +1013,30 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     // ポリゴン選択の場合、地点名を自動生成（未設定の場合）
     let finalFormData = { ...formData };
     if ((entryMethod === 'polygon' || formData.poi_type === 'polygon') && (!formData.poi_name || formData.poi_name.trim() === '')) {
-      finalFormData.poi_name = `ポリゴン地点 ${new Date().toLocaleString('ja-JP')}`;
+      // 既存のポリゴン地点名から連番を決定
+      const existingPolygonPois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type === 'polygon' &&
+        (!poi || p.poi_id !== poi.poi_id) // 編集時は現在編集中の地点を除外
+      );
+      
+      // 「ポリゴン地点」で始まる地点名から最大の番号を取得
+      let maxNumber = 0;
+      existingPolygonPois.forEach(p => {
+        if (p.poi_name && p.poi_name.startsWith('ポリゴン地点')) {
+          const match = p.poi_name.match(/^ポリゴン地点\s*(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (!isNaN(num) && num > maxNumber) {
+              maxNumber = num;
+            }
+          }
+        }
+      });
+      
+      // 次の番号を生成
+      const nextNumber = maxNumber + 1;
+      finalFormData.poi_name = `ポリゴン地点 ${nextNumber}`;
     }
     
     // ポリゴン選択の場合、poi_typeを確実に'polygon'に設定
