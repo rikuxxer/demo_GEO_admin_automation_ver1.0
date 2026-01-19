@@ -132,6 +132,24 @@ export function ProjectDetail({
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
+  // 6ヶ月以上前の日付選択警告ポップアップ表示状態
+  const [showDateRangeWarning, setShowDateRangeWarning] = useState(false);
+
+  // 6ヶ月前の日付を計算（YYYY-MM-DD形式）
+  const getSixMonthsAgoDate = (): string => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 6);
+    return date.toISOString().split('T')[0];
+  };
+
+  // 日付が6ヶ月以上前かどうかをチェック
+  const isDateMoreThanSixMonthsAgo = (dateString: string): boolean => {
+    if (!dateString) return false;
+    const selectedDate = new Date(dateString);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return selectedDate < sixMonthsAgo;
+  };
   const statusInfo = useMemo(() => getAutoProjectStatus(project, segments, pois), [project, segments, pois]);
   const statusColor = getStatusColor(statusInfo.status);
 
@@ -2147,16 +2165,23 @@ export function ProjectDetail({
                     </div>
                   ) : extractionConditionsFormData.extraction_period_type === 'specific_dates' ? (
                     <div className="space-y-2">
-                      <p className="text-xs text-gray-600">抽出対象とする日付を複数選択できます</p>
+                      <p className="text-xs text-gray-600">抽出対象とする日付を複数選択できます（直近6ヶ月まで）</p>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
                         {(extractionConditionsFormData.extraction_dates || []).map((d, i) => (
                           <div key={i} className="flex items-center gap-2">
                             <Input
                               type="date"
                               value={d}
+                              min={getSixMonthsAgoDate()}
+                              max={new Date().toISOString().split('T')[0]}
                               onChange={(e) => {
+                                const selectedDate = e.target.value;
+                                if (isDateMoreThanSixMonthsAgo(selectedDate)) {
+                                  setShowDateRangeWarning(true);
+                                  return; // 日付を更新しない
+                                }
                                 const arr = [...(extractionConditionsFormData.extraction_dates || [])];
-                                arr[i] = e.target.value;
+                                arr[i] = selectedDate;
                                 setExtractionConditionsFormData(prev => ({ ...prev, extraction_dates: arr }));
                               }}
                               className="flex-1 bg-white"
@@ -2471,6 +2496,33 @@ export function ProjectDetail({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowRadiusWarning(false)}>
+              了解しました
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 6ヶ月以上前の日付選択警告ポップアップ */}
+      <AlertDialog open={showDateRangeWarning} onOpenChange={setShowDateRangeWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-orange-600" />
+              日付範囲の制限
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-4">
+              <div className="space-y-2">
+                <p className="text-base font-medium text-gray-900">
+                  抽出対象日付は直近6ヶ月まで選択可能です。
+                </p>
+                <p className="text-sm text-gray-700">
+                  6ヶ月以上前の日付を指定する場合は、アースラでBW依頼をしてください。
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowDateRangeWarning(false)}>
               了解しました
             </AlertDialogAction>
           </AlertDialogFooter>
