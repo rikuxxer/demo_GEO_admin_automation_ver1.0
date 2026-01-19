@@ -1,7 +1,7 @@
 # BigQuery テーブル定義書
 
-**バージョン:** 2.0  
-**最終更新日:** 2025年1月  
+**バージョン:** 2.1  
+**最終更新日:** 2026年1月  
 **データベース:** Google BigQuery  
 **データセット:** `universegeo_dataset`
 
@@ -861,6 +861,7 @@ SET OPTIONS(
 - **2025-01-13**: 初版作成（全10テーブルの定義を追加）
 - **2025-01-13**: `polygon`フィールドの説明を追加
 - **2025-01-13**: `sheet_exports`と`sheet_export_data`テーブルを追加（全12テーブル）
+- **2026-01-19**: `segments`テーブルに`extraction_dates`カラム（ARRAY<STRING>）を追加。`extraction_period_type`に`'specific_dates'`オプションを追加
 
 ---
 
