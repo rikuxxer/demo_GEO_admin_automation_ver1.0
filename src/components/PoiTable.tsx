@@ -223,7 +223,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         />
                       </div>
                     ) : (
-                      <div className={`${isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} flex flex-col items-center gap-1`}>
+                      <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} flex flex-col items-center gap-1`}>
                         {poi.poi_type === 'prefecture' ? (
                           <>
                             <div>{poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}</div>
@@ -231,10 +231,10 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           </>
                         ) : isPolygonPoi ? (
                           <>
-                            <div className="font-medium">{poi.poi_name || 'ポリゴン地点'}</div>
+                            <div>{poi.poi_name || 'ポリゴン地点'}</div>
                             <span className="text-xs text-white bg-blue-600 px-2 py-0.5 rounded">ポリゴン指定</span>
                             {normalizedPolygon && normalizedPolygon.length > 0 && (
-                              <div className="mt-1 text-sm text-gray-500">
+                              <div className="mt-1 text-xs text-gray-500">
                                 座標数: {normalizedPolygon.length}点
                               </div>
                             )}
@@ -274,9 +274,9 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           </div>
                         </div>
                       ) : isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
-                        <div className="text-base text-gray-900">
+                        <div className="text-sm text-gray-900">
                           <div className="space-y-2 text-center">
-                            <div className="text-sm text-gray-600 font-medium">
+                            <div className="text-sm text-gray-600">
                               ポリゴン座標範囲:
                             </div>
                             <div className="text-sm text-gray-500 font-mono">
@@ -418,10 +418,10 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         />
                       </div>
                     ) : (
-                      <div className={`${isPolygonPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} text-center`}>
+                      <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} text-center`}>
                         {isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
                           <div className="text-sm text-gray-600">
-                            <div className="font-medium">中心: {(() => {
+                            <div>中心: {(() => {
                               const centerLat = normalizedPolygon.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / normalizedPolygon.length;
                               const centerLng = normalizedPolygon.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / normalizedPolygon.length;
                               return `${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}`;
