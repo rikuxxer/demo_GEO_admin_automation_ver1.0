@@ -2396,6 +2396,24 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       地図上でポリゴンを描画して地点を指定します。1つのセグメント内で最大10個のポリゴンを登録できます。
                     </p>
                     
+                    {/* 地点名入力 */}
+                    <div>
+                      <Label htmlFor="poi_name_polygon" className="block mb-2">
+                        地点名
+                      </Label>
+                      <Input
+                        id="poi_name_polygon"
+                        type="text"
+                        value={formData.poi_name || ''}
+                        onChange={(e) => handleChange('poi_name', e.target.value)}
+                        placeholder="例：渋谷エリア、新宿駅周辺"
+                        className="w-full bg-white"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        未入力の場合は自動的に地点名が生成されます
+                      </p>
+                    </div>
+                    
                     {/* 既存のポリゴン数をチェック */}
                     {(() => {
                       const existingPolygonPois = pois.filter(p => 
