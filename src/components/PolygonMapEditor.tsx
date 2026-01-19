@@ -38,6 +38,7 @@ export function PolygonMapEditor({
   const mapRef = useRef<any>(null);
   const drawControlRef = useRef<any>(null);
   const drawnLayersRef = useRef<any[]>([]);
+  const isMountedRef = useRef(true);
   const [polygons, setPolygons] = useState<PolygonData[]>(initialPolygons);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isLeafletDrawLoaded, setIsLeafletDrawLoaded] = useState(false);
@@ -46,6 +47,7 @@ export function PolygonMapEditor({
 
   // LeafletとLeaflet Drawを読み込む
   useEffect(() => {
+    isMountedRef.current = true;
     const loadLeaflet = async () => {
       // Leaflet CSS
       if (!document.querySelector('link[href*="leaflet.css"]')) {
@@ -492,6 +494,7 @@ export function PolygonMapEditor({
     setIsMapReady(true);
 
     return () => {
+      isMountedRef.current = false;
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -513,7 +516,7 @@ export function PolygonMapEditor({
 
   // ポリゴンを選択して地図を移動
   const handleSelectPolygon = (polygon: PolygonData) => {
-    if (!mapRef.current || !window.L) return;
+    if (!mapRef.current || !window.L || !mapContainerRef.current || !isMountedRef.current) return;
 
     // ポリゴンの中心座標を計算
     if (polygon.coordinates && polygon.coordinates.length > 0) {
@@ -527,10 +530,12 @@ export function PolygonMapEditor({
       const centerLng = sumLng / polygon.coordinates.length;
 
       // 地図をポリゴンの中心に移動
-      mapRef.current.setView([centerLat, centerLng], 15, {
-        animate: true,
-        duration: 0.5,
-      });
+      if (isMountedRef.current && mapRef.current && mapContainerRef.current) {
+        mapRef.current.setView([centerLat, centerLng], 15, {
+          animate: true,
+          duration: 0.5,
+        });
+      }
 
       // 対応するレイヤーをハイライト
       const index = polygons.findIndex((p) => p.id === polygon.id);
@@ -594,7 +599,7 @@ export function PolygonMapEditor({
       toast.error('住所を入力してください');
       return;
     }
-    if (!mapRef.current || !isMapReady) {
+    if (!mapRef.current || !isMapReady || !mapContainerRef.current || !isMountedRef.current) {
       toast.error('地図の読み込みが完了していません');
       return;
     }
@@ -608,10 +613,12 @@ export function PolygonMapEditor({
         });
         return;
       }
-      mapRef.current.setView([result.latitude, result.longitude], 15, {
-        animate: true,
-        duration: 0.5,
-      });
+      if (isMountedRef.current && mapRef.current && mapContainerRef.current) {
+        mapRef.current.setView([result.latitude, result.longitude], 15, {
+          animate: true,
+          duration: 0.5,
+        });
+      }
       toast.success('住所検索が完了しました');
     } catch (error) {
       console.error('Geocoding error:', error);
