@@ -689,9 +689,18 @@ export function PolygonMapEditor({
                     className="flex items-center justify-between gap-2 cursor-pointer"
                     onClick={() => handleSelectPolygon(polygon)}
                   >
-                    <span className="text-sm flex-1">
-                      ポリゴン {index + 1} ({polygon.coordinates.length}点)
-                    </span>
+                    <div className="text-sm flex-1">
+                      <Input
+                        value={polygon.name || ''}
+                        onChange={(e) => handlePolygonNameChange(polygon.id, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        placeholder={`ポリゴン ${index + 1}`}
+                        className="h-8 text-sm"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        座標数: {polygon.coordinates.length}点
+                      </div>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -704,12 +713,6 @@ export function PolygonMapEditor({
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-                  <Input
-                    value={polygon.name || ''}
-                    onChange={(e) => handlePolygonNameChange(polygon.id, e.target.value)}
-                    placeholder="地点名を入力"
-                    className="mt-2 h-8 text-sm"
-                  />
                 </div>
               ))}
             </div>
