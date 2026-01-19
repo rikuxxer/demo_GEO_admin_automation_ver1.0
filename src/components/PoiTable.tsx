@@ -233,7 +233,6 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         ) : isPolygonPoi ? (
                           <>
                             <div className="max-w-full truncate" title={poi.poi_name || 'ポリゴン地点'}>{poi.poi_name || 'ポリゴン地点'}</div>
-                            <span className="text-xs text-white bg-blue-600 px-2 py-0.5 rounded">ポリゴン指定</span>
                             {normalizedPolygon && normalizedPolygon.length > 0 && (
                               <div className="mt-1 text-xs text-gray-500">
                                 座標数: {normalizedPolygon.length}点
