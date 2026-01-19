@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { validatePolygonRange } from '../utils/polygonUtils';
@@ -16,6 +15,7 @@ declare global {
 interface PolygonData {
   id: string;
   coordinates: number[][]; // [[lat, lng], [lat, lng], ...]
+  name?: string;
 }
 
 interface PolygonMapEditorProps {
@@ -24,8 +24,6 @@ interface PolygonMapEditorProps {
   onPolygonsChange: (polygons: PolygonData[]) => void;
   onClose?: () => void;
   selectedPolygonId?: string; // 選択されたポリゴンID
-  poiName?: string;
-  onPoiNameChange?: (value: string) => void;
 }
 
 export function PolygonMapEditor({ 
@@ -33,9 +31,7 @@ export function PolygonMapEditor({
   maxPolygons = 10,
   onPolygonsChange,
   onClose,
-  selectedPolygonId,
-  poiName,
-  onPoiNameChange
+  selectedPolygonId
 }: PolygonMapEditorProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -398,6 +394,7 @@ export function PolygonMapEditor({
       const newPolygon: PolygonData = {
         id: `polygon-${Date.now()}`,
         coordinates,
+        name: '',
       };
 
       const newPolygons = [...polygons, newPolygon];
@@ -581,6 +578,14 @@ export function PolygonMapEditor({
     toast.success('ポリゴンを削除しました');
   };
 
+  const handlePolygonNameChange = (id: string, value: string) => {
+    const updatedPolygons = polygons.map((polygon) =>
+      polygon.id === id ? { ...polygon, name: value } : polygon
+    );
+    setPolygons(updatedPolygons);
+    onPolygonsChange(updatedPolygons);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b">
@@ -589,21 +594,6 @@ export function PolygonMapEditor({
           <p className="text-sm text-gray-500 mt-1">
             地図上でポリゴンを描画してください（最大{maxPolygons}個）
           </p>
-          {onPoiNameChange && (
-            <div className="mt-3">
-              <Label htmlFor="polygon_poi_name" className="text-xs text-gray-600">
-                地点名
-              </Label>
-              <Input
-                id="polygon_poi_name"
-                type="text"
-                value={poiName || ''}
-                onChange={(e) => onPoiNameChange(e.target.value)}
-                placeholder="例：渋谷エリア、新宿駅周辺"
-                className="mt-1 h-8 text-sm w-72"
-              />
-            </div>
-          )}
         </div>
         {onClose && (
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -634,21 +624,33 @@ export function PolygonMapEditor({
               {polygons.map((polygon, index) => (
                 <div
                   key={polygon.id}
-                  className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-[#5b5fff] cursor-pointer transition-colors"
-                  onClick={() => handleSelectPolygon(polygon)}
+                  className="p-2 bg-white rounded border border-gray-200 hover:border-[#5b5fff] transition-colors"
                 >
-                  <span className="text-sm flex-1">ポリゴン {index + 1} ({polygon.coordinates.length}点)</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e: React.MouseEvent) => {
-                      e.stopPropagation();
-                      handleDeletePolygon(polygon.id);
-                    }}
-                    className="text-red-600 hover:text-red-700"
+                  <div
+                    className="flex items-center justify-between gap-2 cursor-pointer"
+                    onClick={() => handleSelectPolygon(polygon)}
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                    <span className="text-sm flex-1">
+                      ポリゴン {index + 1} ({polygon.coordinates.length}点)
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        handleDeletePolygon(polygon.id);
+                      }}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    value={polygon.name || ''}
+                    onChange={(e) => handlePolygonNameChange(polygon.id, e.target.value)}
+                    placeholder="地点名を入力"
+                    className="mt-2 h-8 text-sm"
+                  />
                 </div>
               ))}
             </div>

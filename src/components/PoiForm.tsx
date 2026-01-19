@@ -143,8 +143,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   // 一括登録用のグループ選択
   const [bulkGroupId, setBulkGroupId] = useState<string | null>(defaultGroupId || null);
   // ポリゴン選択関連のState
-  const [polygons, setPolygons] = useState<Array<{ id: string; coordinates: number[][] }>>(
-    poi?.polygon ? [{ id: 'polygon-0', coordinates: poi.polygon }] : []
+  const [polygons, setPolygons] = useState<Array<{ id: string; coordinates: number[][]; name?: string }>>(
+    poi?.polygon ? [{ id: 'polygon-0', coordinates: poi.polygon, name: poi.poi_name || '' }] : []
   );
   const [showPolygonEditor, setShowPolygonEditor] = useState(false);
   const [selectedPolygonId, setSelectedPolygonId] = useState<string | undefined>(undefined);
@@ -186,11 +186,15 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   };
 
   // ポリゴンデータの更新ハンドラ
-  const handlePolygonsChange = (newPolygons: Array<{ id: string; coordinates: number[][] }>) => {
+  const handlePolygonsChange = (newPolygons: Array<{ id: string; coordinates: number[][]; name?: string }>) => {
     setPolygons(newPolygons);
-    // 最初のポリゴンの座標をformDataに保存（1セグメント内で複数のポリゴンは別のPOIとして登録）
+    // 最初のポリゴンの座標と地点名をformDataに保存（編集時の単一ポリゴン用）
     if (newPolygons.length > 0) {
-      setFormData(prev => ({ ...prev, polygon: newPolygons[0].coordinates }));
+      setFormData(prev => ({
+        ...prev,
+        polygon: newPolygons[0].coordinates,
+        poi_name: newPolygons[0].name ?? prev.poi_name,
+      }));
     } else {
       setFormData(prev => ({ ...prev, polygon: undefined }));
     }
@@ -1010,9 +1014,11 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       return;
     }
 
+    const isPolygonEntry = entryMethod === 'polygon' || formData.poi_type === 'polygon';
+
     // ポリゴン選択の場合、地点名を自動生成（未設定の場合）
     let finalFormData = { ...formData };
-    if ((entryMethod === 'polygon' || formData.poi_type === 'polygon') && (!formData.poi_name || formData.poi_name.trim() === '')) {
+    if (isPolygonEntry) {
       // 既存のポリゴン地点名から連番を決定
       const existingPolygonPois = pois.filter(p => 
         p.segment_id === segmentId && 
@@ -1033,14 +1039,58 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
           }
         }
       });
-      
-      // 次の番号を生成
-      const nextNumber = maxNumber + 1;
-      finalFormData.poi_name = `ポリゴン地点 ${nextNumber}`;
+
+      const nextPolygonName = () => {
+        maxNumber += 1;
+        return `ポリゴン地点 ${maxNumber}`;
+      };
+
+      // 複数ポリゴンの場合は一括登録
+      if (polygons.length > 1) {
+        if (!onBulkSubmit) {
+          setErrorMessage('複数ポリゴンの登録に失敗しました。管理者にお問い合わせください。');
+          return;
+        }
+        if (poi) {
+          setErrorMessage('編集時は1つのポリゴンのみ更新できます。');
+          return;
+        }
+
+        const basePolygonData: Partial<PoiInfo> = {
+          ...finalFormData,
+          poi_type: 'polygon',
+          poi_name: undefined,
+          polygon: undefined,
+          address: undefined,
+          latitude: undefined,
+          longitude: undefined,
+          designated_radius: undefined,
+        };
+
+        const polygonPois = polygons.map((polygon) => ({
+          ...basePolygonData,
+          poi_name: polygon.name && polygon.name.trim() !== '' ? polygon.name.trim() : nextPolygonName(),
+          polygon: polygon.coordinates,
+        }));
+
+        onBulkSubmit(polygonPois);
+        return;
+      }
+
+      // 単一ポリゴンの場合は通常登録
+      if (polygons.length === 1) {
+        const polygonName = polygons[0].name && polygons[0].name.trim() !== ''
+          ? polygons[0].name.trim()
+          : nextPolygonName();
+        finalFormData.poi_name = polygonName;
+        finalFormData.polygon = polygons[0].coordinates;
+      } else if (!finalFormData.poi_name || finalFormData.poi_name.trim() === '') {
+        finalFormData.poi_name = nextPolygonName();
+      }
     }
-    
+
     // ポリゴン選択の場合、poi_typeを確実に'polygon'に設定
-    if (entryMethod === 'polygon' || (formData.polygon && Array.isArray(formData.polygon) && formData.polygon.length > 0)) {
+    if (isPolygonEntry || (formData.polygon && Array.isArray(formData.polygon) && formData.polygon.length > 0)) {
       finalFormData.poi_type = 'polygon';
     }
 
@@ -2480,7 +2530,14 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                 }
                               }}
                             >
-                              <span className="text-sm flex-1">ポリゴン {index + 1} ({polygon.coordinates.length}点)</span>
+                              <div className="text-sm flex-1">
+                                <div className="font-medium">
+                                  {polygon.name?.trim() ? polygon.name : `ポリゴン ${index + 1}`}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  座標数: {polygon.coordinates.length}点
+                                </div>
+                              </div>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -3096,8 +3153,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               polygons={polygons}
               maxPolygons={10}
               onPolygonsChange={handlePolygonsChange}
-              poiName={formData.poi_name}
-              onPoiNameChange={(value) => handleChange('poi_name', value)}
               onClose={() => {
                 setShowPolygonEditor(false);
                 setSelectedPolygonId(undefined);
