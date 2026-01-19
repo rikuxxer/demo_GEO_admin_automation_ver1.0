@@ -218,20 +218,21 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         <Input
                           value={editForm.poi_name || ''}
                           onChange={(e) => handleInputChange('poi_name', e.target.value)}
-                          className="h-8 text-sm w-40"
+                          className="h-8 text-sm w-full max-w-[180px]"
                           placeholder="地点名"
+                          maxLength={50}
                         />
                       </div>
                     ) : (
                       <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} flex flex-col items-center gap-1`}>
                         {poi.poi_type === 'prefecture' ? (
                           <>
-                            <div>{poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}</div>
+                            <div className="max-w-full truncate">{poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}</div>
                             <span className="text-xs text-white bg-green-600 px-2 py-0.5 rounded">都道府県指定</span>
                           </>
                         ) : isPolygonPoi ? (
                           <>
-                            <div>{poi.poi_name || 'ポリゴン地点'}</div>
+                            <div className="max-w-full truncate" title={poi.poi_name || 'ポリゴン地点'}>{poi.poi_name || 'ポリゴン地点'}</div>
                             <span className="text-xs text-white bg-blue-600 px-2 py-0.5 rounded">ポリゴン指定</span>
                             {normalizedPolygon && normalizedPolygon.length > 0 && (
                               <div className="mt-1 text-xs text-gray-500">
@@ -240,7 +241,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                             )}
                           </>
                         ) : (
-                          poi.poi_name || '（地点名未設定）'
+                          <div className="max-w-full truncate" title={poi.poi_name || '（地点名未設定）'}>{poi.poi_name || '（地点名未設定）'}</div>
                         )}
                       </div>
                     )}
