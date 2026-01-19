@@ -1536,38 +1536,6 @@ export function ProjectDetail({
                             {/* コンテンツ内部 */}
                             <div className="space-y-6">
 
-                          {/* 抽出条件設定ボタン（サマリー上部） */}
-                          {segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
-                            <div className="flex justify-end mb-3">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setExtractionConditionsSegment(segment);
-                                  const firstPoi = segmentPois[0];
-                                  setExtractionConditionsFormData({
-                                    designated_radius: (firstPoi?.designated_radius) || segment.designated_radius || '',
-                                    extraction_period: (firstPoi?.extraction_period) || segment.extraction_period || '1month',
-                                    extraction_period_type: (firstPoi?.extraction_period_type) || segment.extraction_period_type || 'preset',
-                                    extraction_start_date: (firstPoi?.extraction_start_date) || segment.extraction_start_date || '',
-                                    extraction_end_date: (firstPoi?.extraction_end_date) || segment.extraction_end_date || '',
-                                    extraction_dates: (firstPoi?.extraction_dates || segment.extraction_dates || []).slice(),
-                                    attribute: (firstPoi?.attribute) || segment.attribute || 'detector',
-                                    detection_count: (firstPoi?.detection_count) || segment.detection_count || 1,
-                                    detection_time_start: (firstPoi?.detection_time_start) || segment.detection_time_start || '',
-                                    detection_time_end: (firstPoi?.detection_time_end) || segment.detection_time_end || '',
-                                    stay_time: (firstPoi?.stay_time) || segment.stay_time || '',
-                                  });
-                                  setShowExtractionConditionsPopup(true);
-                                }}
-                                className="bg-white border border-gray-300 hover:bg-gray-50 text-[#5b5fff]"
-                              >
-                                <Settings2 className="w-3.5 h-3.5 mr-2" />
-                                抽出条件を設定
-                              </Button>
-                            </div>
-                          )}
-
                           {/* 0. 抽出条件サマリー */}
                           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                             <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
@@ -1680,25 +1648,65 @@ export function ProjectDetail({
                           <div className="flex items-center justify-between gap-3 flex-nowrap">
                             <h5 className="text-sm font-medium text-gray-700">地点リスト</h5>
                             <div className="flex gap-2 flex-nowrap">
-                              {poiCount > 0 && segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleConfirmSegment(segment)}
-                                  className="bg-[#5b5fff] hover:bg-[#4949dd] text-white shadow-md whitespace-nowrap"
-                                >
-                                  <Database className="w-4 h-4 mr-1" />
-                                  格納依頼を実行
-                                </Button>
-                              )}
-                              {segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleAddPoi(segment.segment_id)}
-                                  className="bg-[#5b5fff] text-white hover:bg-[#4949dd]"
-                                >
-                                  <Plus className="w-3.5 h-3.5 mr-2" />
-                                  地点を追加
-                                </Button>
+                              {canEditProject(user, project) && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setExtractionConditionsSegment(segment);
+                                      const firstPoi = segmentPois[0];
+                                      setExtractionConditionsFormData({
+                                        designated_radius: (firstPoi?.designated_radius) || segment.designated_radius || '',
+                                        extraction_period: (firstPoi?.extraction_period) || segment.extraction_period || '1month',
+                                        extraction_period_type: (firstPoi?.extraction_period_type) || segment.extraction_period_type || 'preset',
+                                        extraction_start_date: (firstPoi?.extraction_start_date) || segment.extraction_start_date || '',
+                                        extraction_end_date: (firstPoi?.extraction_end_date) || segment.extraction_end_date || '',
+                                        extraction_dates: (firstPoi?.extraction_dates || segment.extraction_dates || []).slice(),
+                                        attribute: (firstPoi?.attribute) || segment.attribute || 'detector',
+                                        detection_count: (firstPoi?.detection_count) || segment.detection_count || 1,
+                                        detection_time_start: (firstPoi?.detection_time_start) || segment.detection_time_start || '',
+                                        detection_time_end: (firstPoi?.detection_time_end) || segment.detection_time_end || '',
+                                        stay_time: (firstPoi?.stay_time) || segment.stay_time || '',
+                                      });
+                                      setShowExtractionConditionsPopup(true);
+                                    }}
+                                    disabled={segment.location_request_status !== 'not_requested'}
+                                    className={
+                                      segment.location_request_status === 'not_requested'
+                                        ? "bg-[#5b5fff] text-white hover:bg-[#4949dd] shadow-md whitespace-nowrap"
+                                        : "bg-white border border-gray-300 text-gray-500 hover:bg-white shadow-none whitespace-nowrap"
+                                    }
+                                  >
+                                    <Settings2 className="w-3.5 h-3.5 mr-2" />
+                                    抽出条件を設定
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleConfirmSegment(segment)}
+                                    disabled={segment.location_request_status !== 'not_requested' || poiCount === 0}
+                                    className={
+                                      segment.location_request_status === 'not_requested' && poiCount > 0
+                                        ? "bg-[#5b5fff] hover:bg-[#4949dd] text-white shadow-md whitespace-nowrap"
+                                        : "bg-white border border-gray-300 text-gray-500 hover:bg-white shadow-none whitespace-nowrap"
+                                    }
+                                  >
+                                    <Database className="w-4 h-4 mr-1" />
+                                    格納依頼を実行
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAddPoi(segment.segment_id)}
+                                    disabled={segment.location_request_status !== 'not_requested'}
+                                    className={
+                                      segment.location_request_status === 'not_requested'
+                                        ? "bg-[#5b5fff] text-white hover:bg-[#4949dd] whitespace-nowrap"
+                                        : "bg-white border border-gray-300 text-gray-500 hover:bg-white shadow-none whitespace-nowrap"
+                                    }
+                                  >
+                                    <Plus className="w-3.5 h-3.5 mr-2" />
+                                    地点を追加
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </div>
