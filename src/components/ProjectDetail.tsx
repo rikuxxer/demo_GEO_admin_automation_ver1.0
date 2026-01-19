@@ -1657,29 +1657,6 @@ export function ProjectDetail({
                           </div>
                           
                           {/* 1. ステータス / 格納依頼エリア */}
-                          {poiCount > 0 && segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
-                            <div className="bg-gradient-to-r from-[#5b5fff]/10 via-[#7b7bff]/10 to-[#5b5fff]/10 rounded-xl p-5 border-2 border-[#5b5fff]/30 shadow-sm">
-                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <div className="flex-1">
-                                  <h5 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-1">
-                                    <Database className="w-4 h-4 text-[#5b5fff]" />
-                                    地点データ格納依頼
-                                  </h5>
-                                  <p className="text-xs text-gray-600 leading-relaxed">
-                                    地点の登録が完了したら実行してください。管理部へデータ抽出を依頼します。<br/>
-                                    <span className="text-red-600 font-medium">※依頼後は編集できなくなります。</span>
-                                  </p>
-                                </div>
-                                <Button
-                                  onClick={() => handleConfirmSegment(segment)}
-                                  className="bg-[#5b5fff] hover:bg-[#4949dd] text-white shadow-md whitespace-nowrap"
-                                >
-                                  格納依頼を実行
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-
                           {segment.location_request_status !== 'not_requested' && (
                             <div className={`rounded-xl p-4 border ${
                               segment.location_request_status === 'completed' 
@@ -1703,6 +1680,16 @@ export function ProjectDetail({
                           <div className="flex items-center justify-between gap-3 flex-nowrap">
                             <h5 className="text-sm font-medium text-gray-700">地点リスト</h5>
                             <div className="flex gap-2 flex-nowrap">
+                              {poiCount > 0 && segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleConfirmSegment(segment)}
+                                  className="bg-[#5b5fff] hover:bg-[#4949dd] text-white shadow-md whitespace-nowrap"
+                                >
+                                  <Database className="w-4 h-4 mr-1" />
+                                  格納依頼を実行
+                                </Button>
+                              )}
                               {segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
                                 <Button
                                   size="sm"
@@ -1715,6 +1702,11 @@ export function ProjectDetail({
                               )}
                             </div>
                           </div>
+                          {poiCount > 0 && segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
+                            <p className="text-xs text-gray-600 mt-2">
+                              地点の登録が完了したら実行してください。依頼後は編集できなくなります。
+                            </p>
+                          )}
 
                           {/* 地点リスト */}
                           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
