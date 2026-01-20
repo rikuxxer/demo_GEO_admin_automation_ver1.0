@@ -387,6 +387,16 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         setErrorMessage(errorMsg);
         return;
       }
+      // ポリゴン指定の地点が存在する場合はエラー
+      const existingPolygonPois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type === 'polygon'
+      );
+      if (existingPolygonPois.length > 0) {
+        const errorMsg = 'ポリゴン指定の地点が既に登録されているセグメントには、他のタイプの地点を登録できません';
+        setErrorMessage(errorMsg);
+        return;
+      }
 
       // カテゴリが未設定の場合はデフォルトカテゴリまたは選択されたカテゴリを設定
       const poisWithCategory = parsedPois.map(poi => ({
@@ -787,6 +797,16 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         setErrorMessage(errorMsg);
         return;
       }
+      // ポリゴン指定の地点が存在する場合はエラー
+      const existingPolygonPois = pois.filter(p => 
+        p.segment_id === segmentId && 
+        p.poi_type === 'polygon'
+      );
+      if (existingPolygonPois.length > 0) {
+        const errorMsg = 'ポリゴン指定の地点が既に登録されているセグメントには、他のタイプの地点を登録できません';
+        setErrorMessage(errorMsg);
+        return;
+      }
 
       console.log(`📋 表形式コピペ - 一括登録: ${parsedPastePois.length}件`);
 
@@ -923,6 +943,13 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         (!poi || p.poi_id !== poi.poi_id) // 編集時は現在編集中の地点を除外
       );
       if (existingNonPolygonPois.length > 0) {
+        // 都道府県指定が存在する場合のエラーメッセージ
+        const hasPrefecture = existingNonPolygonPois.some(p => p.poi_type === 'prefecture');
+        if (hasPrefecture) {
+          const errorMsg = 'ポリゴン指定と都道府県指定は同一セグメントでは併用できません';
+          setErrorMessage(errorMsg);
+          return;
+        }
         const errorMsg = 'ポリゴン指定の地点は、ポリゴン指定単独のセグメントでのみ登録できます。このセグメントには既に他のタイプの地点が登録されています。';
         setErrorMessage(errorMsg);
         return;
@@ -989,13 +1016,20 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         setErrorMessage(errorMsg);
         return;
       }
-      // 都道府県指定以外の地点（緯度経度・住所指定など）が存在する場合はエラー
+      // 都道府県指定以外の地点（緯度経度・住所指定、ポリゴン指定など）が存在する場合はエラー
       const existingNonPrefecturePois = pois.filter(p => 
         p.segment_id === segmentId && 
         p.poi_type !== 'prefecture' &&
         (!poi || p.poi_id !== poi.poi_id) // 編集時は現在編集中の地点を除外
       );
       if (existingNonPrefecturePois.length > 0) {
+        // ポリゴン指定が存在する場合のエラーメッセージ
+        const hasPolygon = existingNonPrefecturePois.some(p => p.poi_type === 'polygon');
+        if (hasPolygon) {
+          const errorMsg = '都道府県指定とポリゴン指定は同一セグメントでは併用できません';
+          setErrorMessage(errorMsg);
+          return;
+        }
         const errorMsg = '都道府県指定と緯度経度・住所指定での登録は同一セグメントでは併用できません';
         setErrorMessage(errorMsg);
         return;
