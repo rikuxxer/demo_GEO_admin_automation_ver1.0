@@ -398,6 +398,24 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return;
       }
 
+      // 来店計測地点の場合、計測地点グループが必須
+      const isVisitMeasurementCategory = defaultCategory === 'visit_measurement' || bulkPoiCategory === 'visit_measurement';
+      if (isVisitMeasurementCategory) {
+        if (visitMeasurementGroups.length === 0) {
+          setErrorMessage('来店計測地点を登録するには、先に計測地点グループを作成してください。');
+          return;
+        }
+        // グループIDが設定されていない地点がある場合はエラー
+        const poisWithoutGroup = parsedPois.filter(poi => {
+          const category = poi.poi_category || defaultCategory || bulkPoiCategory;
+          return category === 'visit_measurement' && !poi.visit_measurement_group_id && !bulkGroupId;
+        });
+        if (poisWithoutGroup.length > 0) {
+          setErrorMessage('来店計測地点には計測地点グループの選択が必須です。すべての来店計測地点にグループを設定してください。');
+          return;
+        }
+      }
+
       // カテゴリが未設定の場合はデフォルトカテゴリまたは選択されたカテゴリを設定
       const poisWithCategory = parsedPois.map(poi => ({
         ...poi,
@@ -810,6 +828,24 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
 
       console.log(`📋 表形式コピペ - 一括登録: ${parsedPastePois.length}件`);
 
+      // 来店計測地点の場合、計測地点グループが必須
+      const isVisitMeasurementCategory = defaultCategory === 'visit_measurement' || bulkPoiCategory === 'visit_measurement';
+      if (isVisitMeasurementCategory) {
+        if (visitMeasurementGroups.length === 0) {
+          setErrorMessage('来店計測地点を登録するには、先に計測地点グループを作成してください。');
+          return;
+        }
+        // グループIDが設定されていない地点がある場合はエラー
+        const poisWithoutGroup = parsedPastePois.filter(poi => {
+          const category = poi.poi_category || defaultCategory || bulkPoiCategory;
+          return category === 'visit_measurement' && !poi.visit_measurement_group_id && !bulkGroupId;
+        });
+        if (poisWithoutGroup.length > 0) {
+          setErrorMessage('来店計測地点には計測地点グループの選択が必須です。すべての来店計測地点にグループを設定してください。');
+          return;
+        }
+      }
+
       // 抽出条件とカテゴリをすべてのPOIに適用
       // 来店計測地点でグループが選択されている場合は、グループIDも設定
       const poisWithConditions = parsedPastePois.map(poi => ({
@@ -1035,6 +1071,14 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return;
       }
     }
+    // 来店計測地点の場合、計測地点グループが必須
+    if (formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') {
+      if (!formData.visit_measurement_group_id) {
+        setErrorMessage('計測地点グループを選択してください。来店計測地点を登録するには、先に計測地点グループを作成する必要があります。');
+        return;
+      }
+    }
+    
     // 都道府県指定とポリゴン選択以外の場合のみ半径が必須
     if (formData.poi_type !== 'prefecture' && formData.poi_type !== 'polygon' && !formData.designated_radius) {
       setErrorMessage('指定半径は必須項目です');
@@ -2295,21 +2339,27 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                   {(formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') && (
                     <div>
                       <Label htmlFor="visit_measurement_group_id" className="block mb-2">
-                        計測地点グループ
+                        計測地点グループ <span className="text-red-600">*</span>
                       </Label>
                       <select
                         id="visit_measurement_group_id"
                         value={formData.visit_measurement_group_id || ''}
                         onChange={(e) => handleChange('visit_measurement_group_id', e.target.value || undefined)}
                         className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
+                        required
                       >
-                        <option value="">グループなし</option>
+                        <option value="">選択してください</option>
                         {visitMeasurementGroups.map(group => (
                           <option key={group.group_id} value={group.group_id}>
                             {group.group_name}
                           </option>
                         ))}
                       </select>
+                      {visitMeasurementGroups.length === 0 && (
+                        <p className="text-sm text-red-600 mt-1">
+                          計測地点グループが登録されていません。先に計測地点グループを作成してください。
+                        </p>
+                      )}
                     </div>
                   )}
 

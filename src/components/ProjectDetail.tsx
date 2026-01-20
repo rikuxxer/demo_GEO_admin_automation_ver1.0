@@ -1850,6 +1850,11 @@ export function ProjectDetail({
                                   if (selectedPoiCategory !== 'visit_measurement') {
                                     setSelectedPoiCategory('visit_measurement');
                                   }
+                                  // 計測地点グループが登録されていない場合はエラー
+                                  if (visitMeasurementGroups.length === 0) {
+                                    toast.error('来店計測地点を追加するには、先に計測地点グループを作成してください。');
+                                    return;
+                                  }
                                   const availableSegment = segments.find(s => s.location_request_status === 'not_requested') || segments[0];
                                   if (availableSegment) {
                                     handleAddPoi(availableSegment.segment_id);
@@ -1857,7 +1862,7 @@ export function ProjectDetail({
                                     toast.warning('地点を追加するには、先にセグメントを作成してください。');
                                   }
                                 }}
-                                disabled={segments.length === 0}
+                                disabled={segments.length === 0 || visitMeasurementGroups.length === 0}
                                 className="bg-[#5b5fff] text-white hover:bg-[#4949dd] disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <Plus className="w-3.5 h-3.5 mr-2" />
