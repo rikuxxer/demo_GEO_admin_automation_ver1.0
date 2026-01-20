@@ -372,7 +372,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         })()}
                       </div>
                     ) : (
-                      <div className={`${isManualRadiusPoi ? "text-base text-gray-900 font-medium" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} text-center`}>
+                      <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900 font-medium"} text-center`}>
                         {poi.poi_type === 'prefecture' || isPolygonPoi
                           ? <span className="text-gray-400 text-xs">指定なし</span>
                           : (() => {
@@ -388,7 +388,6 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                                 return (
                                   <div className="flex flex-col items-center gap-1">
                                     <span>{poi.designated_radius}</span>
-                                    <span className="text-xs text-blue-600 font-medium">カテゴリ指定</span>
                                   </div>
                                 );
                               }
