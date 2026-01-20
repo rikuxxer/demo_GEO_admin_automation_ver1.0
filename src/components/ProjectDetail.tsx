@@ -31,6 +31,7 @@ import { EditableProjectField } from './EditableProjectField';
 import { GeocodeProgressDialog } from './GeocodeProgressDialog';
 import { ProjectMessages } from './ProjectMessages';
 import { ProjectChangeHistory } from './ProjectChangeHistory';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useAuth } from '../contexts/AuthContext';
 import type { Project, Segment, PoiInfo, EditRequest, ProjectMessage, ChangeHistory, VisitMeasurementGroup } from '../types/schema';
 import { PROJECT_STATUS_OPTIONS } from '../types/schema';
@@ -477,6 +478,8 @@ export function ProjectDetail({
 
     setGeocodingSegment(segment);
     setIsGeocodingRunning(true);
+
+    const dataLinkNote = '※ データ連携依頼は完了していません。別途連携依頼を実行してください。';
     
     // 最新の地点データを取得（地点登録直後の反映を確実にするため）
     let latestPois = pois;
@@ -596,7 +599,7 @@ export function ProjectDetail({
 
       // お知らせに通知を送信
       if (user) {
-        const messageContent = `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n地点数: ${segmentPois.length}件（ポリゴン地点）`;
+        const messageContent = `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n地点数: ${segmentPois.length}件（ポリゴン地点）\n\n${dataLinkNote}`;
 
         await bigQueryService.sendProjectMessage({
           project_id: project.project_id,
@@ -612,7 +615,9 @@ export function ProjectDetail({
         }
       }
 
-      toast.success(`地点データの格納依頼が完了しました（${segmentPois.length}件）`);
+      toast.success(`地点データの格納依頼が完了しました（${segmentPois.length}件）`, {
+        description: dataLinkNote,
+      });
       setIsGeocodingRunning(false);
       return;
     }
@@ -805,6 +810,7 @@ export function ProjectDetail({
               ? `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${successCount}件`
               : `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n成功: ${successCount}件、エラー: ${errorCount}件\n\nエラーの詳細は案件詳細画面で確認できます。`;
           }
+          messageContent += `\n\n${dataLinkNote}`;
 
           await bigQueryService.sendProjectMessage({
             project_id: project.project_id,
@@ -823,15 +829,23 @@ export function ProjectDetail({
 
         if (errorCount === 0) {
           if (polygonPoiCount > 0) {
-            toast.success(`地点データの格納依頼が完了しました（総${totalSuccessCount}件: ジオコーディング${successCount}件、ポリゴン${polygonPoiCount}件）`);
+            toast.success(`地点データの格納依頼が完了しました（総${totalSuccessCount}件: ジオコーディング${successCount}件、ポリゴン${polygonPoiCount}件）`, {
+              description: dataLinkNote,
+            });
           } else {
-            toast.success(`地点データの格納依頼が完了しました（${successCount}件）`);
+            toast.success(`地点データの格納依頼が完了しました（${successCount}件）`, {
+              description: dataLinkNote,
+            });
           }
         } else {
           if (polygonPoiCount > 0) {
-            toast.warning(`格納依頼完了: 成功${totalSuccessCount}件（ジオコーディング${successCount}件、ポリゴン${polygonPoiCount}件）、エラー${errorCount}件`);
+            toast.warning(`格納依頼完了: 成功${totalSuccessCount}件（ジオコーディング${successCount}件、ポリゴン${polygonPoiCount}件）、エラー${errorCount}件`, {
+              description: dataLinkNote,
+            });
           } else {
-            toast.warning(`格納依頼完了: 成功${successCount}件、エラー${errorCount}件`);
+            toast.warning(`格納依頼完了: 成功${successCount}件、エラー${errorCount}件`, {
+              description: dataLinkNote,
+            });
           }
         }
 
@@ -1585,28 +1599,34 @@ export function ProjectDetail({
                                     <Plus className="w-3.5 h-3.5 mr-2" />
                                     地点を追加
                                   </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleConfirmSegment(segment)}
-                                    disabled={segment.location_request_status !== 'not_requested' || poiCount === 0}
-                                    className={
-                                      segment.location_request_status === 'not_requested' && poiCount > 0
-                                        ? "bg-[#5b5fff] hover:bg-[#4949dd] text-white shadow-md whitespace-nowrap"
-                                        : "bg-white border border-gray-300 text-gray-500 hover:bg-white shadow-none whitespace-nowrap"
-                                    }
-                                  >
-                                    <Database className="w-4 h-4 mr-1" />
-                                    格納依頼を実行
-                                  </Button>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span>
+                                          <Button
+                                            size="sm"
+                                            onClick={() => handleConfirmSegment(segment)}
+                                            disabled={segment.location_request_status !== 'not_requested' || poiCount === 0}
+                                            className={
+                                              segment.location_request_status === 'not_requested' && poiCount > 0
+                                                ? "bg-[#5b5fff] hover:bg-[#4949dd] text-white shadow-md whitespace-nowrap"
+                                                : "bg-white border border-gray-300 text-gray-500 hover:bg-white shadow-none whitespace-nowrap"
+                                            }
+                                          >
+                                            <Database className="w-4 h-4 mr-1" />
+                                            格納依頼を実行
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        地点の登録が完了したら実行してください。依頼後は編集できなくなります。
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </>
                               )}
                             </div>
                           </div>
-                          {poiCount > 0 && segment.location_request_status === 'not_requested' && canEditProject(user, project) && (
-                            <p className="text-xs text-gray-600">
-                              地点の登録が完了したら実行してください。依頼後は編集できなくなります。
-                            </p>
-                          )}
 
                           {/* 1. 抽出条件サマリー */}
                           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
