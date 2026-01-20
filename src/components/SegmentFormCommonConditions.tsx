@@ -62,10 +62,11 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
           <Target className="w-4 h-4 text-purple-600" />
           指定半径 <span className="text-red-600">*</span>
         </Label>
+        <p className="text-xs text-gray-500 mb-2">自由入力か選択のどちらかで指定してください</p>
         <div className="space-y-2">
           <div className="flex items-start gap-2">
             <div className="flex flex-col gap-1 flex-1">
-              <span className="text-xs text-gray-500">手入力（1〜1000m）</span>
+              <span className="text-xs text-gray-500">自由入力（1〜1000m）</span>
               <div className="flex items-center gap-2">
                 <Input
                   id="designated_radius"
@@ -133,14 +134,13 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
                 }}
                 className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                <option value="">手入力に戻す</option>
+                <option value="">自由入力に戻す</option>
                 {fixedRadiusOptions.map((value) => (
                   <option key={value} value={value}>{value}m</option>
                 ))}
               </select>
             </div>
           </div>
-          <p className="text-xs text-gray-500">手入力か選択のどちらかで指定してください</p>
           {formData.designated_radius && (() => {
             const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
             if (isNaN(radiusNum)) {

@@ -336,7 +336,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                       <div className="space-y-1 flex flex-col items-center">
                         <div className="flex items-start gap-2 justify-center">
                           <div className="flex flex-col items-center gap-1">
-                            <span className="text-[10px] text-gray-500">手入力</span>
+                            <span className="text-[10px] text-gray-500">自由入力</span>
                             <div className="flex items-center gap-1">
                               <input
                                 type="number"
@@ -392,7 +392,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                               }}
                               className="h-8 text-xs px-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                             >
-                              <option value="">手入力</option>
+                              <option value="">自由入力</option>
                               {fixedRadiusOptions.map((value) => (
                                 <option key={value} value={value}>{value}m</option>
                               ))}
