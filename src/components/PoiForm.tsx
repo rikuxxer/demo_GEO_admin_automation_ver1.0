@@ -43,6 +43,24 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
+  // 6ヶ月以上前の日付選択警告ポップアップ表示状態
+  const [showDateRangeWarning, setShowDateRangeWarning] = useState(false);
+  
+  // 6ヶ月前の日付を計算（YYYY-MM-DD形式）
+  const getSixMonthsAgoDate = (): string => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 6);
+    return date.toISOString().split('T')[0];
+  };
+
+  // 日付が6ヶ月以上前かどうかをチェック
+  const isDateMoreThanSixMonthsAgo = (dateString: string): boolean => {
+    if (!dateString) return false;
+    const selectedDate = new Date(dateString);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return selectedDate < sixMonthsAgo;
+  };
   // 指定半径のドラフト状態（入力中の値を保持）
   const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
   const isFirstPoi = segmentPoiCount === 0 && !poi;
@@ -82,6 +100,31 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     );
   }
 
+  // 来店計測地点の場合、選択されたグループの抽出条件を取得
+  const selectedGroup = visitMeasurementGroups.find(g => 
+    g.group_id === (formData.visit_measurement_group_id || poi?.visit_measurement_group_id || defaultGroupId)
+  );
+  
+  // 来店計測地点の場合、グループが変更されたときに抽出条件を更新
+  useEffect(() => {
+    if ((defaultCategory === 'visit_measurement' || formData.poi_category === 'visit_measurement') && selectedGroup) {
+      setFormData(prev => ({
+        ...prev,
+        designated_radius: selectedGroup.designated_radius || '',
+        extraction_period: selectedGroup.extraction_period || '1month',
+        extraction_period_type: selectedGroup.extraction_period_type || 'preset',
+        extraction_start_date: selectedGroup.extraction_start_date || '',
+        extraction_end_date: selectedGroup.extraction_end_date || '',
+        extraction_dates: selectedGroup.extraction_dates ? selectedGroup.extraction_dates.slice() : [],
+        attribute: selectedGroup.attribute || 'detector',
+        detection_count: selectedGroup.detection_count || 1,
+        detection_time_start: selectedGroup.detection_time_start || '',
+        detection_time_end: selectedGroup.detection_time_end || '',
+        stay_time: selectedGroup.stay_time || '',
+      }));
+    }
+  }, [formData.visit_measurement_group_id, selectedGroup, defaultCategory, formData.poi_category]);
+  
   const [formData, setFormData] = useState<Partial<PoiInfo>>({
     project_id: projectId,
     segment_id: segmentId,
@@ -97,17 +140,51 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     latitude: poi?.latitude,
     longitude: poi?.longitude,
     polygon: poi?.polygon || undefined,
-    // 編集時は既存の地点データを使用、新規登録時はセグメント共通条件があればそれを使用、なければ空
-    designated_radius: poi?.designated_radius || (segment?.designated_radius ? segment.designated_radius : ''),
-    extraction_period: poi?.extraction_period || (segment?.extraction_period ? segment.extraction_period : ''),
-    extraction_period_type: poi?.extraction_period_type || (segment?.extraction_period_type ? segment.extraction_period_type : 'preset'),
-    extraction_start_date: poi?.extraction_start_date || (segment?.extraction_start_date ? segment.extraction_start_date : ''),
-    extraction_end_date: poi?.extraction_end_date || (segment?.extraction_end_date ? segment.extraction_end_date : ''),
-    attribute: poi?.attribute || segment?.attribute || undefined,
-    detection_count: poi?.detection_count || (segment?.detection_count ? segment.detection_count : undefined),
-    detection_time_start: poi?.detection_time_start || (segment?.detection_time_start ? segment.detection_time_start : ''),
-    detection_time_end: poi?.detection_time_end || (segment?.detection_time_end ? segment.detection_time_end : ''),
-    stay_time: poi?.stay_time || (segment?.stay_time ? segment.stay_time : ''),
+    // 来店計測地点の場合、グループの抽出条件を使用。それ以外はセグメント共通条件を使用
+    designated_radius: poi?.designated_radius || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.designated_radius 
+        ? selectedGroup.designated_radius 
+        : (segment?.designated_radius ? segment.designated_radius : '')),
+    extraction_period: poi?.extraction_period || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.extraction_period 
+        ? selectedGroup.extraction_period 
+        : (segment?.extraction_period ? segment.extraction_period : '')),
+    extraction_period_type: poi?.extraction_period_type || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.extraction_period_type 
+        ? selectedGroup.extraction_period_type 
+        : (segment?.extraction_period_type ? segment.extraction_period_type : 'preset')),
+    extraction_start_date: poi?.extraction_start_date || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.extraction_start_date 
+        ? selectedGroup.extraction_start_date 
+        : (segment?.extraction_start_date ? segment.extraction_start_date : '')),
+    extraction_end_date: poi?.extraction_end_date || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.extraction_end_date 
+        ? selectedGroup.extraction_end_date 
+        : (segment?.extraction_end_date ? segment.extraction_end_date : '')),
+    extraction_dates: poi?.extraction_dates || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.extraction_dates 
+        ? selectedGroup.extraction_dates.slice() 
+        : (segment?.extraction_dates ? segment.extraction_dates.slice() : [])),
+    attribute: poi?.attribute || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.attribute 
+        ? selectedGroup.attribute 
+        : (segment?.attribute || undefined)),
+    detection_count: poi?.detection_count || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.detection_count 
+        ? selectedGroup.detection_count 
+        : (segment?.detection_count ? segment.detection_count : undefined)),
+    detection_time_start: poi?.detection_time_start || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.detection_time_start 
+        ? selectedGroup.detection_time_start 
+        : (segment?.detection_time_start ? segment.detection_time_start : '')),
+    detection_time_end: poi?.detection_time_end || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.detection_time_end 
+        ? selectedGroup.detection_time_end 
+        : (segment?.detection_time_end ? segment.detection_time_end : '')),
+    stay_time: poi?.stay_time || 
+      (defaultCategory === 'visit_measurement' && selectedGroup?.stay_time 
+        ? selectedGroup.stay_time 
+        : (segment?.stay_time ? segment.stay_time : '')),
   });
 
   const [currentStep, setCurrentStep] = useState<'info' | 'conditions'>('info');
@@ -2399,28 +2476,44 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     </div>
                   </div>
 
-                  {/* 抽出条件設定ボタン */}
-                  <div className="mt-4 pt-4 border-t border-gray-300">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowExtractionConditionsPopup(true)}
-                      className="w-full border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/5"
-                    >
-                      <Settings2 className="w-4 h-4 mr-2" />
-                      抽出条件を設定
-                    </Button>
-                    {hasSegmentCommonConditions && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        ※ セグメント共通条件が設定されていますが、地点ごとに個別の抽出条件を設定することも可能です。
-                      </p>
-                    )}
-                  </div>
+                  {/* 抽出条件設定ボタン（来店計測地点の場合は非表示） */}
+                  {!(defaultCategory === 'visit_measurement' || formData.poi_category === 'visit_measurement') && (
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowExtractionConditionsPopup(true)}
+                        className="w-full border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/5"
+                      >
+                        <Settings2 className="w-4 h-4 mr-2" />
+                        抽出条件を設定
+                      </Button>
+                      {hasSegmentCommonConditions && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          ※ セグメント共通条件が設定されていますが、地点ごとに個別の抽出条件を設定することも可能です。
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {/* 来店計測地点の場合、グループの抽出条件を表示 */}
+                  {(defaultCategory === 'visit_measurement' || formData.poi_category === 'visit_measurement') && selectedGroup && (
+                    <div className="mt-4 pt-4 border-t border-gray-300">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p className="text-sm font-semibold text-blue-900 mb-2">グループの抽出条件</p>
+                        <p className="text-xs text-blue-700 mb-1">
+                          この地点は「{selectedGroup.group_name}」グループの抽出条件が適用されます。
+                        </p>
+                        <p className="text-xs text-blue-600">
+                          抽出条件を変更する場合は、グループの編集から変更してください。
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* 既存地点の編集時（entryMethodがmanual以外の場合）にも抽出条件設定ボタンを表示 */}
-              {poi && entryMethod !== 'manual' && (
+              {/* 既存地点の編集時（entryMethodがmanual以外の場合）にも抽出条件設定ボタンを表示（来店計測地点の場合は非表示） */}
+              {poi && entryMethod !== 'manual' && !(poi.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') && (
                 <div className="mt-4 pt-4 border-t border-gray-300">
                   <Button
                     type="button"
@@ -2436,6 +2529,20 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       ※ セグメント共通条件が設定されていますが、地点ごとに個別の抽出条件を設定することも可能です。
                     </p>
                   )}
+                </div>
+              )}
+              {/* 来店計測地点の場合、グループの抽出条件を表示（編集時、entryMethodがmanual以外） */}
+              {poi && entryMethod !== 'manual' && (poi.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') && selectedGroup && (
+                <div className="mt-4 pt-4 border-t border-gray-300">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-blue-900 mb-2">グループの抽出条件</p>
+                    <p className="text-xs text-blue-700 mb-1">
+                      この地点は「{selectedGroup.group_name}」グループの抽出条件が適用されます。
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      抽出条件を変更する場合は、グループの編集から変更してください。
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -3206,6 +3313,17 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       />
                       <span className="text-sm text-gray-700">期間指定</span>
                     </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="period_type_popup"
+                        checked={formData.extraction_period_type === 'specific_dates'}
+                        onChange={() => handleChange('extraction_period_type', 'specific_dates')}
+                        disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
+                        className="text-[#5b5fff] focus:ring-[#5b5fff]"
+                      />
+                      <span className="text-sm text-gray-700">特定日付</span>
+                    </label>
                   </div>
 
                   {formData.extraction_period_type === 'preset' ? (
@@ -3225,6 +3343,50 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           {option.label}
                         </button>
                       ))}
+                    </div>
+                  ) : formData.extraction_period_type === 'specific_dates' ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-600">抽出対象とする日付を複数選択できます（直近6ヶ月まで）</p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {(formData.extraction_dates || []).map((d, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <Input
+                              type="date"
+                              value={d}
+                              min={getSixMonthsAgoDate()}
+                              max={new Date().toISOString().split('T')[0]}
+                              onChange={(e) => {
+                                const selectedDate = e.target.value;
+                                if (isDateMoreThanSixMonthsAgo(selectedDate)) {
+                                  setShowDateRangeWarning(true);
+                                  return; // 日付を更新しない
+                                }
+                                const arr = [...(formData.extraction_dates || [])];
+                                arr[i] = selectedDate;
+                                handleChange('extraction_dates', arr);
+                              }}
+                              className="flex-1 bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const arr = (formData.extraction_dates || []).filter((_, j) => j !== i);
+                                handleChange('extraction_dates', arr);
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm px-2"
+                            >
+                              削除
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleChange('extraction_dates', [...(formData.extraction_dates || []), ''])}
+                        className="text-sm text-[#5b5fff] hover:text-[#5b5fff]/80 font-medium"
+                      >
+                        + 日付を追加
+                      </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
@@ -3387,6 +3549,33 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowRadiusWarning(false)}>
+              了解しました
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 6ヶ月以上前の日付選択警告ポップアップ */}
+      <AlertDialog open={showDateRangeWarning} onOpenChange={setShowDateRangeWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600" />
+              日付範囲の制限
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-4">
+              <div className="space-y-2">
+                <p className="text-base font-medium text-gray-900">
+                  6ヶ月以上前の日付は選択できません。
+                </p>
+                <p className="text-sm text-gray-700">
+                  6ヶ月以上前の日付を指定する場合は、アースラでBW依頼をしてください。
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowDateRangeWarning(false)}>
               了解しました
             </AlertDialogAction>
           </AlertDialogFooter>

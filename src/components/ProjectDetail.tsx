@@ -21,6 +21,7 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { SegmentForm } from './SegmentForm';
+import { SegmentFormCommonConditions } from './SegmentFormCommonConditions';
 import { SegmentTable } from './SegmentTable';
 import { PoiForm } from './PoiForm';
 import { PoiTable } from './PoiTable';
@@ -111,8 +112,22 @@ export function ProjectDetail({
   const [visitMeasurementGroups, setVisitMeasurementGroups] = useState<VisitMeasurementGroup[]>([]);
   const [showGroupForm, setShowGroupForm] = useState(false);
   const [editingGroup, setEditingGroup] = useState<VisitMeasurementGroup | null>(null);
-  const [groupFormData, setGroupFormData] = useState({ group_name: '' });
+  const [groupFormData, setGroupFormData] = useState<Partial<VisitMeasurementGroup>>({ 
+    group_name: '',
+    designated_radius: '',
+    extraction_period: '1month',
+    extraction_period_type: 'preset',
+    extraction_start_date: '',
+    extraction_end_date: '',
+    extraction_dates: [],
+    attribute: 'detector',
+    detection_count: 1,
+    detection_time_start: '',
+    detection_time_end: '',
+    stay_time: '',
+  });
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [showGroupExtractionConditions, setShowGroupExtractionConditions] = useState(false);
   
   // ジオコーディング関連の��態
   const [showGeocodeProgress, setShowGeocodeProgress] = useState(false);
@@ -409,7 +424,7 @@ export function ProjectDetail({
 
   // 計測地点グループの作成・更新
   const handleGroupSubmit = async () => {
-    if (!groupFormData.group_name.trim()) {
+    if (!groupFormData.group_name?.trim()) {
       toast.error('グループ名を入力してください');
       return;
     }
@@ -417,12 +432,34 @@ export function ProjectDetail({
       if (editingGroup) {
         await bigQueryService.updateVisitMeasurementGroup(editingGroup.group_id, {
           group_name: groupFormData.group_name.trim(),
+          designated_radius: groupFormData.designated_radius,
+          extraction_period: groupFormData.extraction_period,
+          extraction_period_type: groupFormData.extraction_period_type,
+          extraction_start_date: groupFormData.extraction_start_date,
+          extraction_end_date: groupFormData.extraction_end_date,
+          extraction_dates: groupFormData.extraction_dates,
+          attribute: groupFormData.attribute,
+          detection_count: groupFormData.detection_count,
+          detection_time_start: groupFormData.detection_time_start,
+          detection_time_end: groupFormData.detection_time_end,
+          stay_time: groupFormData.stay_time,
         });
         toast.success('グループを更新しました');
       } else {
         const newGroup = await bigQueryService.createVisitMeasurementGroup({
           project_id: project.project_id,
           group_name: groupFormData.group_name.trim(),
+          designated_radius: groupFormData.designated_radius,
+          extraction_period: groupFormData.extraction_period,
+          extraction_period_type: groupFormData.extraction_period_type,
+          extraction_start_date: groupFormData.extraction_start_date,
+          extraction_end_date: groupFormData.extraction_end_date,
+          extraction_dates: groupFormData.extraction_dates,
+          attribute: groupFormData.attribute,
+          detection_count: groupFormData.detection_count,
+          detection_time_start: groupFormData.detection_time_start,
+          detection_time_end: groupFormData.detection_time_end,
+          stay_time: groupFormData.stay_time,
         });
         console.log('Created group:', newGroup);
         toast.success('グループを作成しました');
@@ -432,7 +469,20 @@ export function ProjectDetail({
       setVisitMeasurementGroups(groups);
       setShowGroupForm(false);
       setEditingGroup(null);
-      setGroupFormData({ group_name: '' });
+      setGroupFormData({ 
+        group_name: '',
+        designated_radius: '',
+        extraction_period: '1month',
+        extraction_period_type: 'preset',
+        extraction_start_date: '',
+        extraction_end_date: '',
+        extraction_dates: [],
+        attribute: 'detector',
+        detection_count: 1,
+        detection_time_start: '',
+        detection_time_end: '',
+        stay_time: '',
+      });
     } catch (error) {
       console.error('Error saving group:', error);
       const errorMessage = error instanceof Error ? error.message : '不明なエラー';
@@ -1802,7 +1852,20 @@ export function ProjectDetail({
                                   size="sm"
                                   onClick={() => {
                                     setEditingGroup(null);
-                                    setGroupFormData({ group_name: '' });
+                                    setGroupFormData({ 
+                                      group_name: '',
+                                      designated_radius: '',
+                                      extraction_period: '1month',
+                                      extraction_period_type: 'preset',
+                                      extraction_start_date: '',
+                                      extraction_end_date: '',
+                                      extraction_dates: [],
+                                      attribute: 'detector',
+                                      detection_count: 1,
+                                      detection_time_start: '',
+                                      detection_time_end: '',
+                                      stay_time: '',
+                                    });
                                     setShowGroupForm(true);
                                   }}
                                   className="border-gray-300 hover:bg-gray-50"
@@ -1818,7 +1881,20 @@ export function ProjectDetail({
                                       const group = visitMeasurementGroups.find(g => g.group_id === selectedGroupId);
                                       if (group) {
                                         setEditingGroup(group);
-                                        setGroupFormData({ group_name: group.group_name });
+                                        setGroupFormData({ 
+                                          group_name: group.group_name,
+                                          designated_radius: group.designated_radius || '',
+                                          extraction_period: group.extraction_period || '1month',
+                                          extraction_period_type: group.extraction_period_type || 'preset',
+                                          extraction_start_date: group.extraction_start_date || '',
+                                          extraction_end_date: group.extraction_end_date || '',
+                                          extraction_dates: group.extraction_dates || [],
+                                          attribute: group.attribute || 'detector',
+                                          detection_count: group.detection_count || 1,
+                                          detection_time_start: group.detection_time_start || '',
+                                          detection_time_end: group.detection_time_end || '',
+                                          stay_time: group.stay_time || '',
+                                        });
                                         setShowGroupForm(true);
                                       }
                                     }}
@@ -2514,31 +2590,50 @@ export function ProjectDetail({
 
       {/* 計測地点グループ作成・編集ダイアログ */}
       <Dialog open={showGroupForm} onOpenChange={setShowGroupForm}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingGroup ? 'グループを編集' : 'グループを作成'}</DialogTitle>
             <DialogDescription>
-              計測地点グループの名前を入力してください
+              計測地点グループの名前と抽出条件を設定してください（このグループに属する全地点に同じ抽出条件が適用されます）
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <Label htmlFor="group_name">グループ名</Label>
+              <Label htmlFor="group_name">グループ名 <span className="text-red-600">*</span></Label>
               <Input
                 id="group_name"
-                value={groupFormData.group_name}
-                onChange={(e) => setGroupFormData({ group_name: e.target.value })}
+                value={groupFormData.group_name || ''}
+                onChange={(e) => setGroupFormData(prev => ({ ...prev, group_name: e.target.value }))}
                 placeholder="例：店舗A、エリア1"
                 className="mt-2"
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="border-t pt-4">
+              <SegmentFormCommonConditions
+                formData={groupFormData as Partial<Segment>}
+                onChange={(field, value) => setGroupFormData(prev => ({ ...prev, [field]: value }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowGroupForm(false);
                   setEditingGroup(null);
-                  setGroupFormData({ group_name: '' });
+                  setGroupFormData({ 
+                    group_name: '',
+                    designated_radius: '',
+                    extraction_period: '1month',
+                    extraction_period_type: 'preset',
+                    extraction_start_date: '',
+                    extraction_end_date: '',
+                    extraction_dates: [],
+                    attribute: 'detector',
+                    detection_count: 1,
+                    detection_time_start: '',
+                    detection_time_end: '',
+                    stay_time: '',
+                  });
                 }}
                 className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
               >

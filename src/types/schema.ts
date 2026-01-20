@@ -106,6 +106,18 @@ export interface VisitMeasurementGroup {
   project_id: string; // 案件ID
   group_id: string; // グループID（自動採番）
   group_name: string; // グループ名
+  // 抽出条件（グループ内の全地点で統一）
+  designated_radius?: string; // 指定半径
+  extraction_period?: string; // 抽出期間
+  extraction_period_type?: 'preset' | 'custom' | 'specific_dates'; // プリセット or 期間指定 or 特定日付
+  extraction_start_date?: string; // 抽出開始日
+  extraction_end_date?: string; // 抽出終了日
+  extraction_dates?: string[]; // 抽出対象日付（特定日付の場合）
+  attribute?: 'detector' | 'resident' | 'worker' | 'resident_and_worker'; // 属性
+  detection_count?: number; // 検知回数（〇回以上）
+  detection_time_start?: string; // 検知時間開始
+  detection_time_end?: string; // 検知時間終了
+  stay_time?: string; // 滞在時間
   created?: string; // 作成日時
 }
 
