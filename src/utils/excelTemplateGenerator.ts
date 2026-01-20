@@ -42,6 +42,11 @@ const EDITABLE_CELL_STYLE = {
   protection: { locked: false }
 };
 
+function applySheetDefaults(sheet: ExcelJS.Worksheet) {
+  sheet.properties.defaultRowHeight = 18;
+  sheet.properties.defaultColWidth = 15;
+}
+
 export async function generateExcelTemplate(): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'UNIVERSEGEO';
@@ -59,6 +64,7 @@ export async function generateExcelTemplate(): Promise<ExcelJS.Workbook> {
 // シート1: 入力ガイド
 async function createGuideSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.addWorksheet('1.入力ガイド');
+  applySheetDefaults(sheet);
   const guideData = [
     ['━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'],
     ['【UNIVERSEGEO 一括登録の使い方】'],
@@ -110,12 +116,15 @@ async function createGuideSheet(workbook: ExcelJS.Workbook) {
     r.font = { name: 'Meiryo', size: 11 };
   });
   sheet.getRow(2).font = { bold: true, size: 14, color: { argb: 'FF5b5fff' }, name: 'Meiryo' };
+  sheet.getRow(1).height = 18;
+  sheet.getRow(2).height = 22;
   sheet.getColumn(1).width = 100;
 }
 
 // シート2: 案件情報（1案件のみ登録可能）
 async function createProjectSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.addWorksheet('2.案件情報');
+  applySheetDefaults(sheet);
   const headers = [
     { name: '広告主名', required: true }, { name: '代理店名', required: true },
     { name: '訴求内容', required: true }, { name: '配信開始日', required: true },
@@ -127,6 +136,7 @@ async function createProjectSheet(workbook: ExcelJS.Workbook) {
     cell.value = h.name;
     cell.style = h.required ? REQUIRED_HEADER_STYLE : OPTIONAL_HEADER_STYLE;
   });
+  headerRow.height = 22;
 
   // サンプル行
   const sampleRow = sheet.getRow(2);
@@ -164,6 +174,7 @@ async function createProjectSheet(workbook: ExcelJS.Workbook) {
 // シート3: セグメント・TG地点設定
 async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, category: 'tg') {
   const sheet = workbook.addWorksheet('3.セグメント・TG地点設定');
+  applySheetDefaults(sheet);
   const headers = [
     { name: 'セグメント名', group: 'seg' }, { name: '配信先', group: 'seg' }, { name: '配信範囲', group: 'seg' },
     { name: '抽出期間', group: 'seg' }, { name: '抽出開始日', group: 'seg' }, { name: '抽出終了日', group: 'seg' },
@@ -179,6 +190,7 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
     cell.value = h.name;
     cell.style = h.group === 'seg' ? SEGMENT_HEADER_STYLE : LOCATION_HEADER_STYLE;
   });
+  headerRow.height = 22;
 
   // サンプル行（地点IDは自動採番のため削除）
   const sampleValues = [
@@ -350,6 +362,7 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
 // シート4: 来店計測地点リスト（セグメント情報なし、地点IDは自動採番）
 async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.addWorksheet('4.来店計測地点リスト');
+  applySheetDefaults(sheet);
   const headers = [
     { name: '地点の名前', required: true },
     { name: '住所', required: true },
@@ -363,6 +376,7 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
     cell.value = h.name;
     cell.style = h.required ? REQUIRED_HEADER_STYLE : LOCATION_HEADER_STYLE;
   });
+  headerRow.height = 22;
 
   // サンプル行（地点IDは自動採番のため削除）
   const sampleValues = [
@@ -402,6 +416,7 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
 async function createOptionsSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.addWorksheet('5.選択肢リスト');
   sheet.state = 'hidden';
+  applySheetDefaults(sheet);
 
   // 列定義
   const options = {
