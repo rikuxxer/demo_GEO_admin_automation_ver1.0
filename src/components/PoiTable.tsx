@@ -26,6 +26,7 @@ interface PoiTableProps {
 }
 
 export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }: PoiTableProps) {
+  const fixedRadiusOptions = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -336,22 +337,28 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         <div className="flex items-center gap-1 justify-center">
                           <input
                             type="number"
-                            min="0"
-                            max="10000"
+                            min="1"
+                            max="1000"
                             step="1"
-                            placeholder="0-10000"
-                            value={editForm.designated_radius ? String(editForm.designated_radius).replace('m', '') : ''}
+                            placeholder="1-1000"
+                            value={(() => {
+                              const radiusNum = parseInt(String(editForm.designated_radius || '').replace('m', ''), 10);
+                              if (!isNaN(radiusNum) && radiusNum <= 1000) {
+                                return String(radiusNum);
+                              }
+                              return '';
+                            })()}
                             onChange={(e) => {
                               const value = e.target.value;
-                              if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
+                              const radiusNum = parseInt(value, 10);
+                              if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
                                 handleInputChange('designated_radius', value ? `${value}m` : '');
                                 
                                 // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                                const radiusNum = parseInt(value);
                                 if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
                                   setShowRadiusWarning(true);
                                   setHasShownRadiusWarning(true);
-                                } else if (radiusNum > 50) {
+                                } else if (!isNaN(radiusNum) && radiusNum > 50) {
                                   // 50mを超えた場合は警告表示フラグをリセット
                                   setHasShownRadiusWarning(false);
                                 }
@@ -360,12 +367,42 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                             className="h-8 text-sm w-20 px-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                           <span className="text-xs text-gray-500">m</span>
+                          <select
+                            value={(() => {
+                              const radiusNum = parseInt(String(editForm.designated_radius || '').replace('m', ''), 10);
+                              if (!isNaN(radiusNum) && radiusNum >= 1000) {
+                                return fixedRadiusOptions.includes(radiusNum) ? String(radiusNum) : '';
+                              }
+                              return '';
+                            })()}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (!value) return;
+                              handleInputChange('designated_radius', `${value}m`);
+                            }}
+                            className="h-8 text-xs px-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                          <option value="">1000m以上</option>
+                            {fixedRadiusOptions.map((value) => (
+                              <option key={value} value={value}>{value}m</option>
+                            ))}
+                          </select>
                         </div>
                         {editForm.designated_radius && (() => {
-                          const radiusNum = parseInt(String(editForm.designated_radius).replace('m', ''));
-                          if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+                          const radiusNum = parseInt(String(editForm.designated_radius).replace('m', ''), 10);
+                          if (isNaN(radiusNum)) {
                             return (
-                              <p className="text-xs text-red-600 text-center">0-10000の範囲で入力</p>
+                              <p className="text-xs text-red-600 text-center">数値で入力</p>
+                            );
+                          }
+                          if (radiusNum >= 1000 && !fixedRadiusOptions.includes(radiusNum)) {
+                            return (
+                              <p className="text-xs text-red-600 text-center">1000m以上は選択</p>
+                            );
+                          }
+                          if (radiusNum < 1 || radiusNum > 10000) {
+                            return (
+                              <p className="text-xs text-red-600 text-center">1-1000m、または選択</p>
                             );
                           }
                           return null;

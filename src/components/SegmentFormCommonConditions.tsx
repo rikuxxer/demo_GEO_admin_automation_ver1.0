@@ -28,6 +28,7 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
   const [hasShownRadius30mWarning, setHasShownRadius30mWarning] = useState(false);
   // 6ヶ月以上前の日付選択警告ポップアップ表示状態
   const [showDateRangeWarning, setShowDateRangeWarning] = useState(false);
+  const fixedRadiusOptions = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
 
   // 6ヶ月前の日付を計算（YYYY-MM-DD形式）
   const getSixMonthsAgoDate = (): string => {
@@ -66,17 +67,23 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
             <Input
               id="designated_radius"
               type="number"
-              min="0"
-              max="10000"
+              min="1"
+              max="1000"
               step="1"
-              placeholder="0-10000の範囲で自由入力（m単位）"
-              value={formData.designated_radius ? String(formData.designated_radius).replace('m', '') : ''}
+              placeholder="1-1000の範囲で自由入力（m単位）"
+              value={(() => {
+                const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
+                if (!isNaN(radiusNum) && radiusNum <= 1000) {
+                  return String(radiusNum);
+                }
+                return '';
+              })()}
               onChange={(e) => {
                 const value = e.target.value;
-                if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
+                const radiusNum = parseInt(value, 10);
+                if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
                   onChange('designated_radius', value ? `${value}m` : '');
                   
-                  const radiusNum = parseInt(value);
                   if (!isNaN(radiusNum) && radiusNum > 0) {
                     // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
                     if (radiusNum <= 30 && !hasShownRadius30mWarning) {
@@ -101,14 +108,50 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
               required
             />
             <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+            <select
+              value={(() => {
+                const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
+                if (!isNaN(radiusNum) && radiusNum >= 1000) {
+                  return fixedRadiusOptions.includes(radiusNum) ? String(radiusNum) : '';
+                }
+                return '';
+              })()}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (!value) return;
+                onChange('designated_radius', `${value}m`);
+              }}
+              className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="">1000m以上は選択</option>
+              {fixedRadiusOptions.map((value) => (
+                <option key={value} value={value}>{value}m</option>
+              ))}
+            </select>
           </div>
           {formData.designated_radius && (() => {
             const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
-            if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+            if (isNaN(radiusNum)) {
               return (
                 <p className="text-sm text-red-600 flex items-center gap-1">
                   <span>⚠️</span>
-                  半径は0-10000の範囲で入力してください
+                  半径は数値で入力してください
+                </p>
+              );
+            }
+            if (radiusNum >= 1000 && !fixedRadiusOptions.includes(radiusNum)) {
+              return (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠️</span>
+                  1000m以上は選択肢から指定してください
+                </p>
+              );
+            }
+            if (radiusNum < 1 || radiusNum > 10000) {
+              return (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠️</span>
+                  半径は1-1000m、または選択肢で指定してください
                 </p>
               );
             }

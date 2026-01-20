@@ -131,6 +131,7 @@ export function ProjectDetail({
   const [extractionConditionsSegment, setExtractionConditionsSegment] = useState<Segment | null>(null);
   const [extractionConditionsFormData, setExtractionConditionsFormData] = useState<Partial<PoiInfo>>({});
   const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
+  const fixedRadiusOptions = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
@@ -2086,14 +2087,21 @@ export function ProjectDetail({
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
-                        min="0"
-                        max="10000"
+                        min="1"
+                        max="1000"
                         step="1"
-                        placeholder="0-10000の範囲で自由入力（m単位）"
-                        value={designatedRadiusDraft}
+                        placeholder="1-1000の範囲で自由入力（m単位）"
+                        value={(() => {
+                          const draftNum = Number(designatedRadiusDraft);
+                          if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum <= 1000) {
+                            return designatedRadiusDraft;
+                          }
+                          return '';
+                        })()}
                         onChange={(e) => {
                           const value = e.target.value;
-                          if (value === '' || (!Number.isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 10000)) {
+                          const valueNum = Number(value);
+                          if (value === '' || (!Number.isNaN(valueNum) && valueNum >= 1 && valueNum <= 1000)) {
                             setDesignatedRadiusDraft(value);
                           }
                         }}
@@ -2104,7 +2112,8 @@ export function ProjectDetail({
                             return;
                           }
                           const radiusNum = parseInt(value, 10);
-                          if (!isNaN(radiusNum) && radiusNum >= 0 && radiusNum <= 10000) {
+                          const isFixed = fixedRadiusOptions.includes(radiusNum);
+                          if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
                             setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
                             if (radiusNum > 0) {
                               // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
@@ -2127,16 +2136,57 @@ export function ProjectDetail({
                           }
                         }}
                         className="flex-1"
+                        disabled={(() => {
+                          const draftNum = Number(designatedRadiusDraft);
+                          return designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum > 1000;
+                        })()}
                       />
                       <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+                        <select
+                        value={(() => {
+                          const draftNum = Number(designatedRadiusDraft);
+                            if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum >= 1000) {
+                            return fixedRadiusOptions.includes(draftNum) ? String(draftNum) : '';
+                          }
+                          return '';
+                        })()}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (!value) return;
+                          setDesignatedRadiusDraft(value);
+                          setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${value}m` }));
+                        }}
+                        className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
+                      >
+                        <option value="">1000m以上は選択</option>
+                        {fixedRadiusOptions.map((value) => (
+                          <option key={value} value={value}>{value}m</option>
+                        ))}
+                      </select>
                     </div>
                     {designatedRadiusDraft && (() => {
                       const radiusNum = parseInt(String(designatedRadiusDraft).replace('m', ''), 10);
-                      if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+                      if (isNaN(radiusNum)) {
                         return (
                           <p className="text-sm text-red-600 flex items-center gap-1">
                             <AlertCircle className="w-4 h-4" />
-                            半径は0-10000の範囲で入力してください
+                            半径は数値で入力してください
+                          </p>
+                        );
+                      }
+                      if (radiusNum >= 1000 && !fixedRadiusOptions.includes(radiusNum)) {
+                        return (
+                          <p className="text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-4 h-4" />
+                            1000m以上は選択肢から指定してください
+                          </p>
+                        );
+                      }
+                      if (radiusNum < 1 || radiusNum > 10000) {
+                        return (
+                          <p className="text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-4 h-4" />
+                            半径は1-1000m、または選択肢で指定してください
                           </p>
                         );
                       }
@@ -2398,9 +2448,12 @@ export function ProjectDetail({
                   
                   try {
                     // セグメントに条件を保存して今後追加する地点の初期値にも反映
-                    const radiusFromDraft = designatedRadiusDraft === '' 
-                      ? '' 
-                      : (!Number.isNaN(Number(designatedRadiusDraft)) ? `${Number(designatedRadiusDraft)}m` : extractionConditionsFormData.designated_radius);
+                    const draftNum = Number(designatedRadiusDraft);
+                    const radiusFromDraft = designatedRadiusDraft === ''
+                      ? ''
+                      : (!Number.isNaN(draftNum) && (draftNum <= 1000 || fixedRadiusOptions.includes(draftNum)))
+                        ? `${draftNum}m`
+                        : extractionConditionsFormData.designated_radius;
                     await onSegmentUpdate(extractionConditionsSegment.segment_id, {
                       designated_radius: radiusFromDraft,
                       extraction_period: extractionConditionsFormData.extraction_period,
