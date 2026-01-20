@@ -2612,60 +2612,72 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       指定半径
                     </Label>
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min="1"
-                          max="1000"
-                          step="1"
-                          placeholder="1-1000の範囲で自由入力（m単位）"
-                          value={(() => {
-                            const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
-                            if (!isNaN(radiusNum) && radiusNum <= 1000) {
-                              return String(radiusNum);
-                            }
-                            return '';
-                          })()}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            const radiusNum = parseInt(value, 10);
-                            if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
-                              handleChange('designated_radius', value ? `${value}m` : '');
-                              
-                              // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                              if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
-                                setShowRadiusWarning(true);
-                                setHasShownRadiusWarning(true);
-                              } else if (!isNaN(radiusNum) && radiusNum > 50) {
-                                // 50mを超えた場合は警告表示フラグをリセット
-                                setHasShownRadiusWarning(false);
+                      <div className="flex items-start gap-2">
+                        <div className="flex flex-col gap-1 flex-1">
+                          <span className="text-xs text-gray-500">手入力（1〜1000m）</span>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="1"
+                              max="1000"
+                              step="1"
+                              placeholder="1-1000"
+                              value={(() => {
+                                const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
+                                if (!isNaN(radiusNum) && radiusNum <= 1000) {
+                                  return String(radiusNum);
+                                }
+                                return '';
+                              })()}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                const radiusNum = parseInt(value, 10);
+                                if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
+                                  handleChange('designated_radius', value ? `${value}m` : '');
+                                  
+                                  // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                                  if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                    setShowRadiusWarning(true);
+                                    setHasShownRadiusWarning(true);
+                                  } else if (!isNaN(radiusNum) && radiusNum > 50) {
+                                    // 50mを超えた場合は警告表示フラグをリセット
+                                    setHasShownRadiusWarning(false);
+                                  }
+                                }
+                              }}
+                              className="flex-1"
+                            />
+                            <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1 min-w-[180px]">
+                          <span className="text-xs text-gray-500">選択（1000m以上）</span>
+                          <select
+                            value={(() => {
+                              const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
+                              if (!isNaN(radiusNum) && radiusNum >= 1000) {
+                                return fixedRadiusOptions.includes(radiusNum) ? String(radiusNum) : '';
                               }
-                            }
-                          }}
-                          className="flex-1"
-                        />
-                        <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
-                        <select
-                          value={(() => {
-                            const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
-                            if (!isNaN(radiusNum) && radiusNum >= 1000) {
-                              return fixedRadiusOptions.includes(radiusNum) ? String(radiusNum) : '';
-                            }
-                            return '';
-                          })()}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (!value) return;
-                            handleChange('designated_radius', `${value}m`);
-                          }}
-                          className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
-                        >
-                          <option value="">1000m以上は選択</option>
-                          {fixedRadiusOptions.map((value) => (
-                            <option key={value} value={value}>{value}m</option>
-                          ))}
-                        </select>
+                              return '';
+                            })()}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (!value) {
+                                handleChange('designated_radius', '');
+                                return;
+                              }
+                              handleChange('designated_radius', `${value}m`);
+                            }}
+                            className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
+                          >
+                            <option value="">手入力に戻す</option>
+                            {fixedRadiusOptions.map((value) => (
+                              <option key={value} value={value}>{value}m</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
+                      <p className="text-xs text-gray-500">手入力か選択のどちらかで指定してください</p>
                       {formData.designated_radius && (() => {
                         const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
                         if (isNaN(radiusNum)) {
@@ -2948,41 +2960,95 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     指定半径
                   </Label>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="10000"
-                        step="1"
-                        placeholder="0-10000の範囲で自由入力（m単位）"
-                        value={formData.designated_radius ? String(formData.designated_radius).replace('m', '') : ''}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
-                            handleChange('designated_radius', value ? `${value}m` : '');
-                            
-                            // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                            const radiusNum = parseInt(value);
-                            if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
-                              setShowRadiusWarning(true);
-                              setHasShownRadiusWarning(true);
-                            } else if (radiusNum > 50) {
-                              // 50mを超えた場合は警告表示フラグをリセット
-                              setHasShownRadiusWarning(false);
+                    <div className="flex items-start gap-2">
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-xs text-gray-500">手入力（1〜1000m）</span>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="1000"
+                            step="1"
+                            placeholder="1-1000"
+                            value={(() => {
+                              const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
+                              if (!isNaN(radiusNum) && radiusNum <= 1000) {
+                                return String(radiusNum);
+                              }
+                              return '';
+                            })()}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const radiusNum = parseInt(value, 10);
+                              if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
+                                handleChange('designated_radius', value ? `${value}m` : '');
+                                
+                                // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                                if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                  setShowRadiusWarning(true);
+                                  setHasShownRadiusWarning(true);
+                                } else if (!isNaN(radiusNum) && radiusNum > 50) {
+                                  // 50mを超えた場合は警告表示フラグをリセット
+                                  setHasShownRadiusWarning(false);
+                                }
+                              }
+                            }}
+                            className="flex-1"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-[180px]">
+                        <span className="text-xs text-gray-500">選択（1000m以上）</span>
+                        <select
+                          value={(() => {
+                            const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
+                            if (!isNaN(radiusNum) && radiusNum >= 1000) {
+                              return fixedRadiusOptions.includes(radiusNum) ? String(radiusNum) : '';
                             }
-                          }
-                        }}
-                        className="flex-1"
-                      />
-                      <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+                            return '';
+                          })()}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (!value) {
+                              handleChange('designated_radius', '');
+                              return;
+                            }
+                            handleChange('designated_radius', `${value}m`);
+                          }}
+                          className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
+                        >
+                          <option value="">手入力に戻す</option>
+                          {fixedRadiusOptions.map((value) => (
+                            <option key={value} value={value}>{value}m</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
+                    <p className="text-xs text-gray-500">手入力か選択のどちらかで指定してください</p>
                     {formData.designated_radius && (() => {
                       const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
-                      if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
+                      if (isNaN(radiusNum)) {
                         return (
                           <p className="text-sm text-red-600 flex items-center gap-1">
                             <AlertCircle className="w-4 h-4" />
-                            半径は0-10000の範囲で入力してください
+                            半径は数値で入力してください
+                          </p>
+                        );
+                      }
+                      if (radiusNum >= 1000 && !fixedRadiusOptions.includes(radiusNum)) {
+                        return (
+                          <p className="text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-4 h-4" />
+                            1000m以上は選択肢から指定してください
+                          </p>
+                        );
+                      }
+                      if (radiusNum < 1 || radiusNum > 10000) {
+                        return (
+                          <p className="text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-4 h-4" />
+                            半径は1-1000m、または選択肢で指定してください
                           </p>
                         );
                       }

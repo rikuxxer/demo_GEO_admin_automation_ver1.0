@@ -2084,86 +2084,95 @@ export function ProjectDetail({
                     指定半径
                   </Label>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        max="1000"
-                        step="1"
-                        placeholder="1-1000の範囲で自由入力（m単位）"
-                        value={(() => {
-                          const draftNum = Number(designatedRadiusDraft);
-                          if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum <= 1000) {
-                            return designatedRadiusDraft;
-                          }
-                          return '';
-                        })()}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          const valueNum = Number(value);
-                          if (value === '' || (!Number.isNaN(valueNum) && valueNum >= 1 && valueNum <= 1000)) {
-                            setDesignatedRadiusDraft(value);
-                          }
-                        }}
-                        onBlur={() => {
-                          const value = designatedRadiusDraft;
-                          if (value === '') {
-                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: '' }));
-                            return;
-                          }
-                          const radiusNum = parseInt(value, 10);
-                          const isFixed = fixedRadiusOptions.includes(radiusNum);
-                          if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
-                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
-                            if (radiusNum > 0) {
-                              // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
-                              if (radiusNum <= 30 && !hasShownRadius30mWarning) {
-                                setShowRadius30mWarning(true);
-                                setHasShownRadius30mWarning(true);
-                              } else if (radiusNum > 30 && radiusNum <= 50) {
-                                // 30mを超えて50m以下の場合、30m警告フラグをリセットして50m警告を表示
-                                setHasShownRadius30mWarning(false);
-                                if (!hasShownRadiusWarning) {
-                                  setShowRadiusWarning(true);
-                                  setHasShownRadiusWarning(true);
-                                }
-                              } else if (radiusNum > 50) {
-                                // 50mを超えた場合、警告表示フラグをリセット
-                                setHasShownRadiusWarning(false);
-                                setHasShownRadius30mWarning(false);
+                    <div className="flex items-start gap-2">
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-xs text-gray-500">手入力（1〜1000m）</span>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="1000"
+                            step="1"
+                            placeholder="1-1000"
+                            value={(() => {
+                              const draftNum = Number(designatedRadiusDraft);
+                              if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum <= 1000) {
+                                return designatedRadiusDraft;
                               }
-                            }
-                          }
-                        }}
-                        className="flex-1"
-                        disabled={(() => {
-                          const draftNum = Number(designatedRadiusDraft);
-                          return designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum > 1000;
-                        })()}
-                      />
-                      <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+                              return '';
+                            })()}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const valueNum = Number(value);
+                              if (value === '' || (!Number.isNaN(valueNum) && valueNum >= 1 && valueNum <= 1000)) {
+                                setDesignatedRadiusDraft(value);
+                              }
+                            }}
+                            onBlur={() => {
+                              const value = designatedRadiusDraft;
+                              if (value === '') {
+                                setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: '' }));
+                                return;
+                              }
+                              const radiusNum = parseInt(value, 10);
+                              const isFixed = fixedRadiusOptions.includes(radiusNum);
+                              if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
+                                setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
+                                if (radiusNum > 0) {
+                                  // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
+                                  if (radiusNum <= 30 && !hasShownRadius30mWarning) {
+                                    setShowRadius30mWarning(true);
+                                    setHasShownRadius30mWarning(true);
+                                  } else if (radiusNum > 30 && radiusNum <= 50) {
+                                    // 30mを超えて50m以下の場合、30m警告フラグをリセットして50m警告を表示
+                                    setHasShownRadius30mWarning(false);
+                                    if (!hasShownRadiusWarning) {
+                                      setShowRadiusWarning(true);
+                                      setHasShownRadiusWarning(true);
+                                    }
+                                  } else if (radiusNum > 50) {
+                                    // 50mを超えた場合、警告表示フラグをリセット
+                                    setHasShownRadiusWarning(false);
+                                    setHasShownRadius30mWarning(false);
+                                  }
+                                }
+                              }
+                            }}
+                            className="flex-1"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-[180px]">
+                        <span className="text-xs text-gray-500">選択（1000m以上）</span>
                         <select
-                        value={(() => {
-                          const draftNum = Number(designatedRadiusDraft);
+                          value={(() => {
+                            const draftNum = Number(designatedRadiusDraft);
                             if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum >= 1000) {
-                            return fixedRadiusOptions.includes(draftNum) ? String(draftNum) : '';
-                          }
-                          return '';
-                        })()}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (!value) return;
-                          setDesignatedRadiusDraft(value);
-                          setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${value}m` }));
-                        }}
-                        className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
-                      >
-                        <option value="">1000m以上は選択</option>
-                        {fixedRadiusOptions.map((value) => (
-                          <option key={value} value={value}>{value}m</option>
-                        ))}
-                      </select>
+                              return fixedRadiusOptions.includes(draftNum) ? String(draftNum) : '';
+                            }
+                            return '';
+                          })()}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (!value) {
+                              setDesignatedRadiusDraft('');
+                              setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: '' }));
+                              return;
+                            }
+                            setDesignatedRadiusDraft(value);
+                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${value}m` }));
+                          }}
+                          className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
+                        >
+                          <option value="">手入力に戻す</option>
+                          {fixedRadiusOptions.map((value) => (
+                            <option key={value} value={value}>{value}m</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
+                    <p className="text-xs text-gray-500">手入力か選択のどちらかで指定してください</p>
                     {designatedRadiusDraft && (() => {
                       const radiusNum = parseInt(String(designatedRadiusDraft).replace('m', ''), 10);
                       if (isNaN(radiusNum)) {
