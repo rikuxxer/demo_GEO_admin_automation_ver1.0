@@ -1551,8 +1551,7 @@ export function ProjectDetail({
                             <div className="space-y-6">
 
                           {/* 0. ツールバー */}
-                          <div className="flex items-center justify-between gap-3 flex-nowrap">
-                            <h5 className="text-sm font-medium text-gray-700">地点リスト</h5>
+                          <div className="flex items-center justify-end gap-3 flex-nowrap">
                             <div className="flex gap-2 flex-nowrap">
                               {canEditProject(user, project) && (
                                 <>
