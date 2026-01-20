@@ -228,11 +228,18 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   // CSV関連のState
   // 新規登録時は表形式コピペをデフォルトに、編集時は既存のpoi_typeを使用
   // 来店計測地点の場合は地点名入力が必要なため、manualをデフォルトにする
-  const [entryMethod, setEntryMethod] = useState<string>(
-    poi 
-      ? (poi.poi_type || 'manual') 
-      : (defaultCategory === 'visit_measurement' ? 'manual' : 'paste')
-  );
+  // 編集時も来店計測地点の場合はmanualを維持して統一UIを表示
+  const [entryMethod, setEntryMethod] = useState<string>(() => {
+    if (poi) {
+      // 編集時：来店計測地点の場合は常にmanual、それ以外はpoi_typeに基づく
+      if (poi.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') {
+        return 'manual';
+      }
+      return poi.poi_type || 'manual';
+    }
+    // 新規作成時
+    return defaultCategory === 'visit_measurement' ? 'manual' : 'paste';
+  });
   const [csvStep, setCsvStep] = useState<'upload' | 'preview'>('upload');
   const [parsedPois, setParsedPois] = useState<Partial<PoiInfo>[]>([]);
   const [csvErrors, setCsvErrors] = useState<CSVValidationError[]>([]);
