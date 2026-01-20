@@ -43,6 +43,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
+  // 指定半径のドラフト状態（入力中の値を保持）
+  const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
   const isFirstPoi = segmentPoiCount === 0 && !poi;
   
   // セグメントに共通条件が設定されているかチェック
@@ -2624,23 +2626,34 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                               step="1"
                               placeholder="1-1000"
                               value={(() => {
-                                const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
-                                if (!isNaN(radiusNum) && radiusNum <= 1000) {
-                                  return String(radiusNum);
+                                const draftNum = Number(designatedRadiusDraft);
+                                if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum <= 1000) {
+                                  return designatedRadiusDraft;
                                 }
                                 return '';
                               })()}
                               onChange={(e) => {
                                 const value = e.target.value;
+                                const valueNum = Number(value);
+                                if (value === '' || (!Number.isNaN(valueNum) && valueNum >= 1 && valueNum <= 1000)) {
+                                  setDesignatedRadiusDraft(value);
+                                }
+                              }}
+                              onBlur={() => {
+                                const value = designatedRadiusDraft;
+                                if (value === '') {
+                                  handleChange('designated_radius', '');
+                                  return;
+                                }
                                 const radiusNum = parseInt(value, 10);
-                                if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
-                                  handleChange('designated_radius', value ? `${value}m` : '');
-                                  
+                                const isFixed = fixedRadiusOptions.includes(radiusNum);
+                                if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
+                                  handleChange('designated_radius', `${radiusNum}m`);
                                   // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                                  if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                  if (radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
                                     setShowRadiusWarning(true);
                                     setHasShownRadiusWarning(true);
-                                  } else if (!isNaN(radiusNum) && radiusNum > 50) {
+                                  } else if (radiusNum > 50) {
                                     // 50mを超えた場合は警告表示フラグをリセット
                                     setHasShownRadiusWarning(false);
                                   }
@@ -2655,18 +2668,20 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           <span className="text-xs text-gray-500">選択（1000m以上）</span>
                           <select
                             value={(() => {
-                              const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
-                              if (!isNaN(radiusNum) && radiusNum >= 1000) {
-                                return fixedRadiusOptions.includes(radiusNum) ? String(radiusNum) : '';
+                              const draftNum = Number(designatedRadiusDraft);
+                              if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum >= 1000) {
+                                return fixedRadiusOptions.includes(draftNum) ? String(draftNum) : '';
                               }
                               return '';
                             })()}
                             onChange={(e) => {
                               const value = e.target.value;
                               if (!value) {
+                                setDesignatedRadiusDraft('');
                                 handleChange('designated_radius', '');
                                 return;
                               }
+                              setDesignatedRadiusDraft(value);
                               handleChange('designated_radius', `${value}m`);
                             }}
                             className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
@@ -2678,8 +2693,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                           </select>
                         </div>
                       </div>
-                      {formData.designated_radius && (() => {
-                        const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
+                      {designatedRadiusDraft && (() => {
+                        const radiusNum = parseInt(String(designatedRadiusDraft).replace('m', ''), 10);
                         if (isNaN(radiusNum)) {
                           return (
                             <p className="text-sm text-red-600 flex items-center gap-1">
@@ -2972,23 +2987,34 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                             step="1"
                             placeholder="1-1000"
                             value={(() => {
-                              const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
-                              if (!isNaN(radiusNum) && radiusNum <= 1000) {
-                                return String(radiusNum);
+                              const draftNum = Number(designatedRadiusDraft);
+                              if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum <= 1000) {
+                                return designatedRadiusDraft;
                               }
                               return '';
                             })()}
                             onChange={(e) => {
                               const value = e.target.value;
+                              const valueNum = Number(value);
+                              if (value === '' || (!Number.isNaN(valueNum) && valueNum >= 1 && valueNum <= 1000)) {
+                                setDesignatedRadiusDraft(value);
+                              }
+                            }}
+                            onBlur={() => {
+                              const value = designatedRadiusDraft;
+                              if (value === '') {
+                                handleChange('designated_radius', '');
+                                return;
+                              }
                               const radiusNum = parseInt(value, 10);
-                              if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
-                                handleChange('designated_radius', value ? `${value}m` : '');
-                                
+                              const isFixed = fixedRadiusOptions.includes(radiusNum);
+                              if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
+                                handleChange('designated_radius', `${radiusNum}m`);
                                 // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                                if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                if (radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
                                   setShowRadiusWarning(true);
                                   setHasShownRadiusWarning(true);
-                                } else if (!isNaN(radiusNum) && radiusNum > 50) {
+                                } else if (radiusNum > 50) {
                                   // 50mを超えた場合は警告表示フラグをリセット
                                   setHasShownRadiusWarning(false);
                                 }
@@ -3003,18 +3029,20 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         <span className="text-xs text-gray-500">選択（1000m以上）</span>
                         <select
                           value={(() => {
-                            const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
-                            if (!isNaN(radiusNum) && radiusNum >= 1000) {
-                              return fixedRadiusOptions.includes(radiusNum) ? String(radiusNum) : '';
+                            const draftNum = Number(designatedRadiusDraft);
+                            if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum >= 1000) {
+                              return fixedRadiusOptions.includes(draftNum) ? String(draftNum) : '';
                             }
                             return '';
                           })()}
                           onChange={(e) => {
                             const value = e.target.value;
                             if (!value) {
+                              setDesignatedRadiusDraft('');
                               handleChange('designated_radius', '');
                               return;
                             }
+                            setDesignatedRadiusDraft(value);
                             handleChange('designated_radius', `${value}m`);
                           }}
                           className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
@@ -3026,8 +3054,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         </select>
                       </div>
                     </div>
-                    {formData.designated_radius && (() => {
-                      const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
+                    {designatedRadiusDraft && (() => {
+                      const radiusNum = parseInt(String(designatedRadiusDraft).replace('m', ''), 10);
                       if (isNaN(radiusNum)) {
                         return (
                           <p className="text-sm text-red-600 flex items-center gap-1">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -28,6 +28,8 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
   const [hasShownRadius30mWarning, setHasShownRadius30mWarning] = useState(false);
   // 6ヶ月以上前の日付選択警告ポップアップ表示状態
   const [showDateRangeWarning, setShowDateRangeWarning] = useState(false);
+  // 指定半径のドラフト状態（入力中の値を保持）
+  const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
   const fixedRadiusOptions = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
 
   // 6ヶ月前の日付を計算（YYYY-MM-DD形式）
@@ -45,6 +47,19 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     return selectedDate < sixMonthsAgo;
   };
+
+  // 編集時に既存の指定半径をドラフトに反映
+  useEffect(() => {
+    if (formData.designated_radius) {
+      const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''), 10);
+      if (!isNaN(radiusNum)) {
+        setDesignatedRadiusDraft(String(radiusNum));
+      }
+    } else {
+      setDesignatedRadiusDraft('');
+    }
+  }, [formData.designated_radius]);
+
   return (
     <div className="border-2 border-purple-200 rounded-lg p-6 bg-gradient-to-r from-purple-50 to-pink-50 space-y-6">
       <div className="flex items-center gap-2 mb-4">
@@ -76,19 +91,30 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
                   step="1"
                   placeholder="1-1000"
                   value={(() => {
-                    const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
-                    if (!isNaN(radiusNum) && radiusNum <= 1000) {
-                      return String(radiusNum);
+                    const draftNum = Number(designatedRadiusDraft);
+                    if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum <= 1000) {
+                      return designatedRadiusDraft;
                     }
                     return '';
                   })()}
                   onChange={(e) => {
                     const value = e.target.value;
+                    const valueNum = Number(value);
+                    if (value === '' || (!Number.isNaN(valueNum) && valueNum >= 1 && valueNum <= 1000)) {
+                      setDesignatedRadiusDraft(value);
+                    }
+                  }}
+                  onBlur={() => {
+                    const value = designatedRadiusDraft;
+                    if (value === '') {
+                      onChange('designated_radius', '');
+                      return;
+                    }
                     const radiusNum = parseInt(value, 10);
-                    if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
-                      onChange('designated_radius', value ? `${value}m` : '');
-                      
-                      if (!isNaN(radiusNum) && radiusNum > 0) {
+                    const isFixed = fixedRadiusOptions.includes(radiusNum);
+                    if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
+                      onChange('designated_radius', `${radiusNum}m`);
+                      if (radiusNum > 0) {
                         // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
                         if (radiusNum <= 30 && !hasShownRadius30mWarning) {
                           setShowRadius30mWarning(true);
@@ -118,18 +144,20 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
               <span className="text-xs text-gray-500">選択（1000m以上）</span>
               <select
                 value={(() => {
-                  const radiusNum = parseInt(String(formData.designated_radius || '').replace('m', ''), 10);
-                  if (!isNaN(radiusNum) && radiusNum >= 1000) {
-                    return fixedRadiusOptions.includes(radiusNum) ? String(radiusNum) : '';
+                  const draftNum = Number(designatedRadiusDraft);
+                  if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum >= 1000) {
+                    return fixedRadiusOptions.includes(draftNum) ? String(draftNum) : '';
                   }
                   return '';
                 })()}
                 onChange={(e) => {
                   const value = e.target.value;
                   if (!value) {
+                    setDesignatedRadiusDraft('');
                     onChange('designated_radius', '');
                     return;
                   }
+                  setDesignatedRadiusDraft(value);
                   onChange('designated_radius', `${value}m`);
                 }}
                 className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -141,8 +169,8 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
               </select>
             </div>
           </div>
-          {formData.designated_radius && (() => {
-            const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''));
+          {designatedRadiusDraft && (() => {
+            const radiusNum = parseInt(String(designatedRadiusDraft).replace('m', ''), 10);
             if (isNaN(radiusNum)) {
               return (
                 <p className="text-sm text-red-600 flex items-center gap-1">
