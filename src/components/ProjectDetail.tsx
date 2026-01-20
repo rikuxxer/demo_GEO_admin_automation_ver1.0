@@ -130,6 +130,7 @@ export function ProjectDetail({
   const [showExtractionConditionsPopup, setShowExtractionConditionsPopup] = useState(false);
   const [extractionConditionsSegment, setExtractionConditionsSegment] = useState<Segment | null>(null);
   const [extractionConditionsFormData, setExtractionConditionsFormData] = useState<Partial<PoiInfo>>({});
+  const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
@@ -1560,6 +1561,8 @@ export function ProjectDetail({
                                     onClick={() => {
                                       setExtractionConditionsSegment(segment);
                                       const firstPoi = segmentPois[0];
+                                      const currentRadius = (firstPoi?.designated_radius || segment.designated_radius || '');
+                                      setDesignatedRadiusDraft(currentRadius ? String(currentRadius).replace('m', '') : '');
                                       setExtractionConditionsFormData({
                                         designated_radius: (firstPoi?.designated_radius) || segment.designated_radius || '',
                                         extraction_period: (firstPoi?.extraction_period) || segment.extraction_period || '1month',
@@ -2089,14 +2092,23 @@ export function ProjectDetail({
                         max="10000"
                         step="1"
                         placeholder="0-10000の範囲で自由入力（m単位）"
-                        value={extractionConditionsFormData.designated_radius ? String(extractionConditionsFormData.designated_radius).replace('m', '') : ''}
+                        value={designatedRadiusDraft}
                         onChange={(e) => {
                           const value = e.target.value;
-                          if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 10000)) {
-                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: value ? `${value}m` : '' }));
-                            
-                            const radiusNum = parseInt(value);
-                            if (!isNaN(radiusNum) && radiusNum > 0) {
+                          if (value === '' || (!Number.isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 10000)) {
+                            setDesignatedRadiusDraft(value);
+                          }
+                        }}
+                        onBlur={() => {
+                          const value = designatedRadiusDraft;
+                          if (value === '') {
+                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: '' }));
+                            return;
+                          }
+                          const radiusNum = parseInt(value, 10);
+                          if (!isNaN(radiusNum) && radiusNum >= 0 && radiusNum <= 10000) {
+                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
+                            if (radiusNum > 0) {
                               // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
                               if (radiusNum <= 30 && !hasShownRadius30mWarning) {
                                 setShowRadius30mWarning(true);
@@ -2120,8 +2132,8 @@ export function ProjectDetail({
                       />
                       <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
                     </div>
-                    {extractionConditionsFormData.designated_radius && (() => {
-                      const radiusNum = parseInt(String(extractionConditionsFormData.designated_radius).replace('m', ''));
+                    {designatedRadiusDraft && (() => {
+                      const radiusNum = parseInt(String(designatedRadiusDraft).replace('m', ''), 10);
                       if (isNaN(radiusNum) || radiusNum < 0 || radiusNum > 10000) {
                         return (
                           <p className="text-sm text-red-600 flex items-center gap-1">
@@ -2388,8 +2400,11 @@ export function ProjectDetail({
                   
                   try {
                     // セグメントに条件を保存して今後追加する地点の初期値にも反映
+                    const radiusFromDraft = designatedRadiusDraft === '' 
+                      ? '' 
+                      : (!Number.isNaN(Number(designatedRadiusDraft)) ? `${Number(designatedRadiusDraft)}m` : extractionConditionsFormData.designated_radius);
                     await onSegmentUpdate(extractionConditionsSegment.segment_id, {
-                      designated_radius: extractionConditionsFormData.designated_radius,
+                      designated_radius: radiusFromDraft,
                       extraction_period: extractionConditionsFormData.extraction_period,
                       extraction_period_type: extractionConditionsFormData.extraction_period_type,
                       extraction_start_date: extractionConditionsFormData.extraction_start_date,
@@ -2405,7 +2420,10 @@ export function ProjectDetail({
                     // 既存地点にも適用
                     for (const poi of segmentPois) {
                       if (poi.poi_id) {
-                        await onPoiUpdate(poi.poi_id, extractionConditionsFormData);
+                        await onPoiUpdate(poi.poi_id, {
+                          ...extractionConditionsFormData,
+                          designated_radius: radiusFromDraft,
+                        });
                       }
                     }
 
