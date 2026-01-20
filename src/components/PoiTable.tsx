@@ -89,17 +89,52 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
     if (!editingId || !onUpdate) return;
     
     try {
+      // 編集中の地点を取得
+      const editingPoi = pois.find(p => p.poi_id === editingId);
+      if (!editingPoi) return;
+      
+      // ポリゴン指定の判定
+      let normalizedPolygon: number[][] | undefined = undefined;
+      if (editingPoi.polygon) {
+        if (Array.isArray(editingPoi.polygon)) {
+          normalizedPolygon = editingPoi.polygon;
+        } else if (typeof editingPoi.polygon === 'string') {
+          try {
+            const parsed = JSON.parse(editingPoi.polygon);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              normalizedPolygon = parsed;
+            }
+          } catch (e) {
+            console.warn('Failed to parse polygon data:', e);
+          }
+        }
+      }
+      const isPolygonPoi = editingPoi.poi_type === 'polygon' || (normalizedPolygon && normalizedPolygon.length > 0);
+      
       // 数値型の変換
       const latValue = editForm.latitude;
       const lngValue = editForm.longitude;
       const latStr = latValue !== undefined && latValue !== null ? String(latValue).trim() : '';
       const lngStr = lngValue !== undefined && lngValue !== null ? String(lngValue).trim() : '';
-      const updates = {
+      
+      const updates: Partial<PoiInfo> = {
         ...editForm,
         latitude: latStr !== '' ? Number(latValue) : undefined,
         longitude: lngStr !== '' ? Number(lngValue) : undefined,
         detection_count: editForm.detection_count ? Number(editForm.detection_count) : 1,
       };
+      
+      // ポリゴン指定の地点の場合、編集不可項目を元の値に戻す
+      if (isPolygonPoi) {
+        updates.location_id = editingPoi.location_id; // 地点IDは変更不可
+        updates.address = editingPoi.address; // 住所は変更不可
+        updates.designated_radius = editingPoi.designated_radius; // 半径は変更不可
+        updates.latitude = editingPoi.latitude; // 緯度は変更不可
+        updates.longitude = editingPoi.longitude; // 経度は変更不可
+      } else {
+        // 地点IDは常に変更不可
+        updates.location_id = editingPoi.location_id;
+      }
 
       await onUpdate(editingId, updates);
       setEditingId(null);
@@ -205,6 +240,8 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           onChange={(e) => handleInputChange('location_id', e.target.value)}
                           className="h-8 text-sm w-32"
                           placeholder="地点ID"
+                          disabled={true}
+                          title="地点IDは自動採番のため編集できません"
                         />
                       </div>
                     ) : (
@@ -255,6 +292,8 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           onChange={(e) => handleInputChange('address', e.target.value)}
                           className="h-8 text-sm w-48"
                           placeholder="住所"
+                          disabled={isPolygonPoi}
+                          title={isPolygonPoi ? "ポリゴン指定の地点では住所は編集できません" : ""}
                         />
                       </div>
                     ) : (
@@ -333,6 +372,9 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   {/* 指定半径 */}
                   <td className="px-3 text-center align-middle">
                     {isEditing ? (
+                      isPolygonPoi ? (
+                        <div className="text-sm text-gray-400">指定なし</div>
+                      ) : (
                       <div className="space-y-1 flex flex-col items-center">
                         <div className="flex items-start gap-2 justify-center">
                           <div className="flex flex-col items-center gap-1">
@@ -449,6 +491,9 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   {/* 緯度経度 */}
                   <td className="px-3 text-center align-middle">
                     {isEditing ? (
+                      isPolygonPoi ? (
+                        <div className="text-sm text-gray-400">ポリゴン座標から自動計算</div>
+                      ) : (
                       <div className="flex gap-2 justify-center">
                         <Input
                           value={editForm.latitude || ''}
@@ -463,6 +508,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           placeholder="経度"
                         />
                       </div>
+                      )
                     ) : (
                       <div className="text-sm text-gray-900 text-center">
                         {isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
