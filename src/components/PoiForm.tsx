@@ -122,7 +122,12 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
 
   // CSV関連のState
   // 新規登録時は表形式コピペをデフォルトに、編集時は既存のpoi_typeを使用
-  const [entryMethod, setEntryMethod] = useState<string>(poi ? (poi.poi_type || 'manual') : 'paste');
+  // 来店計測地点の場合は地点名入力が必要なため、manualをデフォルトにする
+  const [entryMethod, setEntryMethod] = useState<string>(
+    poi 
+      ? (poi.poi_type || 'manual') 
+      : (defaultCategory === 'visit_measurement' ? 'manual' : 'paste')
+  );
   const [csvStep, setCsvStep] = useState<'upload' | 'preview'>('upload');
   const [parsedPois, setParsedPois] = useState<Partial<PoiInfo>[]>([]);
   const [csvErrors, setCsvErrors] = useState<CSVValidationError[]>([]);
@@ -1021,7 +1026,15 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         setErrorMessage('市区町村を少なくとも1つ選択してください');
         return;
       }
-    } else if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon') {
+    }
+    // 来店計測地点の場合、計測地点グループが必須（※地点名より先に評価してエラーメッセージを明確化）
+    if (formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') {
+      if (!formData.visit_measurement_group_id) {
+        setErrorMessage('計測地点グループを選択してください。来店計測地点を登録するには、先に計測地点グループを作成する必要があります。');
+        return;
+      }
+    }
+    else if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon') {
       // ポリゴン選択以外の場合、地点名が必須
       if (!formData.poi_name || formData.poi_name.trim() === '') {
         setErrorMessage('地点名は必須項目です');
@@ -1071,14 +1084,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return;
       }
     }
-    // 来店計測地点の場合、計測地点グループが必須
-    if (formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') {
-      if (!formData.visit_measurement_group_id) {
-        setErrorMessage('計測地点グループを選択してください。来店計測地点を登録するには、先に計測地点グループを作成する必要があります。');
-        return;
-      }
-    }
-    
     // 都道府県指定とポリゴン選択以外の場合のみ半径が必須
     if (formData.poi_type !== 'prefecture' && formData.poi_type !== 'polygon' && !formData.designated_radius) {
       setErrorMessage('指定半径は必須項目です');
@@ -1575,7 +1580,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                 • <strong>地点名</strong>: 必須<br />
                                 • <strong>住所</strong>: 必須<br />
                                 • <strong>緯度・経度</strong>: 任意（未入力の場合、住所から自動変換されます）<br />
-                                • <strong>地点ID</strong>: 自動採番（入力不要）
+                                • <strong>地点ID</strong>: 自動採番（入力不要）<br />
+                                • <strong>計測地点グループ</strong>: 来店計測地点では必須
                               </p>
                             </div>
                             <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-3">
@@ -1923,7 +1929,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         <p className="text-xs text-gray-500 relative z-10">
                           • ExcelやGoogleスプレッドシートから表をコピーして貼り付けると、表形式で表示されます<br />
                           • タブ区切りまたはカンマ区切りのテキストデータも対応しています<br />
-                          • 地点名と住所は必須です
+                          • 地点名と住所は必須です<br />
+                          • 来店計測地点は計測地点グループの選択が必須です
                         </p>
                       </div>
                       
