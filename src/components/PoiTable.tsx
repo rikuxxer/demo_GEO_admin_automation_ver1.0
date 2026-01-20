@@ -224,7 +224,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         />
                       </div>
                     ) : (
-                      <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} flex flex-col items-center gap-1`}>
+                      <div className="text-sm text-gray-900 flex flex-col items-center gap-1">
                         {poi.poi_type === 'prefecture' ? (
                           <>
                             <div className="max-w-full truncate">{poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}</div>
@@ -258,7 +258,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                       </div>
                     ) : (
                       poi.poi_type === 'prefecture' && poi.cities && poi.cities.length > 0 ? (
-                        <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} flex justify-center`}>
+                        <div className="text-sm text-gray-900 flex justify-center">
                           <div className="flex flex-wrap gap-1 justify-center">
                             {poi.cities.slice(0, 3).map((city, idx) => (
                               <span key={idx} className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">
@@ -324,7 +324,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           </div>
                         </div>
                       ) : (
-                        <div className={isManualRadiusPoi ? "text-base text-gray-900" : isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"}>{poi.address || '-'}</div>
+                        <div className="text-sm text-gray-900">{poi.address || '-'}</div>
                       )
                     )}
                   </td>
@@ -372,9 +372,9 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         })()}
                       </div>
                     ) : (
-                      <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900 font-medium"} text-center`}>
+                      <div className="text-sm text-gray-900 font-medium text-center">
                         {poi.poi_type === 'prefecture' || isPolygonPoi
-                          ? <span className="text-gray-400 text-xs">指定なし</span>
+                          ? <span className="text-sm text-gray-400">指定なし</span>
                           : (() => {
                               if (!poi.designated_radius) return '-';
                               const radiusValue = parseInt(String(poi.designated_radius).replace('m', ''));
@@ -416,7 +416,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         />
                       </div>
                     ) : (
-                      <div className={`${isPrefecturePoi ? "text-xs text-gray-900" : "text-sm text-gray-900"} text-center`}>
+                      <div className="text-sm text-gray-900 text-center">
                         {isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
                           <div className="text-sm text-gray-600">
                             <div>中心: {(() => {
