@@ -7,7 +7,7 @@ import { Card } from './ui/card';
 import { SummaryCards } from './SummaryCards';
 import { DATA_LINK_STATUS_OPTIONS, MEDIA_OPTIONS, LOCATION_REQUEST_STATUS_OPTIONS } from '../types/schema';
 import type { Project, Segment, PoiInfo } from '../types/schema';
-import { AutoProjectStatus } from '../utils/projectStatus';
+import { AutoProjectStatus, getAutoProjectStatus } from '../utils/projectStatus';
 
 interface StatusManagerProps {
   projects: Project[];
@@ -76,6 +76,7 @@ export function StatusManager({
     const projectName = getProjectName(segment.project_id);
     const project = projects.find(p => p.project_id === segment.project_id);
     const projectStartDate = project?.delivery_start_date;
+    const projectStatusInfo = project ? getAutoProjectStatus(project, segments, pois) : null;
     
     const matchesSearch = 
       segment.segment_id.toLowerCase().includes(segmentSearchTerm.toLowerCase()) ||
@@ -86,8 +87,27 @@ export function StatusManager({
     const matchesMediaFilter = segmentFilterMedia === 'all' || segment.media_id === segmentFilterMedia;
     const matchesDate = matchesDateFilter(projectStartDate);
     const matchesLocationFilter = segmentFilterLocation === 'all' || segment.location_request_status === segmentFilterLocation;
+    const matchesProjectStatus = (() => {
+      if (!statusFilter || statusFilter === 'total') return true;
+      if (!projectStatusInfo) return false;
+      if (statusFilter === 'waiting_input') {
+        return (
+          projectStatusInfo.status === 'waiting_poi' ||
+          projectStatusInfo.status === 'waiting_account_id' ||
+          projectStatusInfo.status === 'waiting_service_id'
+        );
+      }
+      return projectStatusInfo.status === statusFilter;
+    })();
     
-    return matchesSearch && matchesStatusFilter && matchesMediaFilter && matchesDate && matchesLocationFilter;
+    return (
+      matchesSearch &&
+      matchesStatusFilter &&
+      matchesMediaFilter &&
+      matchesDate &&
+      matchesLocationFilter &&
+      matchesProjectStatus
+    );
   });
 
   // セグメントステータスの表示用関数
