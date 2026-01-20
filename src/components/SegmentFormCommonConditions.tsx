@@ -208,15 +208,15 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
         </Label>
         <div className="space-y-3">
           <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
               <input
                 type="radio"
                 checked={formData.extraction_period_type === 'preset'}
-                onChange={() => onChange('extraction_period_type', 'preset')}
+                onChange={() => {}}
                 className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
-                disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
+                disabled={true}
               />
-              <span className="text-sm">プリセット</span>
+              <span className="text-sm">プリセット（使用不可）</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -241,19 +241,9 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
           </div>
 
           {formData.extraction_period_type === 'preset' ? (
-            <select
-              value={formData.extraction_period || ''}
-              onChange={(e) => onChange('extraction_period', e.target.value)}
-              className="w-full px-3 py-2 border border-purple-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              disabled={formData.attribute === 'resident' || formData.attribute === 'worker'}
-            >
-              <option value="">選択してください</option>
-              {EXTRACTION_PERIOD_PRESET_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">プリセット抽出期間は使用できません。期間指定または特定日付を選択してください。</p>
+            </div>
           ) : formData.extraction_period_type === 'specific_dates' ? (
             <div className="space-y-2">
               <p className="text-xs text-purple-700">抽出対象とする日付を複数選択できます（直近6ヶ月まで）</p>

@@ -116,7 +116,7 @@ export function ProjectDetail({
     group_name: '',
     designated_radius: '',
     extraction_period: '1month',
-    extraction_period_type: 'preset',
+    extraction_period_type: 'custom',
     extraction_start_date: '',
     extraction_end_date: '',
     extraction_dates: [],
@@ -426,6 +426,11 @@ export function ProjectDetail({
   const handleGroupSubmit = async () => {
     if (!groupFormData.group_name?.trim()) {
       toast.error('グループ名を入力してください');
+      return;
+    }
+    // 抽出条件の必須チェック（指定半径は必須）
+    if (!groupFormData.designated_radius || groupFormData.designated_radius.trim() === '') {
+      toast.error('指定半径は必須項目です');
       return;
     }
     try {
@@ -1617,7 +1622,11 @@ export function ProjectDetail({
                                       setExtractionConditionsFormData({
                                         designated_radius: (firstPoi?.designated_radius) || segment.designated_radius || '',
                                         extraction_period: (firstPoi?.extraction_period) || segment.extraction_period || '1month',
-                                        extraction_period_type: (firstPoi?.extraction_period_type) || segment.extraction_period_type || 'preset',
+                                        extraction_period_type: (() => {
+                                          const periodType = (firstPoi?.extraction_period_type) || segment.extraction_period_type || 'custom';
+                                          // 既存データに'preset'が含まれている場合は'custom'に変換
+                                          return periodType === 'preset' ? 'custom' : periodType;
+                                        })(),
                                         extraction_start_date: (firstPoi?.extraction_start_date) || segment.extraction_start_date || '',
                                         extraction_end_date: (firstPoi?.extraction_end_date) || segment.extraction_end_date || '',
                                         extraction_dates: (firstPoi?.extraction_dates || segment.extraction_dates || []).slice(),
@@ -1885,7 +1894,11 @@ export function ProjectDetail({
                                           group_name: group.group_name,
                                           designated_radius: group.designated_radius || '',
                                           extraction_period: group.extraction_period || '1month',
-                                          extraction_period_type: group.extraction_period_type || 'preset',
+                                          extraction_period_type: (() => {
+                                            const periodType = group.extraction_period_type || 'custom';
+                                            // 既存データに'preset'が含まれている場合は'custom'に変換
+                                            return periodType === 'preset' ? 'custom' : periodType;
+                                          })(),
                                           extraction_start_date: group.extraction_start_date || '',
                                           extraction_end_date: group.extraction_end_date || '',
                                           extraction_dates: group.extraction_dates || [],
@@ -2292,16 +2305,16 @@ export function ProjectDetail({
                     抽出期間
                   </Label>
                   <div className="flex flex-wrap gap-4 mb-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
                       <input
                         type="radio"
                         name="period_type_popup"
                         checked={extractionConditionsFormData.extraction_period_type === 'preset'}
-                        onChange={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period_type: 'preset' }))}
-                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
+                        onChange={() => {}}
+                        disabled={true}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
-                      <span className="text-sm text-gray-700">プリセット</span>
+                      <span className="text-sm text-gray-700">プリセット（使用不可）</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -2328,22 +2341,8 @@ export function ProjectDetail({
                   </div>
 
                   {extractionConditionsFormData.extraction_period_type === 'preset' ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {EXTRACTION_PERIOD_PRESET_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period: option.value }))}
-                          disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
-                          className={`px-3 py-2 text-sm rounded-md border transition-all ${
-                            extractionConditionsFormData.extraction_period === option.value
-                              ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
-                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                          } ${(extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker') && option.value !== '3month' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800">プリセット抽出期間は使用できません。期間指定または特定日付を選択してください。</p>
                     </div>
                   ) : extractionConditionsFormData.extraction_period_type === 'specific_dates' ? (
                     <div className="space-y-2">
