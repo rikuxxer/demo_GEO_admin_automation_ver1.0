@@ -1631,6 +1631,24 @@ export function ProjectDetail({
                           </div>
 
                           {/* 1. 抽出条件サマリー */}
+                          {segment.location_request_status !== 'not_requested' && (
+                            <div className={`rounded-xl p-4 border mb-3 ${
+                              segment.location_request_status === 'completed' 
+                                ? 'bg-green-50 border-green-200 text-green-800' 
+                                : 'bg-blue-50 border-blue-200 text-blue-800'
+                            }`}>
+                              <div className="flex items-center gap-3">
+                                <CheckCircle className="w-5 h-5" />
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {segment.location_request_status === 'completed' 
+                                      ? 'このセグメントのデータ格納は完了しています' 
+                                      : '現在、管理部によるデータ格納対応中です'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                             <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
                               <Settings2 className="w-4 h-4 text-gray-500" />
@@ -1718,26 +1736,6 @@ export function ProjectDetail({
                             </div>
                           </div>
                           
-                          {/* 2. ステータス / 格納依頼エリア */}
-                          {segment.location_request_status !== 'not_requested' && (
-                            <div className={`rounded-xl p-4 border ${
-                              segment.location_request_status === 'completed' 
-                                ? 'bg-green-50 border-green-200 text-green-800' 
-                                : 'bg-blue-50 border-blue-200 text-blue-800'
-                            }`}>
-                              <div className="flex items-center gap-3">
-                                <CheckCircle className="w-5 h-5" />
-                                <div>
-                                  <p className="text-sm font-medium">
-                                    {segment.location_request_status === 'completed' 
-                                      ? 'この���グメントのデータ格納は完了しています' 
-                                      : '現在、管理部によるデータ格納対応中です'}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
                           {/* 地点リスト */}
                           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
                             <PoiTable
