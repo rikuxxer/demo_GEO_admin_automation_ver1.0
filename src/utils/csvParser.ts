@@ -92,7 +92,7 @@ export function downloadExcelTemplate(type: 'basic' | 'full') {
     ['抽出期間', '直近1ヶ月', 'プリセット（直近1ヶ月〜6ヶ月）または「期間指定」'],
     ['抽出開始日', '', '抽出期間が「期間指定」の場合に入力 (YYYY-MM-DD)'],
     ['抽出終了日', '', '抽出期間が「期間指定」の場合に入力 (YYYY-MM-DD)'],
-    ['指定半径', '500m', '地点からの半径（50m〜10000m）'],
+    ['指定半径', '500m', '地点からの半径（1-1000mは自由入力、1000m以上は選択肢）'],
     ['属性', '検知者', '検知者 / 居住者 / 勤務者'],
   ];
   const wsSegment = XLSX.utils.aoa_to_sheet(segmentSettingsData);

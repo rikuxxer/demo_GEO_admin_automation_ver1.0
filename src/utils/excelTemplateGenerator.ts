@@ -2,36 +2,36 @@ import ExcelJS from 'exceljs';
 
 // スタイル定義
 const REQUIRED_HEADER_STYLE = {
-  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFF0000' } },
+  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1E3A8A' } },
   font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Meiryo' },
   alignment: { horizontal: 'center' as const, vertical: 'middle' as const, wrapText: true },
   border: { top: { style: 'thin' as const }, left: { style: 'thin' as const }, bottom: { style: 'thin' as const }, right: { style: 'thin' as const } }
 };
 
 const OPTIONAL_HEADER_STYLE = {
-  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFD3D3D3' } },
-  font: { bold: true, color: { argb: 'FF000000' }, size: 11, name: 'Meiryo' },
+  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFDBEAFE' } },
+  font: { bold: true, color: { argb: 'FF1E3A8A' }, size: 11, name: 'Meiryo' },
   alignment: { horizontal: 'center' as const, vertical: 'middle' as const, wrapText: true },
   border: { top: { style: 'thin' as const }, left: { style: 'thin' as const }, bottom: { style: 'thin' as const }, right: { style: 'thin' as const } }
 };
 
 const SEGMENT_HEADER_STYLE = {
-  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF4472C4' } },
+  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1D4ED8' } },
   font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Meiryo' },
   alignment: { horizontal: 'center' as const, vertical: 'middle' as const, wrapText: true },
   border: { top: { style: 'thin' as const }, left: { style: 'thin' as const }, bottom: { style: 'thin' as const }, right: { style: 'thin' as const } }
 };
 
 const LOCATION_HEADER_STYLE = {
-  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF548235' } },
+  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2563EB' } },
   font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Meiryo' },
   alignment: { horizontal: 'center' as const, vertical: 'middle' as const, wrapText: true },
   border: { top: { style: 'thin' as const }, left: { style: 'thin' as const }, bottom: { style: 'thin' as const }, right: { style: 'thin' as const } }
 };
 
 const SAMPLE_ROW_STYLE = {
-  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFA0A0A0' } },
-  font: { italic: true, color: { argb: 'FF303030' }, name: 'Meiryo' },
+  fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFEFF6FF' } },
+  font: { italic: true, color: { argb: 'FF1E3A8A' }, name: 'Meiryo' },
   border: { top: { style: 'thin' as const }, left: { style: 'thin' as const }, bottom: { style: 'thin' as const }, right: { style: 'thin' as const } }
 };
 
@@ -88,9 +88,11 @@ async function createGuideSheet(workbook: ExcelJS.Workbook) {
     [''],
     ['⚠️ 注意事項'],
     ['・このテンプレートでは【1案件のみ】登録可能です。'],
-    ['・赤色ヘッダー = 必須項目、緑色ヘッダー = 任意項目'],
+    ['・青色ヘッダー = 必須項目、薄い青ヘッダー = 任意項目'],
     ['・地点ID：自動採番されるため入力不要です'],
+    ['・ポリゴン指定はExcelでは登録できません（画面から登録してください）'],
     ['・緯度経度：任意項目です。未入力の場合は住所から自動的に変換されます'],
+    ['・配信範囲（指定半径）：1-1000mは自由入力、1000m以上は選択肢から指定'],
     ['・1行目（ヘッダー）は編集できません。サンプル行を参考に入力行に入力してください。'],
     ['・TG地点と来店計測地点は別々のシートに入力してください。'],
     ['・来店計測地点はセグメントに紐づかず、案件全体で管理されます。'],
@@ -148,9 +150,9 @@ async function createProjectSheet(workbook: ExcelJS.Workbook) {
   const noteRow = sheet.getRow(4);
   noteRow.getCell(1).value = '⚠️ このシートでは1案件のみ登録できます。複数案件を登録する場合は、案件ごとにファイルを分けてください。';
   noteRow.getCell(1).style = {
-    font: { name: 'Meiryo', size: 10, color: { argb: 'FFFF0000' }, bold: true },
+    font: { name: 'Meiryo', size: 10, color: { argb: 'FF1E3A8A' }, bold: true },
     alignment: { vertical: 'middle', horizontal: 'left' },
-    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF0F0' } }
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }
   };
   sheet.mergeCells('A4:F4');
 
@@ -204,17 +206,16 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
     row.getCell(1).dataValidation = { type: 'textLength', operator: 'lessThanOrEqual', formulae: [100], showErrorMessage: true, error: '100文字以内' };
     // 2. 配信先 (Option Col A)
     row.getCell(2).dataValidation = { type: 'list', allowBlank: true, formulae: [`'${optionsSheetName}'!$A$1:$A$2`] };
-    // 3. 配信範囲 (0-10000の範囲で自由入力可能)
-    // 数値入力規則: 0-10000の範囲
-    // テキスト形式（"500m"など）もパーサー側で処理可能
+    // 3. 配信範囲 (1-1000は自由入力、1000以上は選択肢)
     row.getCell(3).dataValidation = {
-      type: 'whole',
-      operator: 'between',
-      formulae: [0, 10000],
+      type: 'custom',
       allowBlank: true,
       showErrorMessage: true,
-      error: '0-10000の範囲で入力してください（例: 500 または 500m）',
-      errorStyle: 'warning'
+      error: '配信範囲は1-1000mは自由入力、1000m以上は選択肢から指定してください',
+      errorStyle: 'warning',
+      formulae: [
+        `OR(C${r}="",AND(ISNUMBER(C${r}),C${r}>=1,C${r}<=1000),COUNTIF('${optionsSheetName}'!$F$1:$F$14,C${r})>0)`
+      ]
     };
     // 4. 抽出期間 (Option Col B - 日本語あり)
     // プルダウンで選択可能（対象者が「居住者」等の場合はパーサー側で「直近3ヶ月」に強制変換）
@@ -408,7 +409,8 @@ async function createOptionsSheet(workbook: ExcelJS.Workbook) {
     B: ['直近1ヶ月', '直近2ヶ月', '直近3ヶ月', '直近4ヶ月', '直近5ヶ月', '直近6ヶ月', '期間指定'], // 抽出期間
     C: ['検知者', '居住者', '勤務者', '居住者&勤務者'], // 対象者（居住者&勤務者を追加）
     D: ['1回以上', '2回以上', '3回以上', '4回以上', '5回以上'], // 検知回数
-    E: ['3分以上', '5分以上', '10分以上', '15分以上', '30分以上'] // 滞在時間
+    E: ['3分以上', '5分以上', '10分以上', '15分以上', '30分以上'], // 滞在時間
+    F: [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000] // 配信範囲（固定）
   };
 
   // データの書き込み
