@@ -294,6 +294,10 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   const [bulkPoiCategory, setBulkPoiCategory] = useState<'tg' | 'visit_measurement'>(defaultCategory || 'tg');
 
   const handleEntryMethodChange = (value: string) => {
+    // 来店計測地点の編集時はentryMethodを'manual'に固定
+    if (poi && (poi.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement')) {
+      return; // entryMethodの変更を無効化
+    }
     setEntryMethod(value);
     if (value === 'prefecture') {
       handleChange('poi_type', 'prefecture');
@@ -2601,20 +2605,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       ※ セグメント共通条件が設定されていますが、地点ごとに個別の抽出条件を設定することも可能です。
                     </p>
                   )}
-                </div>
-              )}
-              {/* 来店計測地点の場合、グループの抽出条件を表示（編集時、entryMethodがmanual以外） */}
-              {poi && entryMethod !== 'manual' && (poi.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') && selectedGroup && (
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-blue-900 mb-2">グループの抽出条件</p>
-                    <p className="text-xs text-blue-700 mb-1">
-                      この地点は「{selectedGroup.group_name}」グループの抽出条件が適用されます。
-                    </p>
-                    <p className="text-xs text-blue-600">
-                      抽出条件を変更する場合は、グループの編集から変更してください。
-                    </p>
-                  </div>
                 </div>
               )}
 
