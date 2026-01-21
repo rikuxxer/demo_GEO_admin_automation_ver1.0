@@ -46,7 +46,15 @@ export function ProjectForm({ isOpen, onClose, onSubmit }: ProjectFormProps) {
     
     // 必須フィールドのバリデーション
     if (!formData.advertiser_name || !formData.appeal_point || !formData.delivery_start_date || !formData.delivery_end_date) {
-      alert('必須項目を入力��てください');
+      alert('必須項目を入力してください');
+      return;
+    }
+
+    // 配信期間の整合性チェック（開始日 <= 終了日）
+    const start = new Date(formData.delivery_start_date);
+    const end = new Date(formData.delivery_end_date);
+    if (start.getTime() > end.getTime()) {
+      alert('配信終了日は配信開始日以降の日付を指定してください');
       return;
     }
 
