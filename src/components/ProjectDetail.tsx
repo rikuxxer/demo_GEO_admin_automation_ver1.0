@@ -2611,6 +2611,9 @@ export function ProjectDetail({
               <SegmentFormCommonConditions
                 formData={groupFormData as Partial<Segment>}
                 onChange={(field, value) => setGroupFormData(prev => ({ ...prev, [field]: value }))}
+                titleLabel="来訪計測条件"
+                extractionLabel="計測期間"
+                noteLabel="※ このグループに属する全地点に同じ条件が適用されます"
               />
             </div>
             <div className="flex justify-end gap-2 pt-4 border-t">

@@ -17,9 +17,16 @@ import {
 interface SegmentFormCommonConditionsProps {
   formData: Partial<Segment>;
   onChange: (field: string, value: any) => void;
+  // 文言上書き用（訪問計測向けに利用）
+  titleLabel?: string;
+  extractionLabel?: string;
+  noteLabel?: string;
 }
 
-export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormCommonConditionsProps) {
+export function SegmentFormCommonConditions({ formData, onChange, titleLabel, extractionLabel, noteLabel }: SegmentFormCommonConditionsProps) {
+  const headingText = titleLabel ?? 'セグメント共通条件';
+  const periodLabel = extractionLabel ?? '抽出期間';
+  const noteText = noteLabel ?? '※ このセグメントに属する全地点に同じ条件が適用されます';
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
@@ -64,11 +71,11 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
     <div className="border-2 border-purple-200 rounded-lg p-6 bg-gradient-to-r from-purple-50 to-pink-50 space-y-6">
       <div className="flex items-center gap-2 mb-4">
         <Settings className="w-5 h-5 text-purple-600" />
-        <h3 className="font-medium text-purple-900">セグメント共通条件</h3>
+        <h3 className="font-medium text-purple-900">{headingText}</h3>
         <Badge className="bg-purple-600 text-white ml-2">全地点に適用</Badge>
       </div>
       <p className="text-sm text-purple-800 mb-4">
-        ※ このセグメントに属する全地点に同じ条件が適用されます
+        {noteText}
       </p>
 
       {/* 指定半径 */}
@@ -200,11 +207,11 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
         </div>
       </div>
 
-      {/* 抽出期間 */}
+      {/* 抽出期間 / 計測期間 */}
       <div>
         <Label className="block mb-2 flex items-center gap-2">
           <Calendar className="w-4 h-4 text-purple-600" />
-          抽出期間 <span className="text-red-600">*</span>
+          {periodLabel} <span className="text-red-600">*</span>
         </Label>
         <div className="space-y-3">
           <div className="flex flex-wrap gap-4">
