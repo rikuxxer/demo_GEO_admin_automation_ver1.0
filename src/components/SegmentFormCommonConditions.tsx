@@ -448,7 +448,7 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
             <AlertDialogDescription className="pt-4">
               <div className="space-y-2">
                 <p className="text-base font-medium text-gray-900">
-                  指定半径が30m以下の場合は配信ボリュームが不足する場合があります。
+                  指定半径が30m以下の場合、来店数が0になる可能性があります。
                 </p>
               </div>
             </AlertDialogDescription>
@@ -472,7 +472,7 @@ export function SegmentFormCommonConditions({ formData, onChange }: SegmentFormC
             <AlertDialogDescription className="pt-4">
               <div className="space-y-2">
                 <p className="text-base font-medium text-gray-900">
-                  指定半径が30m以下の場合は配信ボリュームが不足する場合があります。
+                  指定半径が30m以下の場合、来店数が0になる可能性があります。
                 </p>
               </div>
             </AlertDialogDescription>
