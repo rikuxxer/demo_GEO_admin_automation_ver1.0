@@ -104,9 +104,11 @@ export function ProjectDetail({
   const [editedProject, setEditedProject] = useState<Partial<Project>>({});
   const [showSegmentSelectForPoi, setShowSegmentSelectForPoi] = useState(false);
   const [expandedSegmentId, setExpandedSegmentId] = useState<string | undefined>(undefined);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | undefined>(undefined);
   
   // Accordionの制御状態を維持（undefinedではなく空文字列を使用）
   const accordionValue = expandedSegmentId ?? '';
+  const groupAccordionValue = expandedGroupId ?? '';
   const [selectedPoiCategory, setSelectedPoiCategory] = useState<'tg' | 'visit_measurement'>('tg');
   
   // 計測地点グループ関連の状態
@@ -1739,6 +1741,19 @@ export function ProjectDetail({
                         await onPoiUpdate(poiId, updates);
                       }}
                     />
+                  ) : visitMeasurementGroups.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-900 font-medium mb-2">グループが作成されていません</p>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        地点を登録するには、まず計測地点グループを作成する必要があります。
+                      </p>
+                      {canEditProject(user, project) && (
+                        <Button onClick={() => { setEditingGroup(null); setShowGroupForm(true); }}>
+                          グループを作成する
+                        </Button>
+                      )}
+                    </div>
                   ) : segments.length === 0 ? (
                     <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                       <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -1751,115 +1766,203 @@ export function ProjectDetail({
                       </Button>
                     </div>
                   ) : (
-                    <div className="space-y-6">
-                      {/* グループ選択とツールバー */}
-                      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <Label className="text-sm font-medium text-gray-700">計測地点グループ</Label>
-                            <select
-                              value={selectedGroupId || ''}
-                              onChange={(e) => setSelectedGroupId(e.target.value || null)}
-                              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
-                            >
-                              <option value="">すべての地点</option>
-                              {visitMeasurementGroups.map(group => (
-                                <option key={group.group_id} value={group.group_id}>
-                                  {group.group_name}
-                                </option>
-                              ))}
-                            </select>
-                            {canEditProject(user, project) && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setEditingGroup(null);
-                                    setShowGroupForm(true);
-                                  }}
-                                  className="border-gray-300 hover:bg-gray-50"
-                                >
-                                  <Plus className="w-3.5 h-3.5 mr-2" />
-                                  グループ作成
-                                </Button>
-                                {selectedGroupId && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        const group = visitMeasurementGroups.find(g => g.group_id === selectedGroupId);
-                                        if (group) {
-                                          setEditingGroup(group);
-                                          setShowGroupForm(true);
-                                        }
-                                      }}
-                                      className="border-gray-300 hover:bg-gray-50"
-                                    >
-                                      <Edit className="w-3.5 h-3.5 mr-2" />
-                                      編集
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleGroupDelete(selectedGroupId)}
-                                      className="border-red-300 text-red-600 hover:bg-red-50"
-                                    >
-                                      <X className="w-3.5 h-3.5 mr-2" />
-                                      削除
-                                    </Button>
-                                  </>
-                                )}
-                              </>
-                            )}
+                    <Accordion type="single" collapsible className="space-y-4" value={groupAccordionValue} onValueChange={(value) => setExpandedGroupId(value || undefined)}>
+                      {visitMeasurementGroups.map((group) => {
+                        const groupPois = pois.filter(poi => poi.poi_category === 'visit_measurement' && poi.visit_measurement_group_id === group.group_id);
+                        const poiCount = groupPois.length;
+                        const poisWithCoords = groupPois.filter(p => p.latitude && p.longitude).length;
+                        
+                        return (
+                        <AccordionItem 
+                          key={group.group_id} 
+                          value={group.group_id}
+                          className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm data-[state=open]:ring-2 data-[state=open]:ring-[#5b5fff]/20 transition-all"
+                        >
+                          <AccordionTrigger className="px-6 py-4 hover:bg-gray-50 hover:no-underline border-b border-transparent data-[state=open]:border-gray-100">
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-lg bg-[#5b5fff]/10 flex items-center justify-center">
+                                  <Package className="w-5 h-5 text-[#5b5fff]" />
+                                </div>
+                                <div className="text-left flex-1 min-w-0">
+                                  <div className="space-y-1">
+                                    <h4 className="text-base font-medium text-gray-900 truncate">
+                                      {group.group_name || '名称未設定'}
+                                    </h4>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Badge variant="outline" className="text-[10px] text-gray-500 font-mono font-normal px-1.5 py-0.5 whitespace-nowrap leading-tight">
+                                        {group.group_id}
+                                      </Badge>
+                                      <div className="w-px h-3 bg-gray-300"></div>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        来店計測地点: <span className="font-medium text-gray-900">{poiCount}件</span>
+                                      </span>
+                                      {poisWithCoords > 0 && (
+                                        <>
+                                          <div className="w-px h-3 bg-gray-300"></div>
+                                          <span className="text-[10px] text-muted-foreground">
+                                            座標あり: <span className="font-medium text-gray-900">{poisWithCoords}件</span>
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          
+                          <AccordionContent className="px-6 py-6 bg-gray-50/50">
+                            {/* コンテンツ内部 */}
+                            <div className="space-y-6">
+
+                          {/* 0. ツールバー */}
+                          <div className="flex items-center justify-end gap-3 flex-nowrap">
+                            <div className="flex gap-2 flex-nowrap">
+                              {canEditProject(user, project) && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingGroup(group);
+                                      setShowGroupForm(true);
+                                    }}
+                                    className="border-gray-300 hover:bg-gray-50"
+                                  >
+                                    <Edit className="w-3.5 h-3.5 mr-2" />
+                                    グループを編集
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleGroupDelete(group.group_id)}
+                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                  >
+                                    <X className="w-3.5 h-3.5 mr-2" />
+                                    グループを削除
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      if (selectedPoiCategory !== 'visit_measurement') {
+                                        setSelectedPoiCategory('visit_measurement');
+                                      }
+                                      setSelectedGroupId(group.group_id);
+                                      const availableSegment = segments.find(s => s.location_request_status === 'not_requested') || segments[0];
+                                      if (availableSegment) {
+                                        handleAddPoi(availableSegment.segment_id);
+                                      } else {
+                                        toast.warning('地点を追加するには、先にセグメントを作成してください。');
+                                      }
+                                    }}
+                                    disabled={segments.length === 0}
+                                    className="bg-[#5b5fff] text-white hover:bg-[#4949dd] disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 mr-2" />
+                                    地点を追加
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            {canEditProject(user, project) && (
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  if (selectedPoiCategory !== 'visit_measurement') {
-                                    setSelectedPoiCategory('visit_measurement');
-                                  }
-                                  // 計測地点グループが登録されていない場合はエラー
-                                  if (visitMeasurementGroups.length === 0) {
-                                    toast.error('来店計測地点を追加するには、先に計測地点グループを作成してください。');
-                                    return;
-                                  }
-                                  const availableSegment = segments.find(s => s.location_request_status === 'not_requested') || segments[0];
-                                  if (availableSegment) {
-                                    handleAddPoi(availableSegment.segment_id);
-                                  } else {
-                                    toast.warning('地点を追加するには、先にセグメントを作成してください。');
-                                  }
-                                }}
-                                disabled={segments.length === 0 || visitMeasurementGroups.length === 0}
-                                className="bg-[#5b5fff] text-white hover:bg-[#4949dd] disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                <Plus className="w-3.5 h-3.5 mr-2" />
-                                地点を追加
-                              </Button>
-                            )}
+
+                          {/* 抽出条件の表示 */}
+                          {group.designated_radius && (
+                            <div className="bg-white rounded-lg border border-gray-200 p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Settings2 className="w-4 h-4 text-gray-600" />
+                                <h5 className="text-sm font-semibold text-gray-900">グループの抽出条件</h5>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                {group.designated_radius && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      <Target className="w-3 h-3 inline mr-1" /> 指定半径
+                                    </p>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {group.designated_radius}
+                                    </p>
+                                  </div>
+                                )}
+                                {group.extraction_period && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      <Calendar className="w-3 h-3 inline mr-1" /> 抽出期間
+                                    </p>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {group.extraction_period_type === 'custom' && group.extraction_start_date && group.extraction_end_date
+                                        ? `${group.extraction_start_date} ~ ${group.extraction_end_date}`
+                                        : group.extraction_period_type === 'specific_dates' && group.extraction_dates && group.extraction_dates.length > 0
+                                        ? `${group.extraction_dates.length}日`
+                                        : EXTRACTION_PERIOD_PRESET_OPTIONS.find(opt => opt.value === group.extraction_period)?.label || group.extraction_period}
+                                    </p>
+                                  </div>
+                                )}
+                                {group.attribute && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      <Users className="w-3 h-3 inline mr-1" /> 対象者
+                                    </p>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {ATTRIBUTE_OPTIONS.find(opt => opt.value === group.attribute)?.label || group.attribute}
+                                    </p>
+                                  </div>
+                                )}
+                                {group.detection_count && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      <Target className="w-3 h-3 inline mr-1" /> 検知回数
+                                    </p>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {group.detection_count}回以上
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                              {(group.detection_time_start || group.detection_time_end || group.stay_time) && (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mt-4 pt-4 border-t border-gray-200">
+                                  {group.detection_time_start && group.detection_time_end && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground mb-1">
+                                        <Clock className="w-3 h-3 inline mr-1" /> 検知時間帯
+                                      </p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {group.detection_time_start} ~ {group.detection_time_end}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {group.stay_time && (
+                                    <div>
+                                      <p className="text-xs text-muted-foreground mb-1">
+                                        <Clock className="w-3 h-3 inline mr-1" /> 滞在時間
+                                      </p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {STAY_TIME_OPTIONS.find(opt => opt.value === group.stay_time)?.label || group.stay_time}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* 地点リスト */}
+                          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                            <PoiTable
+                              pois={groupPois}
+                              onEdit={handleEditPoi}
+                              onUpdate={onPoiUpdate}
+                              onDelete={onPoiDelete}
+                              readOnly={!canEditProject(user, project)}
+                            />
                           </div>
                         </div>
-                      </div>
-
-                      {/* 地点リスト（選択されたグループの地点を表示） */}
-                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                        <PoiTable
-                          pois={pois.filter(poi => {
-                            if (poi.poi_category !== 'visit_measurement') return false;
-                            if (!selectedGroupId) return true;
-                            return poi.visit_measurement_group_id === selectedGroupId;
-                          })}
-                          onEdit={handleEditPoi}
-                          onUpdate={onPoiUpdate}
-                          onDelete={onPoiDelete}
-                          readOnly={!canEditProject(user, project)}
-                        />
-                      </div>
-                    </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                        );
+                      })}
+                    </Accordion>
                   )}
                 </TabsContent>
               </Tabs>
