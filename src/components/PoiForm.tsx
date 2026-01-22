@@ -2926,13 +2926,16 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                 const isFixed = fixedRadiusOptions.includes(radiusNum);
                                 if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
                                   handleChange('designated_radius', `${radiusNum}m`);
-                                  // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                                  if (radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
-                                    setShowRadiusWarning(true);
-                                    setHasShownRadiusWarning(true);
-                                  } else if (radiusNum > 50) {
-                                    // 50mを超えた場合は警告表示フラグをリセット
-                                    setHasShownRadiusWarning(false);
+                                  // 来店計測地点の場合は警告を表示しない
+                                  if (!isVisitMeasurementCategory) {
+                                    // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                                    if (radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                      setShowRadiusWarning(true);
+                                      setHasShownRadiusWarning(true);
+                                    } else if (radiusNum > 50) {
+                                      // 50mを超えた場合は警告表示フラグをリセット
+                                      setHasShownRadiusWarning(false);
+                                    }
                                   }
                                 }
                               }}

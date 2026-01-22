@@ -122,21 +122,25 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                     if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
                       onChange('designated_radius', `${radiusNum}m`);
                       if (radiusNum > 0) {
-                        // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
-                        if (radiusNum <= 30 && !hasShownRadius30mWarning) {
-                          setShowRadius30mWarning(true);
-                          setHasShownRadius30mWarning(true);
-                        } else if (radiusNum > 30 && radiusNum <= 50) {
-                          // 30mを超えて50m以下の場合、30m警告フラグをリセットして50m警告を表示
-                          setHasShownRadius30mWarning(false);
-                          if (!hasShownRadiusWarning) {
-                            setShowRadiusWarning(true);
-                            setHasShownRadiusWarning(true);
+                        // 来店計測グループの場合は警告を表示しない
+                        const isVisitMeasurementGroup = titleLabel === '来訪計測グループ条件';
+                        if (!isVisitMeasurementGroup) {
+                          // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
+                          if (radiusNum <= 30 && !hasShownRadius30mWarning) {
+                            setShowRadius30mWarning(true);
+                            setHasShownRadius30mWarning(true);
+                          } else if (radiusNum > 30 && radiusNum <= 50) {
+                            // 30mを超えて50m以下の場合、30m警告フラグをリセットして50m警告を表示
+                            setHasShownRadius30mWarning(false);
+                            if (!hasShownRadiusWarning) {
+                              setShowRadiusWarning(true);
+                              setHasShownRadiusWarning(true);
+                            }
+                          } else if (radiusNum > 50) {
+                            // 50mを超えた場合、警告表示フラグをリセット
+                            setShowRadiusWarning(false);
+                            setHasShownRadius30mWarning(false);
                           }
-                        } else if (radiusNum > 50) {
-                          // 50mを超えた場合、警告表示フラグをリセット
-                          setHasShownRadiusWarning(false);
-                          setHasShownRadius30mWarning(false);
                         }
                       }
                     }
@@ -438,30 +442,6 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowRadiusWarning(false)}>
-              了解しました
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 半径30m以下の警告ポップアップ */}
-      <AlertDialog open={showRadius30mWarning} onOpenChange={setShowRadius30mWarning}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              配信ボリュームに関する警告
-            </AlertDialogTitle>
-            <AlertDialogDescription className="pt-4">
-              <div className="space-y-2">
-                <p className="text-base font-medium text-gray-900">
-                  指定半径が30m以下の場合、来店数が0になる可能性があります。
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowRadius30mWarning(false)}>
               了解しました
             </AlertDialogAction>
           </AlertDialogFooter>

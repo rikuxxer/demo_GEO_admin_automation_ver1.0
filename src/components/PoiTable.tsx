@@ -399,13 +399,18 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                                     if (value === '' || (!isNaN(radiusNum) && radiusNum >= 1 && radiusNum <= 1000)) {
                                       handleInputChange('designated_radius', value ? `${value}m` : '');
                                       
-                                      // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                                      if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
-                                        setShowRadiusWarning(true);
-                                        setHasShownRadiusWarning(true);
-                                      } else if (!isNaN(radiusNum) && radiusNum > 50) {
-                                        // 50mを超えた場合は警告表示フラグをリセット
-                                        setHasShownRadiusWarning(false);
+                                      // 来店計測地点の場合は警告を表示しない
+                                      const editingPoi = pois.find(p => p.poi_id === editingId);
+                                      const isVisitMeasurement = editingPoi?.poi_category === 'visit_measurement';
+                                      if (!isVisitMeasurement) {
+                                        // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                                        if (!isNaN(radiusNum) && radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                          setShowRadiusWarning(true);
+                                          setHasShownRadiusWarning(true);
+                                        } else if (!isNaN(radiusNum) && radiusNum > 50) {
+                                          // 50mを超えた場合は警告表示フラグをリセット
+                                          setHasShownRadiusWarning(false);
+                                        }
                                       }
                                     }
                                   }}
