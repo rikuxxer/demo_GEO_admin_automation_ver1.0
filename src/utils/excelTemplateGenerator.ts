@@ -365,7 +365,7 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
   applySheetDefaults(sheet);
   const headers = [
     { name: '地点の名前', required: true },
-    { name: 'グループ名', required: true },
+    { name: '来訪計測グループ名', required: true },
     { name: '住所', required: true },
     { name: '緯度（任意）', required: false },
     { name: '経度（任意）', required: false }

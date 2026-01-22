@@ -665,7 +665,7 @@ function parseVisitMeasurementLocationSheet(
     // B列: グループ名（必須）
     const groupName = row[1];
     if (!groupName || String(groupName).trim() === '') {
-      errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: 'グループ名', message: 'グループ名は必須です' });
+      errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '来訪計測グループ名', message: '来訪計測グループ名は必須です' });
     } else {
       loc.group_name_ref = String(groupName).trim();
     }

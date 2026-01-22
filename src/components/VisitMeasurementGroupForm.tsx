@@ -68,7 +68,7 @@ export function VisitMeasurementGroupForm({
 
     // バリデーション
     if (!formData.group_name?.trim()) {
-      toast.error('グループ名を入力してください');
+      toast.error('来訪計測グループ名を入力してください');
       return;
     }
 
@@ -108,7 +108,7 @@ export function VisitMeasurementGroupForm({
           {/* グループ名 */}
           <div>
             <Label htmlFor="group_name" className="block mb-2">
-              グループ名 <span className="text-red-600">*</span>
+              来訪計測グループ名 <span className="text-red-600">*</span>
             </Label>
             <Input
               id="group_name"
@@ -142,7 +142,7 @@ export function VisitMeasurementGroupForm({
                 stay_time?: string;
               }>}
               onChange={handleChange}
-              titleLabel="来訪計測条件"
+              titleLabel="来訪計測グループ条件"
               extractionLabel="計測期間"
               noteLabel="※ このグループに属する全地点に同じ条件が適用されます"
             />
