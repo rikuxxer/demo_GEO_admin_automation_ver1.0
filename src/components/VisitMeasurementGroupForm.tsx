@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, Settings } from 'lucide-react';
 import { VisitMeasurementGroup } from '../types/schema';
 import { SegmentFormCommonConditions } from './SegmentFormCommonConditions';
 import { toast } from 'sonner';
@@ -92,13 +92,25 @@ export function VisitMeasurementGroupForm({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {group ? 'グループを編集' : 'グループを作成'}
-          </h2>
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-[#5b5fff]/10 flex items-center justify-center">
+              <Settings className="w-5 h-5 text-[#5b5fff]" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                計測条件の設定
+              </h2>
+              {group && (
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {group.group_name}
+                </p>
+              )}
+            </div>
+          </div>
           <button
             onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
           >
             <X className="w-5 h-5" />
           </button>
@@ -106,8 +118,8 @@ export function VisitMeasurementGroupForm({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* グループ名 */}
-          <div>
-            <Label htmlFor="group_name" className="block mb-2">
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <Label htmlFor="group_name" className="block mb-2 text-sm font-semibold text-gray-900">
               来訪計測グループ名 <span className="text-red-600">*</span>
             </Label>
             <Input
@@ -115,18 +127,19 @@ export function VisitMeasurementGroupForm({
               value={formData.group_name || ''}
               onChange={(e) => handleChange('group_name', e.target.value)}
               placeholder="例：店舗A、エリア1"
-              className="w-full"
+              className="w-full bg-white"
               required
             />
             {poiCount > 0 && (
-              <p className="text-sm text-gray-500 mt-1">
-                このグループに属する地点数: {poiCount}件
+              <p className="text-sm text-gray-600 mt-2 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5b5fff]"></span>
+                このグループに属する地点数: <span className="font-medium">{poiCount}件</span>
               </p>
             )}
           </div>
 
           {/* 抽出条件 */}
-          <div className="border-t pt-4">
+          <div className="border-t border-gray-200 pt-6">
             <SegmentFormCommonConditions
               formData={formData as Partial<{ 
                 designated_radius?: string;
@@ -142,24 +155,27 @@ export function VisitMeasurementGroupForm({
                 stay_time?: string;
               }>}
               onChange={handleChange}
-              titleLabel="来訪計測グループ条件"
+              titleLabel="計測条件"
               extractionLabel="計測期間"
               noteLabel="※ このグループに属する全地点に同じ条件が適用されます"
             />
           </div>
 
           {/* ボタン */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 bg-gray-50 -mx-6 -mb-6 px-6 py-4 rounded-b-xl">
             <Button
               type="button"
               variant="outline"
               onClick={onCancel}
-              className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="border-gray-300 hover:border-gray-400 text-gray-700 hover:bg-gray-100 px-6"
             >
               キャンセル
             </Button>
-            <Button type="submit" className="bg-[#5b5fff] text-white hover:bg-[#4949dd]">
-              {group ? '更新' : '作成'}
+            <Button 
+              type="submit" 
+              className="bg-[#5b5fff] text-white hover:bg-[#4949dd] px-6 shadow-sm"
+            >
+              {group ? '更新する' : '設定を保存'}
             </Button>
           </div>
         </form>

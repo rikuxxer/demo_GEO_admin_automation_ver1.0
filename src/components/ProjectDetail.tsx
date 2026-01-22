@@ -1905,7 +1905,7 @@ export function ProjectDetail({
                                     className="border-gray-300 hover:bg-gray-50"
                                   >
                                     <Edit className="w-3.5 h-3.5 mr-2" />
-                                    グループを編集
+                                    計測条件の設定
                                   </Button>
                                   <Button
                                     variant="outline"
