@@ -99,11 +99,15 @@ export function VisitMeasurementGroupForm({
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                計測条件の設定
+                {group ? '計測条件の設定' : 'グループを作成'}
               </h2>
-              {group && (
+              {group ? (
                 <p className="text-sm text-gray-500 mt-0.5">
                   {group.group_name}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500 mt-0.5">
+                  来店計測地点グループの計測条件を設定します
                 </p>
               )}
             </div>

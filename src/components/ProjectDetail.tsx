@@ -1840,8 +1840,25 @@ export function ProjectDetail({
                       </Button>
                     </div>
                   ) : (
-                    <Accordion type="single" collapsible className="space-y-4" value={groupAccordionValue} onValueChange={(value) => setExpandedGroupId(value || undefined)}>
-                      {visitMeasurementGroups.map((group) => {
+                    <div className="space-y-4">
+                      {/* グループ作成ボタン */}
+                      {canEditProject(user, project) && (
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={() => {
+                              setEditingGroup(null);
+                              setShowGroupForm(true);
+                            }}
+                            className="bg-[#5b5fff] text-white hover:bg-[#4949dd] shadow-sm"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            グループを作成
+                          </Button>
+                        </div>
+                      )}
+                      
+                      <Accordion type="single" collapsible className="space-y-4" value={groupAccordionValue} onValueChange={(value) => setExpandedGroupId(value || undefined)}>
+                        {visitMeasurementGroups.map((group) => {
                         const groupPois = pois.filter(poi => poi.poi_category === 'visit_measurement' && poi.visit_measurement_group_id === group.group_id);
                         const poiCount = groupPois.length;
                         const poisWithCoords = groupPois.filter(p => p.latitude && p.longitude).length;
@@ -2036,7 +2053,8 @@ export function ProjectDetail({
                     </AccordionItem>
                         );
                       })}
-                    </Accordion>
+                      </Accordion>
+                    </div>
                   )}
                 </TabsContent>
               </Tabs>
