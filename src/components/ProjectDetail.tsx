@@ -110,24 +110,7 @@ export function ProjectDetail({
   
   // 計測地点グループ関連の状態
   const [visitMeasurementGroups, setVisitMeasurementGroups] = useState<VisitMeasurementGroup[]>([]);
-  const [showGroupForm, setShowGroupForm] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<VisitMeasurementGroup | null>(null);
-  const [groupFormData, setGroupFormData] = useState<Partial<VisitMeasurementGroup>>({ 
-    group_name: '',
-    designated_radius: '',
-    extraction_period: '1month',
-    extraction_period_type: 'custom',
-    extraction_start_date: '',
-    extraction_end_date: '',
-    extraction_dates: [],
-    attribute: 'detector',
-    detection_count: 1,
-    detection_time_start: '',
-    detection_time_end: '',
-    stay_time: '',
-  });
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [showGroupExtractionConditions, setShowGroupExtractionConditions] = useState(false);
   
   // ジオコーディング関連の��態
   const [showGeocodeProgress, setShowGeocodeProgress] = useState(false);
@@ -423,77 +406,6 @@ export function ProjectDetail({
   }, [project.project_id]);
 
   // 計測地点グループの作成・更新
-  const handleGroupSubmit = async () => {
-    if (!groupFormData.group_name?.trim()) {
-      toast.error('グループ名を入力してください');
-      return;
-    }
-    // 抽出条件の必須チェック（指定半径は必須）
-    if (!groupFormData.designated_radius || groupFormData.designated_radius.trim() === '') {
-      toast.error('指定半径は必須項目です');
-      return;
-    }
-    try {
-      if (editingGroup) {
-        await bigQueryService.updateVisitMeasurementGroup(editingGroup.group_id, {
-          group_name: groupFormData.group_name.trim(),
-          designated_radius: groupFormData.designated_radius,
-          extraction_period: groupFormData.extraction_period,
-          extraction_period_type: groupFormData.extraction_period_type,
-          extraction_start_date: groupFormData.extraction_start_date,
-          extraction_end_date: groupFormData.extraction_end_date,
-          extraction_dates: groupFormData.extraction_dates,
-          attribute: groupFormData.attribute,
-          detection_count: groupFormData.detection_count,
-          detection_time_start: groupFormData.detection_time_start,
-          detection_time_end: groupFormData.detection_time_end,
-          stay_time: groupFormData.stay_time,
-        });
-        toast.success('グループを更新しました');
-      } else {
-        const newGroup = await bigQueryService.createVisitMeasurementGroup({
-          project_id: project.project_id,
-          group_name: groupFormData.group_name.trim(),
-          designated_radius: groupFormData.designated_radius,
-          extraction_period: groupFormData.extraction_period,
-          extraction_period_type: groupFormData.extraction_period_type,
-          extraction_start_date: groupFormData.extraction_start_date,
-          extraction_end_date: groupFormData.extraction_end_date,
-          extraction_dates: groupFormData.extraction_dates,
-          attribute: groupFormData.attribute,
-          detection_count: groupFormData.detection_count,
-          detection_time_start: groupFormData.detection_time_start,
-          detection_time_end: groupFormData.detection_time_end,
-          stay_time: groupFormData.stay_time,
-        });
-        console.log('Created group:', newGroup);
-        toast.success('グループを作成しました');
-      }
-      const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
-      console.log('Loaded groups:', groups);
-      setVisitMeasurementGroups(groups);
-      setShowGroupForm(false);
-      setEditingGroup(null);
-      setGroupFormData({ 
-        group_name: '',
-        designated_radius: '',
-        extraction_period: '1month',
-        extraction_period_type: 'preset',
-        extraction_start_date: '',
-        extraction_end_date: '',
-        extraction_dates: [],
-        attribute: 'detector',
-        detection_count: 1,
-        detection_time_start: '',
-        detection_time_end: '',
-        stay_time: '',
-      });
-    } catch (error) {
-      console.error('Error saving group:', error);
-      const errorMessage = error instanceof Error ? error.message : '不明なエラー';
-      toast.error(`グループの保存に失敗しました: ${errorMessage}`);
-    }
-  };
 
   // 計測地点グループの削除
   const handleGroupDelete = async (groupId: string) => {
@@ -1856,67 +1768,6 @@ export function ProjectDetail({
                             </select>
                             {canEditProject(user, project) && (
                               <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setEditingGroup(null);
-                                    setGroupFormData({ 
-                                      group_name: '',
-                                      designated_radius: '',
-                                      extraction_period: '1month',
-                                      extraction_period_type: 'preset',
-                                      extraction_start_date: '',
-                                      extraction_end_date: '',
-                                      extraction_dates: [],
-                                      attribute: 'detector',
-                                      detection_count: 1,
-                                      detection_time_start: '',
-                                      detection_time_end: '',
-                                      stay_time: '',
-                                    });
-                                    setShowGroupForm(true);
-                                  }}
-                                  className="border-gray-300 hover:bg-gray-50"
-                                >
-                                  <Plus className="w-3.5 h-3.5 mr-2" />
-                                  グループ作成
-                                </Button>
-                                {selectedGroupId && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      const group = visitMeasurementGroups.find(g => g.group_id === selectedGroupId);
-                                      if (group) {
-                                        setEditingGroup(group);
-                                        setGroupFormData({ 
-                                          group_name: group.group_name,
-                                          designated_radius: group.designated_radius || '',
-                                          extraction_period: group.extraction_period || '1month',
-                                          extraction_period_type: (() => {
-                                            const periodType = group.extraction_period_type || 'custom';
-                                            // 既存データに'preset'が含まれている場合は'custom'に変換
-                                            return periodType === 'preset' ? 'custom' : periodType;
-                                          })(),
-                                          extraction_start_date: group.extraction_start_date || '',
-                                          extraction_end_date: group.extraction_end_date || '',
-                                          extraction_dates: group.extraction_dates || [],
-                                          attribute: group.attribute || 'detector',
-                                          detection_count: group.detection_count || 1,
-                                          detection_time_start: group.detection_time_start || '',
-                                          detection_time_end: group.detection_time_end || '',
-                                          stay_time: group.stay_time || '',
-                                        });
-                                        setShowGroupForm(true);
-                                      }
-                                    }}
-                                    className="border-gray-300 hover:bg-gray-50"
-                                  >
-                                    <Edit className="w-3.5 h-3.5 mr-2" />
-                                    編集
-                                  </Button>
-                                )}
                                 {selectedGroupId && (
                                   <Button
                                     variant="outline"
@@ -2057,6 +1908,27 @@ export function ProjectDetail({
             defaultCategory={selectedPoiCategory}
             defaultGroupId={selectedPoiCategory === 'visit_measurement' ? selectedGroupId : undefined}
             visitMeasurementGroups={visitMeasurementGroups}
+            onGroupCreate={async (groupData) => {
+              const newGroup = await bigQueryService.createVisitMeasurementGroup({
+                project_id: project.project_id,
+                group_name: groupData.group_name!.trim(),
+                designated_radius: groupData.designated_radius,
+                extraction_period: groupData.extraction_period,
+                extraction_period_type: groupData.extraction_period_type,
+                extraction_start_date: groupData.extraction_start_date,
+                extraction_end_date: groupData.extraction_end_date,
+                extraction_dates: groupData.extraction_dates,
+                attribute: groupData.attribute,
+                detection_count: groupData.detection_count,
+                detection_time_start: groupData.detection_time_start,
+                detection_time_end: groupData.detection_time_end,
+                stay_time: groupData.stay_time,
+              });
+              // グループ一覧を更新
+              const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
+              setVisitMeasurementGroups(groups);
+              return { group_id: newGroup.group_id, group_name: newGroup.group_name };
+            }}
             onSubmit={(poiData) => {
               if (editingPoi && editingPoi.poi_id) {
                 onPoiUpdate(editingPoi.poi_id, poiData);
@@ -2587,67 +2459,6 @@ export function ProjectDetail({
         </div>
       )}
 
-      {/* 計測地点グループ作成・編集ダイアログ */}
-      <Dialog open={showGroupForm} onOpenChange={setShowGroupForm}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingGroup ? 'グループを編集' : 'グループを作成'}</DialogTitle>
-            <DialogDescription>
-              計測地点グループの名前と抽出条件を設定してください（このグループに属する全地点に同じ抽出条件が適用されます）
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6">
-            <div>
-              <Label htmlFor="group_name">グループ名 <span className="text-red-600">*</span></Label>
-              <Input
-                id="group_name"
-                value={groupFormData.group_name || ''}
-                onChange={(e) => setGroupFormData(prev => ({ ...prev, group_name: e.target.value }))}
-                placeholder="例：店舗A、エリア1"
-                className="mt-2"
-              />
-            </div>
-            <div className="border-t pt-4">
-              <SegmentFormCommonConditions
-                formData={groupFormData as Partial<Segment>}
-                onChange={(field, value) => setGroupFormData(prev => ({ ...prev, [field]: value }))}
-                titleLabel="来訪計測条件"
-                extractionLabel="計測期間"
-                noteLabel="※ このグループに属する全地点に同じ条件が適用されます"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowGroupForm(false);
-                  setEditingGroup(null);
-                  setGroupFormData({ 
-                    group_name: '',
-                    designated_radius: '',
-                    extraction_period: '1month',
-                    extraction_period_type: 'preset',
-                    extraction_start_date: '',
-                    extraction_end_date: '',
-                    extraction_dates: [],
-                    attribute: 'detector',
-                    detection_count: 1,
-                    detection_time_start: '',
-                    detection_time_end: '',
-                    stay_time: '',
-                  });
-                }}
-                className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                キャンセル
-              </Button>
-              <Button onClick={handleGroupSubmit}>
-                {editingGroup ? '更新' : '作成'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* バックグラウンドジオコーディングステータス */}
       {backgroundGeocodingSegment && (
