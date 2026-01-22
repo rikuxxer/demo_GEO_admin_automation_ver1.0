@@ -161,22 +161,42 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
         console.log('✅ セグメント登録完了:', createdSegment);
       }
 
+      // 2.5. 来店計測地点グループを読み込み（グループ名とIDのマップを作成）
+      const groupMap = new Map<string, string>();
+      const existingGroups = await bigQueryService.getVisitMeasurementGroups(createdProject.project_id);
+      for (const group of existingGroups) {
+        groupMap.set(group.group_name, group.group_id);
+      }
+
       // 3. 地点を登録
       let successCount = 0;
       const spreadsheetRows: any[] = []; // スプレッドシート出力用のデータを蓄積
       
       for (const location of result.locations) {
-        // 来店計測地点の場合はセグメント不要
+        // 来店計測地点の場合はセグメント不要、グループ必須
         let segmentId: string | undefined;
         let segmentData: ExcelSegmentData | undefined;
+        let visitMeasurementGroupId: string | undefined;
 
         if (location.poi_category === 'visit_measurement') {
-          // 来店計測地点：セグメント不要
+          // 来店計測地点：セグメント不要、グループ必須
           segmentId = undefined;
           segmentData = undefined;
+          
+          // グループ名からグループIDを取得
+          if (location.group_name_ref) {
+            visitMeasurementGroupId = groupMap.get(location.group_name_ref);
+            if (!visitMeasurementGroupId) {
+              console.error(`❌ グループ「${location.group_name_ref}」が見つかりません。先にグループを作成してください。`);
+              continue;
+            }
+          } else {
+            console.error(`❌ 来店計測地点にはグループ名が必要です`);
+            continue;
+          }
         } else {
           // TG地点：セグメント必須
-          segmentId = segmentMap.get(location.segment_name_ref);
+          segmentId = segmentMap.get(location.segment_name_ref || '');
           if (!segmentId) {
             console.error(`❌ セグメント「${location.segment_name_ref}」が見つかりません`);
             continue;
@@ -192,6 +212,7 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
           longitude: location.longitude,
           project_id: createdProject.project_id,
           segment_id: segmentId, // 来店計測地点の場合はundefined
+          visit_measurement_group_id: visitMeasurementGroupId, // 来店計測地点の場合のみ
           // 手動登録フォームとの整合性のため、poi_typeを設定
           poi_type: 'manual',
           // 地点カテゴリを設定（v4.0で追加）

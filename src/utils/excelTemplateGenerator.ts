@@ -365,6 +365,7 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
   applySheetDefaults(sheet);
   const headers = [
     { name: '地点の名前', required: true },
+    { name: 'グループ名', required: true },
     { name: '住所', required: true },
     { name: '緯度（任意）', required: false },
     { name: '経度（任意）', required: false }
@@ -380,33 +381,34 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
 
   // サンプル行（地点IDは自動採番のため削除）
   const sampleValues = [
-    ['東京タワー', '東京都港区芝公園4-2-8', 35.6585805, 139.7454329],
-    ['スカイツリー', '東京都墨田区押上1-1-2', 35.710063, 139.8107]
+    ['東京タワー', '店舗A', '東京都港区芝公園4-2-8', 35.6585805, 139.7454329],
+    ['スカイツリー', '店舗B', '東京都墨田区押上1-1-2', 35.710063, 139.8107]
   ];
 
   sampleValues.forEach((vals, idx) => {
     const r = sheet.getRow(idx + 2);
     r.values = vals;
-    for (let c = 1; c <= 4; c++) r.getCell(c).style = SAMPLE_ROW_STYLE;
+    for (let c = 1; c <= 5; c++) r.getCell(c).style = SAMPLE_ROW_STYLE;
   });
 
   const maxRows = 1000;
 
   for (let r = 4; r <= maxRows; r++) {
     const row = sheet.getRow(r);
-    for (let c = 1; c <= 4; c++) {
+    for (let c = 1; c <= 5; c++) {
       row.getCell(c).style = EDITABLE_CELL_STYLE;
     }
 
     // 入力規則
     row.getCell(1).dataValidation = { type: 'textLength', operator: 'lessThanOrEqual', formulae: [100] };
-    row.getCell(2).dataValidation = { type: 'textLength', operator: 'lessThanOrEqual', formulae: [200] };
-    row.getCell(3).dataValidation = { type: 'decimal', operator: 'between', formulae: [-90, 90] };
-    row.getCell(4).dataValidation = { type: 'decimal', operator: 'between', formulae: [-180, 180] };
+    row.getCell(2).dataValidation = { type: 'textLength', operator: 'lessThanOrEqual', formulae: [100] };
+    row.getCell(3).dataValidation = { type: 'textLength', operator: 'lessThanOrEqual', formulae: [200] };
+    row.getCell(4).dataValidation = { type: 'decimal', operator: 'between', formulae: [-90, 90] };
+    row.getCell(5).dataValidation = { type: 'decimal', operator: 'between', formulae: [-180, 180] };
   }
 
   sheet.columns = [
-    { width: 30 }, { width: 40 }, { width: 15 }, { width: 15 }
+    { width: 30 }, { width: 20 }, { width: 40 }, { width: 15 }, { width: 15 }
   ];
 
   sheet.views = [{ state: 'frozen', ySplit: 1 }];

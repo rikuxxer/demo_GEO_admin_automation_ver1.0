@@ -81,7 +81,8 @@ export interface ExcelSegmentData {
 }
 
 export interface ExcelLocationData {
-  segment_name_ref: string;
+  segment_name_ref?: string; // セグメント名参照（TG地点の場合）
+  group_name_ref?: string; // グループ名参照（来店計測地点の場合）
   poi_name: string;
   address?: string;
   latitude?: number;
@@ -661,17 +662,25 @@ function parseVisitMeasurementLocationSheet(
       _rowNum: rowNum
     };
 
-    // B列: 住所
-    if (row[1]) loc.address = String(row[1]).trim();
+    // B列: グループ名（必須）
+    const groupName = row[1];
+    if (!groupName || String(groupName).trim() === '') {
+      errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: 'グループ名', message: 'グループ名は必須です' });
+    } else {
+      loc.group_name_ref = String(groupName).trim();
+    }
 
-    // C, D列: 緯度経度
-    if (row[2]) {
-      const lat = Number(row[2]);
+    // C列: 住所
+    if (row[2]) loc.address = String(row[2]).trim();
+
+    // D, E列: 緯度経度
+    if (row[3]) {
+      const lat = Number(row[3]);
       if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
       else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '緯度', message: '-90〜90で指定してください' });
     }
-    if (row[3]) {
-      const lng = Number(row[3]);
+    if (row[4]) {
+      const lng = Number(row[4]);
       if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
       else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '経度', message: '-180〜180で指定してください' });
     }
