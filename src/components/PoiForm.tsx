@@ -35,10 +35,9 @@ interface PoiFormProps {
   onSubmit: (poi: Partial<PoiInfo>) => void;
   onBulkSubmit?: (pois: Partial<PoiInfo>[]) => void;
   onCancel: () => void;
-  onGroupCreate?: (group: Partial<{ project_id: string; group_name: string; designated_radius?: string; extraction_period?: string; extraction_period_type?: 'preset' | 'custom' | 'specific_dates'; extraction_start_date?: string; extraction_end_date?: string; extraction_dates?: string[]; attribute?: 'detector' | 'resident' | 'worker' | 'resident_and_worker'; detection_count?: number; detection_time_start?: string; detection_time_end?: string; stay_time?: string }>) => Promise<{ group_id: string; group_name: string }>;
 }
 
-export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [], poi, defaultCategory, defaultGroupId, visitMeasurementGroups = [], onSubmit, onBulkSubmit, onCancel, onGroupCreate }: PoiFormProps) {
+export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [], poi, defaultCategory, defaultGroupId, visitMeasurementGroups = [], onSubmit, onBulkSubmit, onCancel }: PoiFormProps) {
   // このセグメントに属する地点数を確認
   const segmentPoiCount = pois.filter(p => p.segment_id === segmentId).length;
   
@@ -228,21 +227,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // グループ作成用の状態管理（来店計測地点の場合のみ）
-  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [newGroupFormData, setNewGroupFormData] = useState<Partial<Segment>>({
-    designated_radius: '',
-    extraction_period: '1month',
-    extraction_period_type: 'custom',
-    extraction_start_date: '',
-    extraction_end_date: '',
-    extraction_dates: [],
-    attribute: 'detector',
-    detection_count: 1,
-    detection_time_start: '',
-    detection_time_end: '',
-    stay_time: '',
-  });
 
   // CSV関連のState
   // 新規登録時は表形式コピペをデフォルトに、編集時は既存のpoi_typeを使用
@@ -2514,10 +2498,10 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     </div>
                   )}
 
-                  {/* 計測地点グループ選択または作成（来店計測地点の場合のみ） */}
+                  {/* 計測地点グループ選択（来店計測地点の場合のみ） */}
                   {(formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') && (
                     <div className="space-y-4">
-                      {visitMeasurementGroups.length > 0 && !isCreatingGroup ? (
+                      {visitMeasurementGroups.length > 0 ? (
                         <div>
                           <Label htmlFor="visit_measurement_group_id" className="block mb-2">
                             計測地点グループ <span className="text-red-600">*</span>
@@ -2536,126 +2520,21 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                               </option>
                             ))}
                           </select>
-                          {onGroupCreate && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsCreatingGroup(true)}
-                              className="mt-2 w-full border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/5"
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              新しいグループを作成
-                            </Button>
-                          )}
+                          <p className="text-xs text-gray-500 mt-2">
+                            グループが存在しない場合は、先にグループを作成してください。
+                          </p>
                         </div>
                       ) : (
-                        <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-base font-semibold text-blue-900">
-                              {isCreatingGroup ? '新しいグループを作成' : 'グループを作成'}
+                        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertCircle className="w-5 h-5 text-yellow-600" />
+                            <Label className="text-base font-semibold text-yellow-900">
+                              グループが存在しません
                             </Label>
-                            {visitMeasurementGroups.length > 0 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setIsCreatingGroup(false);
-                                  setNewGroupName('');
-                                  setNewGroupFormData({
-                                    designated_radius: '',
-                                    extraction_period: '1month',
-                                    extraction_period_type: 'custom',
-                                    extraction_start_date: '',
-                                    extraction_end_date: '',
-                                    extraction_dates: [],
-                                    attribute: 'detector',
-                                    detection_count: 1,
-                                    detection_time_start: '',
-                                    detection_time_end: '',
-                                    stay_time: '',
-                                  });
-                                }}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                既存グループを選択
-                              </Button>
-                            )}
                           </div>
-                          <div>
-                            <Label htmlFor="new_group_name" className="block mb-2">
-                              グループ名 <span className="text-red-600">*</span>
-                            </Label>
-                            <Input
-                              id="new_group_name"
-                              value={newGroupName}
-                              onChange={(e) => setNewGroupName(e.target.value)}
-                              placeholder="例：店舗A、エリア1"
-                              className="bg-white"
-                            />
-                          </div>
-                          <div className="border-t border-blue-300 pt-4">
-                            <SegmentFormCommonConditions
-                              formData={newGroupFormData}
-                              onChange={(field, value) => setNewGroupFormData(prev => ({ ...prev, [field]: value }))}
-                              titleLabel="来訪計測条件"
-                              extractionLabel="計測期間"
-                              noteLabel="※ このグループに属する全地点に同じ条件が適用されます"
-                            />
-                          </div>
-                          {onGroupCreate && (
-                            <Button
-                              type="button"
-                              onClick={async () => {
-                                if (!newGroupName.trim()) {
-                                  setErrorMessage('グループ名を入力してください');
-                                  return;
-                                }
-                                try {
-                                  const newGroup = await onGroupCreate({
-                                    project_id: projectId,
-                                    group_name: newGroupName.trim(),
-                                    designated_radius: newGroupFormData.designated_radius,
-                                    extraction_period: newGroupFormData.extraction_period,
-                                    extraction_period_type: newGroupFormData.extraction_period_type,
-                                    extraction_start_date: newGroupFormData.extraction_start_date,
-                                    extraction_end_date: newGroupFormData.extraction_end_date,
-                                    extraction_dates: newGroupFormData.extraction_dates,
-                                    attribute: newGroupFormData.attribute,
-                                    detection_count: newGroupFormData.detection_count,
-                                    detection_time_start: newGroupFormData.detection_time_start,
-                                    detection_time_end: newGroupFormData.detection_time_end,
-                                    stay_time: newGroupFormData.stay_time,
-                                  });
-                                  // 作成したグループを自動選択
-                                  handleChange('visit_measurement_group_id', newGroup.group_id);
-                                  setIsCreatingGroup(false);
-                                  setNewGroupName('');
-                                  setNewGroupFormData({
-                                    designated_radius: '',
-                                    extraction_period: '1month',
-                                    extraction_period_type: 'custom',
-                                    extraction_start_date: '',
-                                    extraction_end_date: '',
-                                    extraction_dates: [],
-                                    attribute: 'detector',
-                                    detection_count: 1,
-                                    detection_time_start: '',
-                                    detection_time_end: '',
-                                    stay_time: '',
-                                  });
-                                  toast.success('グループを作成しました');
-                                } catch (error) {
-                                  console.error('グループ作成エラー:', error);
-                                  setErrorMessage('グループの作成に失敗しました');
-                                }
-                              }}
-                              className="w-full bg-[#5b5fff] text-white hover:bg-[#4949dd]"
-                            >
-                              グループを作成して選択
-                            </Button>
-                          )}
+                          <p className="text-sm text-yellow-800">
+                            来店計測地点を追加するには、先に計測地点グループを作成してください。
+                          </p>
                         </div>
                       )}
                     </div>

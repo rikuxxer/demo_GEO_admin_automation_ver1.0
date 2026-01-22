@@ -24,6 +24,7 @@ import { SegmentForm } from './SegmentForm';
 import { SegmentFormCommonConditions } from './SegmentFormCommonConditions';
 import { SegmentTable } from './SegmentTable';
 import { PoiForm } from './PoiForm';
+import { VisitMeasurementGroupForm } from './VisitMeasurementGroupForm';
 import { PoiTable } from './PoiTable';
 import { PoiMapViewer } from './PoiMapViewer';
 import { ProjectEditRequestDialog } from './ProjectEditRequestDialog';
@@ -111,6 +112,8 @@ export function ProjectDetail({
   // 計測地点グループ関連の状態
   const [visitMeasurementGroups, setVisitMeasurementGroups] = useState<VisitMeasurementGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [showGroupForm, setShowGroupForm] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<VisitMeasurementGroup | null>(null);
   
   // ジオコーディング関連の��態
   const [showGeocodeProgress, setShowGeocodeProgress] = useState(false);
@@ -1768,16 +1771,45 @@ export function ProjectDetail({
                             </select>
                             {canEditProject(user, project) && (
                               <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingGroup(null);
+                                    setShowGroupForm(true);
+                                  }}
+                                  className="border-gray-300 hover:bg-gray-50"
+                                >
+                                  <Plus className="w-3.5 h-3.5 mr-2" />
+                                  グループ作成
+                                </Button>
                                 {selectedGroupId && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleGroupDelete(selectedGroupId)}
-                                    className="border-red-300 text-red-600 hover:bg-red-50"
-                                  >
-                                    <X className="w-3.5 h-3.5 mr-2" />
-                                    削除
-                                  </Button>
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const group = visitMeasurementGroups.find(g => g.group_id === selectedGroupId);
+                                        if (group) {
+                                          setEditingGroup(group);
+                                          setShowGroupForm(true);
+                                        }
+                                      }}
+                                      className="border-gray-300 hover:bg-gray-50"
+                                    >
+                                      <Edit className="w-3.5 h-3.5 mr-2" />
+                                      編集
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleGroupDelete(selectedGroupId)}
+                                      className="border-red-300 text-red-600 hover:bg-red-50"
+                                    >
+                                      <X className="w-3.5 h-3.5 mr-2" />
+                                      削除
+                                    </Button>
+                                  </>
                                 )}
                               </>
                             )}
@@ -1908,27 +1940,6 @@ export function ProjectDetail({
             defaultCategory={selectedPoiCategory}
             defaultGroupId={selectedPoiCategory === 'visit_measurement' ? selectedGroupId : undefined}
             visitMeasurementGroups={visitMeasurementGroups}
-            onGroupCreate={async (groupData) => {
-              const newGroup = await bigQueryService.createVisitMeasurementGroup({
-                project_id: project.project_id,
-                group_name: groupData.group_name!.trim(),
-                designated_radius: groupData.designated_radius,
-                extraction_period: groupData.extraction_period,
-                extraction_period_type: groupData.extraction_period_type,
-                extraction_start_date: groupData.extraction_start_date,
-                extraction_end_date: groupData.extraction_end_date,
-                extraction_dates: groupData.extraction_dates,
-                attribute: groupData.attribute,
-                detection_count: groupData.detection_count,
-                detection_time_start: groupData.detection_time_start,
-                detection_time_end: groupData.detection_time_end,
-                stay_time: groupData.stay_time,
-              });
-              // グループ一覧を更新
-              const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
-              setVisitMeasurementGroups(groups);
-              return { group_id: newGroup.group_id, group_name: newGroup.group_name };
-            }}
             onSubmit={(poiData) => {
               if (editingPoi && editingPoi.poi_id) {
                 onPoiUpdate(editingPoi.poi_id, poiData);
@@ -1965,6 +1976,67 @@ export function ProjectDetail({
           pois={pois}
           onSubmit={handleSegmentFormSubmit}
           onCancel={handleCancelForm}
+        />
+      )}
+
+      {/* 計測地点グループ作成・編集フォーム */}
+      {showGroupForm && (
+        <VisitMeasurementGroupForm
+          projectId={project.project_id}
+          group={editingGroup}
+          existingGroups={visitMeasurementGroups}
+          pois={pois.filter(p => p.poi_category === 'visit_measurement')}
+          onSubmit={async (groupData) => {
+            try {
+              if (editingGroup) {
+                await bigQueryService.updateVisitMeasurementGroup(editingGroup.group_id, {
+                  group_name: groupData.group_name!.trim(),
+                  designated_radius: groupData.designated_radius,
+                  extraction_period: groupData.extraction_period,
+                  extraction_period_type: groupData.extraction_period_type,
+                  extraction_start_date: groupData.extraction_start_date,
+                  extraction_end_date: groupData.extraction_end_date,
+                  extraction_dates: groupData.extraction_dates,
+                  attribute: groupData.attribute,
+                  detection_count: groupData.detection_count,
+                  detection_time_start: groupData.detection_time_start,
+                  detection_time_end: groupData.detection_time_end,
+                  stay_time: groupData.stay_time,
+                });
+                toast.success('グループを更新しました');
+              } else {
+                await bigQueryService.createVisitMeasurementGroup({
+                  project_id: project.project_id,
+                  group_name: groupData.group_name!.trim(),
+                  designated_radius: groupData.designated_radius,
+                  extraction_period: groupData.extraction_period,
+                  extraction_period_type: groupData.extraction_period_type,
+                  extraction_start_date: groupData.extraction_start_date,
+                  extraction_end_date: groupData.extraction_end_date,
+                  extraction_dates: groupData.extraction_dates,
+                  attribute: groupData.attribute,
+                  detection_count: groupData.detection_count,
+                  detection_time_start: groupData.detection_time_start,
+                  detection_time_end: groupData.detection_time_end,
+                  stay_time: groupData.stay_time,
+                });
+                toast.success('グループを作成しました');
+              }
+              // グループ一覧を更新
+              const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
+              setVisitMeasurementGroups(groups);
+              setShowGroupForm(false);
+              setEditingGroup(null);
+            } catch (error) {
+              console.error('Error saving group:', error);
+              const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+              toast.error(`グループの保存に失敗しました: ${errorMessage}`);
+            }
+          }}
+          onCancel={() => {
+            setShowGroupForm(false);
+            setEditingGroup(null);
+          }}
         />
       )}
 
