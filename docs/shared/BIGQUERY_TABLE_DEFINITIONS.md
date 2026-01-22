@@ -894,6 +894,7 @@ SET OPTIONS(
 - **2025-01-13**: `polygon`フィールドの説明を追加
 - **2025-01-13**: `sheet_exports`と`sheet_export_data`テーブルを追加（全12テーブル）
 - **2026-01-19**: `segments`テーブルに`extraction_dates`カラム（ARRAY<STRING>）を追加。`extraction_period_type`に`'specific_dates'`オプションを追加
+- **2026-01-22**: `segments`テーブルに`poi_category`カラム（STRING）を追加。TG地点/来店計測地点の判定を可能に（UIのタブ情報から自動判定、デフォルトは`'tg'`）
 
 ---
 
