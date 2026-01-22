@@ -510,7 +510,12 @@ class BigQueryService {
   async getSegments(): Promise<Segment[]> {
     try {
       const data = localStorage.getItem(this.segmentStorageKey);
-      return data ? JSON.parse(data) : [];
+      const segments: Segment[] = data ? JSON.parse(data) : [];
+      // 既存データの整合性チェック: poi_categoryが未設定の場合は'tg'を設定
+      return segments.map(segment => ({
+        ...segment,
+        poi_category: segment.poi_category || 'tg',
+      }));
     } catch (error) {
       console.error('Error fetching segments:', error);
       return [];
@@ -577,6 +582,7 @@ class BigQueryService {
         ...segment,
         segment_id: segmentId,
         segment_registered_at: new Date().toISOString(),
+        poi_category: segment.poi_category || 'tg', // デフォルトは'tg'
       };
       segments.unshift(newSegment);
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));
@@ -840,6 +846,11 @@ class BigQueryService {
         locationId = `VM-${String(nextNumber).padStart(3, '0')}`;
       } else {
         // TG地点: セグメント単位で連番を管理
+        // TG地点の場合、segment_idは必須
+        if (!poi.segment_id || poi.segment_id.trim() === '') {
+          throw new Error('TG地点の場合、segment_idは必須です');
+        }
+        
         const segmentPois = pois.filter(p => 
           p.segment_id === poi.segment_id && 
           (p.poi_category === 'tg' || !p.poi_category)
@@ -959,6 +970,11 @@ class BigQueryService {
       
       // TG地点: セグメント単位で連番を割り当て
       for (const [segmentId, segmentPoisData] of tgPoisBySegment.entries()) {
+        // TG地点の場合、segment_idは必須
+        if (!segmentId || segmentId.trim() === '') {
+          throw new Error('TG地点の場合、segment_idは必須です');
+        }
+        
         // 既存の地点から最大番号を取得（同じセグメント）
         const segmentExistingPois = existingPois.filter(p => 
           p.segment_id === segmentId && 

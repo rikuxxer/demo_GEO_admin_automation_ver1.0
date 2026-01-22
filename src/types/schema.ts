@@ -23,6 +23,7 @@ export interface Segment {
   segment_name?: string; // セグメント名（任意入力）
   segment_registered_at: string; // セグメント登録日時（自動採番）
   media_id: string | string[]; // 配信媒体ID（複数選択可。ただしTVer(CTV)は他と併用不可）
+  poi_category?: 'tg' | 'visit_measurement'; // 地点カテゴリ（TG地点/来店計測地点、UIのタブ情報から自動判定）
   location_request_status: string; // 地点依頼ステータス（未依頼、格納対応中、格納完了）営業の依頼確定によって変更
   request_confirmed?: boolean; // 連携依頼フラグ（営業が入力を確定した際にtrue）
   data_link_status: string; // データ連携依頼ステータス（連携依頼前、連携依頼済、連携済）連携依頼後は管理部の手動切り替え
@@ -51,7 +52,7 @@ export interface Segment {
 // 地点情報DB
 export interface PoiInfo {
   project_id: string; // 案件ID（自動採番）
-  segment_id?: string; // セグメントID（自動採番、来店計測地点の場合はNULL）
+  segment_id?: string; // セグメントID（TG地点の場合は必須、来店計測地点の場合はNULL）
   poi_id?: string; // 地点グループID（自動採番）
   
   // 地点情報登録タイプ

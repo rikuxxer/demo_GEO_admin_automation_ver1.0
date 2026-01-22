@@ -27,6 +27,9 @@
 - `segment_id` (STRING, REQUIRED)
 - `project_id` (STRING, REQUIRED)
 - `created_at` (TIMESTAMP)
+
+**オプションフィールド:**
+- `poi_category` (STRING, NULLABLE) - `'tg'` | `'visit_measurement'`（UIのタブ情報から自動判定、デフォルトは`'tg'`）
 - `updated_at` (TIMESTAMP)
 
 **オプションフィールド:**
@@ -182,7 +185,19 @@
 - `group_name` (STRING, REQUIRED)
 
 **オプションフィールド:**
+- `attribute` (STRING, NULLABLE) - `detector`, `resident`, `worker`, `resident_and_worker`
+- `extraction_period` (STRING, NULLABLE) - `1month`, `2month`, `3month`
+- `extraction_period_type` (STRING, NULLABLE) - `preset`, `custom`, `specific_dates`
+- `extraction_start_date` (DATE, NULLABLE)
+- `extraction_end_date` (DATE, NULLABLE)
+- `extraction_dates` (ARRAY<STRING>, NULLABLE)
+- `detection_count` (INTEGER, NULLABLE)
+- `detection_time_start` (TIME, NULLABLE)
+- `detection_time_end` (TIME, NULLABLE)
+- `stay_time` (STRING, NULLABLE)
+- `designated_radius` (STRING, NULLABLE)
 - `created` (TIMESTAMP, NULLABLE)
+- `updated_at` (TIMESTAMP, NULLABLE)
 
 ## スキーマ更新コマンド
 
@@ -218,7 +233,26 @@ cat feature_requests_schema.json
 cat visit_measurement_groups_schema.json
 ```
 
-### 方法2: スキーマを更新（既存フィールドを保持）
+### 方法2: segmentsテーブルにpoi_categoryカラムを追加
+
+**注意**: BigQueryでは、ALTER TABLEでカラムを追加する際にデフォルト値を同時に設定できません。以下の3つのステップに分けて実行する必要があります：
+
+```sql
+-- ステップ1: カラムを追加
+ALTER TABLE `universegeo_dataset.segments`
+ADD COLUMN IF NOT EXISTS poi_category STRING;
+
+-- ステップ2: デフォルト値を設定
+ALTER TABLE `universegeo_dataset.segments`
+ALTER COLUMN poi_category SET DEFAULT 'tg';
+
+-- ステップ3: 既存データにデフォルト値を設定
+UPDATE `universegeo_dataset.segments`
+SET poi_category = 'tg'
+WHERE poi_category IS NULL;
+```
+
+### 方法3: スキーマを更新（既存フィールドを保持）
 
 #### projectsテーブル
 

@@ -1146,10 +1146,28 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return;
       }
     }
+    // segment_idとvisit_measurement_group_idの整合性チェック
+    // 両方が設定されている場合はエラー
+    if (formData.segment_id && formData.visit_measurement_group_id) {
+      setErrorMessage('セグメントIDと来店計測グループIDは同時に設定できません。どちらか一方のみを設定してください。');
+      return;
+    }
+    
+    // どちらも設定されていない場合はエラー
+    if (!formData.segment_id && !formData.visit_measurement_group_id && !segmentId) {
+      setErrorMessage('セグメントIDまたは来店計測グループIDのどちらか一方は必須です。');
+      return;
+    }
+    
     // 来店計測地点の場合、計測地点グループが必須（※地点名より先に評価してエラーメッセージを明確化）
     if (formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') {
       if (!formData.visit_measurement_group_id) {
         setErrorMessage('計測地点グループを選択してください。来店計測地点を登録するには、先に計測地点グループを作成する必要があります。');
+        return;
+      }
+      // 来店計測地点の場合、segment_idが設定されている場合はエラー
+      if (formData.segment_id || segmentId) {
+        setErrorMessage('来店計測地点の場合、セグメントIDは設定できません。');
         return;
       }
       // 来店計測地点の場合、グループの抽出条件（特に指定半径）が設定されているかチェック
@@ -1177,11 +1195,19 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
           return;
         }
       }
-    } else if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon') {
-      // ポリゴン選択以外の場合、地点名が必須
-      if (!formData.poi_name || formData.poi_name.trim() === '') {
-        setErrorMessage('地点名は必須項目です');
+    } else {
+      // TG地点の場合、segment_idが必須
+      if (!formData.segment_id && !segmentId) {
+        setErrorMessage('セグメントIDは必須です。TG地点を登録するには、セグメントを選択する必要があります。');
         return;
+      }
+      
+      if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon') {
+        // ポリゴン選択以外の場合、地点名が必須
+        if (!formData.poi_name || formData.poi_name.trim() === '') {
+          setErrorMessage('地点名は必須項目です');
+          return;
+        }
       }
       
       // ポリゴン指定以外の地点は、ポリゴン指定の地点が存在するセグメントには登録不可（来店計測地点の場合は除外）

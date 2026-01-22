@@ -170,6 +170,7 @@ export function useProjectSystem() {
         project_id: selectedProject.project_id,
         segment_name: segmentData.segment_name,
         media_id: segmentData.media_id || "",
+        poi_category: segmentData.poi_category || 'tg', // デフォルトは'tg'
         location_request_status: segmentData.location_request_status || "not_requested",
         request_confirmed: segmentData.request_confirmed,
         data_link_status: segmentData.data_link_status || "before_request",
@@ -366,9 +367,14 @@ export function useProjectSystem() {
     try {
       if (!selectedProject) return;
 
+      // TG地点の場合、segment_idを確実に設定（poiDataに含まれていても、引数のsegmentIdを優先）
+      const finalSegmentId = (poiData.poi_category === 'visit_measurement') 
+        ? undefined 
+        : (poiData.segment_id || segmentId);
+
       const newPoi = await bigQueryService.createPoi({
         project_id: selectedProject.project_id,
-        segment_id: segmentId,
+        segment_id: finalSegmentId,
         poi_name: poiData.poi_name || "",
         address: poiData.address,
         poi_type: poiData.poi_type,

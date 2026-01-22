@@ -287,11 +287,20 @@ export function ProjectDetail({
   };
 
   const handleSegmentFormSubmit = async (segmentData: Partial<Segment>, copyFromSegmentId?: string) => {
+    // 現在のタブ情報からpoi_categoryを自動判定
+    // 編集時は既存のpoi_categoryを保持、新規作成時は現在のタブから判定
+    const segmentDataWithCategory = {
+      ...segmentData,
+      poi_category: editingSegment 
+        ? (segmentData.poi_category || editingSegment.poi_category || 'tg') // 編集時は既存値を保持
+        : (segmentData.poi_category || selectedPoiCategory || 'tg'), // 新規作成時は現在のタブから判定
+    };
+    
     if (editingSegment) {
-      await onSegmentUpdate(editingSegment.segment_id, segmentData);
+      await onSegmentUpdate(editingSegment.segment_id, segmentDataWithCategory);
     } else {
       // 新規セグメント作成
-      const newSegment = await onSegmentCreate(segmentData);
+      const newSegment = await onSegmentCreate(segmentDataWithCategory);
       
       // 既存セグメントから地点をコピーする場合
       if (copyFromSegmentId && newSegment && onPoiCreateBulk) {
@@ -371,6 +380,8 @@ export function ProjectDetail({
       const poisWithCategory = pois.map(poi => ({
         ...poi,
         poi_category: poi.poi_category || selectedPoiCategory,
+        // TG地点の場合、segment_idを確実に設定
+        segment_id: selectedPoiCategory === 'tg' ? (poi.segment_id || selectedSegmentForPoi) : poi.segment_id,
         visit_measurement_group_id: poi.visit_measurement_group_id || (selectedPoiCategory === 'visit_measurement' && selectedGroupId ? selectedGroupId : undefined),
       }));
       
@@ -2115,6 +2126,8 @@ export function ProjectDetail({
                 const poiDataWithCategory = {
                   ...poiData,
                   poi_category: poiData.poi_category || selectedPoiCategory,
+                  // TG地点の場合、segment_idを確実に設定
+                  segment_id: selectedPoiCategory === 'tg' ? (poiData.segment_id || selectedSegmentForPoi) : poiData.segment_id,
                   visit_measurement_group_id: poiData.visit_measurement_group_id || (selectedPoiCategory === 'visit_measurement' && selectedGroupId ? selectedGroupId : undefined),
                 };
                 onPoiCreate(selectedSegmentForPoi, poiDataWithCategory);
