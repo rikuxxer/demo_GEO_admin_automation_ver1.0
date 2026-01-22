@@ -251,6 +251,8 @@ OPTIONS(
 - `poi_name`は必須
 - `poi_type`が`polygon`の場合、`polygon`フィールドに座標データが必須
 - `polygon`はJSON文字列形式で保存（`number[][]`をJSON.stringifyしたもの）
+- `segment_id`はTG地点の場合は必須、来店計測地点（`poi_category = 'visit_measurement'`）の場合はNULL
+- `visit_measurement_group_id`は来店計測地点（`poi_category = 'visit_measurement'`）の場合は必須、TG地点の場合はNULL
 
 ---
 

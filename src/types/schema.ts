@@ -51,7 +51,7 @@ export interface Segment {
 // 地点情報DB
 export interface PoiInfo {
   project_id: string; // 案件ID（自動採番）
-  segment_id: string; // セグメントID（自動採番）
+  segment_id?: string; // セグメントID（自動採番、来店計測地点の場合はNULL）
   poi_id?: string; // 地点グループID（自動採番）
   
   // 地点情報登録タイプ

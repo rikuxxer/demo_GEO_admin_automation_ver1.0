@@ -17,6 +17,9 @@ export function validateSheetRow(row: SheetRow): ValidationError[] {
   const settingFlag = parseInt(row.setting_flag || '0');
 
   // 共通の必須フィールド
+  if (!row.poi_id || row.poi_id.trim() === '') {
+    errors.push({ field: 'poi_id', message: 'セグメントIDまたは来店計測グループIDは必須です' });
+  }
   if (!row.poi_name || row.poi_name.trim() === '') {
     errors.push({ field: 'poi_name', message: '施設名は必須です' });
   }

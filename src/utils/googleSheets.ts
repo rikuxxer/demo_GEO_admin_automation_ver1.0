@@ -178,11 +178,22 @@ export function convertPoiToSheetRow(
     settingFlag = '4';
   }
 
+  // poi_id: TG地点の場合はsegment_id、来店計測地点の場合はvisit_measurement_group_id
+  // スプレッドシートの同じカラムに出力されるため、どちらか一方は必須
+  let poiIdValue: string;
+  if (poi.poi_category === 'visit_measurement') {
+    // 来店計測地点の場合: visit_measurement_group_idを使用
+    poiIdValue = poi.visit_measurement_group_id || '';
+  } else {
+    // TG地点の場合: segment_idを使用（segmentオブジェクトから取得、なければpoi.segment_id）
+    poiIdValue = segment?.segment_id || poi.segment_id || '';
+  }
+
   return {
     category_id: categoryId,
     brand_id: '', // 空
     brand_name: project.advertiser_name || '',
-    poi_id: poi.location_id || poi.poi_id || poi.segment_id || '',
+    poi_id: poiIdValue,
     poi_name: poi.poi_name || '',
     latitude: poi.latitude !== undefined && poi.latitude !== null ? String(poi.latitude) : '',
     longitude: poi.longitude !== undefined && poi.longitude !== null ? String(poi.longitude) : '',
@@ -451,6 +462,7 @@ export async function exportPoisToSheet(
     segmentId?: string;
     exportedBy?: string;
     exportedByName?: string;
+    visitMeasurementGroups?: Array<{ group_id: string; group_name: string }>;
   }
 ): Promise<{
   success: boolean;
@@ -468,7 +480,11 @@ export async function exportPoisToSheet(
     // POIデータを変換
     const rows = pois.map(poi => {
       const segment = segments.find(s => s.segment_id === poi.segment_id);
-      return convertPoiToSheetRow(poi, project, segment);
+      // 来店計測地点の場合はグループIDを使用
+      const visitMeasurementGroupId = poi.poi_category === 'visit_measurement' 
+        ? poi.visit_measurement_group_id 
+        : undefined;
+      return convertPoiToSheetRow(poi, project, segment, visitMeasurementGroupId);
     });
 
     // バリデーション

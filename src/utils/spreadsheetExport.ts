@@ -188,7 +188,8 @@ function parseAddress(address: string | undefined): { prefecture: string; city: 
 export function convertPoiToSpreadsheetRow(
   poi: PoiInfo,
   project: Project,
-  segment: Segment | undefined
+  segment: Segment | undefined,
+  visitMeasurementGroupId?: string
 ): SpreadsheetRow {
   const radius = parseRadius(poi.designated_radius);
   const { prefecture, city } = parseAddress(poi.address);
@@ -214,10 +215,21 @@ export function convertPoiToSpreadsheetRow(
   }
   const createdDate = calculateExportScheduledDate(requestDateTime);
   
+  // poi_id: TG地点の場合はsegment_id、来店計測地点の場合はvisit_measurement_group_id
+  // スプレッドシートの同じカラムに出力されるため、どちらか一方は必須
+  let poiIdValue: string;
+  if (poi.poi_category === 'visit_measurement') {
+    // 来店計測地点の場合: visit_measurement_group_idを使用
+    poiIdValue = visitMeasurementGroupId || poi.visit_measurement_group_id || '';
+  } else {
+    // TG地点の場合: segment_idを使用（segmentオブジェクトから取得、なければpoi.segment_id）
+    poiIdValue = segment?.segment_id || poi.segment_id || '';
+  }
+  
   return {
     category_id: categoryId,
     brand_name: project.advertiser_name || project.project_id,
-    poi_id: segment?.segment_id || poi.segment_id,
+    poi_id: poiIdValue,
     poi_name: poi.poi_name || '',
     latitude: poi.latitude,
     longitude: poi.longitude,

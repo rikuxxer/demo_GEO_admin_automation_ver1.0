@@ -117,6 +117,9 @@ export function ProjectDetail({
   const [showGroupForm, setShowGroupForm] = useState(false);
   const [editingGroup, setEditingGroup] = useState<VisitMeasurementGroup | null>(null);
   
+  // 来店計測地点の矛盾修正済みフラグ（無限ループを防ぐため）
+  const [fixedPoiIds, setFixedPoiIds] = useState<Set<string>>(new Set());
+  
   // ジオコーディング関連の��態
   const [showGeocodeProgress, setShowGeocodeProgress] = useState(false);
   const [geocodeProgress, setGeocodeProgress] = useState(0);
@@ -409,6 +412,66 @@ export function ProjectDetail({
     };
     loadGroups();
   }, [project.project_id]);
+
+  // 来店計測地点の矛盾を検出・修正
+  useEffect(() => {
+    const fixInconsistencies = async () => {
+      const inconsistencies: Array<{ poi: PoiInfo; fixes: Partial<PoiInfo> }> = [];
+
+      for (const poi of pois) {
+        if (!poi.poi_id) continue; // poi_idがない場合はスキップ
+        if (fixedPoiIds.has(poi.poi_id)) continue; // 既に修正済みの地点はスキップ
+
+        const fixes: Partial<PoiInfo> = {};
+        let needsFix = false;
+
+        // 矛盾1: poi_categoryがvisit_measurementなのにsegment_idが設定されている
+        if (poi.poi_category === 'visit_measurement' && poi.segment_id && poi.segment_id.trim() !== '') {
+          fixes.segment_id = undefined;
+          needsFix = true;
+          console.warn(`⚠️ 来店計測地点「${poi.poi_name}」にセグメントIDが設定されています。削除します。`);
+        }
+
+        // 矛盾2: poi_categoryがvisit_measurementでないのにvisit_measurement_group_idが設定されている
+        if (poi.poi_category !== 'visit_measurement' && poi.visit_measurement_group_id) {
+          fixes.visit_measurement_group_id = undefined;
+          needsFix = true;
+          console.warn(`⚠️ TG地点「${poi.poi_name}」に来店計測グループIDが設定されています。削除します。`);
+        }
+
+        if (needsFix) {
+          inconsistencies.push({ poi, fixes });
+        }
+      }
+
+      // 矛盾を修正
+      if (inconsistencies.length > 0) {
+        console.log(`🔧 ${inconsistencies.length}件の来店計測地点の矛盾を検出しました。修正を開始します...`);
+        
+        const fixedIds: string[] = [];
+        for (const { poi, fixes } of inconsistencies) {
+          try {
+            await onPoiUpdate(poi.poi_id!, fixes);
+            fixedIds.push(poi.poi_id!);
+            console.log(`✅ 地点「${poi.poi_name}」の矛盾を修正しました。`);
+          } catch (error) {
+            console.error(`❌ 地点「${poi.poi_name}」の矛盾修正に失敗しました:`, error);
+          }
+        }
+
+        // 修正済みフラグを更新
+        if (fixedIds.length > 0) {
+          setFixedPoiIds(prev => new Set([...prev, ...fixedIds]));
+          toast.success(`${fixedIds.length}件の来店計測地点の矛盾を修正しました`);
+        }
+      }
+    };
+
+    if (pois.length > 0) {
+      fixInconsistencies();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pois]); // poisが更新されたときに実行
 
   // 計測地点グループの作成・更新
 
