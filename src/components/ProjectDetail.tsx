@@ -519,11 +519,28 @@ export function ProjectDetail({
     try {
       // グループに属する地点があるか確認
       const groupPois = pois.filter(poi => poi.visit_measurement_group_id === deleteGroupTarget);
+      
+      // グループを削除
+      await bigQueryService.deleteVisitMeasurementGroup(deleteGroupTarget);
+      
+      // グループに属する地点のvisit_measurement_group_idをクリア
       if (groupPois.length > 0) {
-        toast.warning(`このグループには${groupPois.length}件の地点が登録されています。グループを削除しても地点は削除されません。`);
+        let clearedCount = 0;
+        for (const poi of groupPois) {
+          if (poi.poi_id) {
+            try {
+              await onPoiUpdate(poi.poi_id, { visit_measurement_group_id: undefined });
+              clearedCount++;
+            } catch (error) {
+              console.error(`地点「${poi.poi_name}」のグループIDクリアに失敗しました:`, error);
+            }
+          }
+        }
+        if (clearedCount > 0) {
+          toast.info(`${clearedCount}件の地点からグループIDをクリアしました`);
+        }
       }
       
-      await bigQueryService.deleteVisitMeasurementGroup(deleteGroupTarget);
       toast.success('グループを削除しました');
       const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
       setVisitMeasurementGroups(groups || []);
