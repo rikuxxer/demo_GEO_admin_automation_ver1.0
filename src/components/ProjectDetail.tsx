@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2, Trash2 } from 'lucide-react';
 import { EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -487,22 +487,35 @@ export function ProjectDetail({
   // 計測地点グループの作成・更新
 
   // 計測地点グループの削除
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<string | null>(null);
+
   const handleGroupDelete = async (groupId: string) => {
-    if (!confirm('このグループを削除しますか？グループに属する地点は削除されません。')) {
-      return;
-    }
+    setDeleteGroupTarget(groupId);
+  };
+
+  const confirmGroupDelete = async () => {
+    if (!deleteGroupTarget) return;
+    
     try {
-      await bigQueryService.deleteVisitMeasurementGroup(groupId);
+      // グループに属する地点があるか確認
+      const groupPois = pois.filter(poi => poi.visit_measurement_group_id === deleteGroupTarget);
+      if (groupPois.length > 0) {
+        toast.warning(`このグループには${groupPois.length}件の地点が登録されています。グループを削除しても地点は削除されません。`);
+      }
+      
+      await bigQueryService.deleteVisitMeasurementGroup(deleteGroupTarget);
       toast.success('グループを削除しました');
       const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
       setVisitMeasurementGroups(groups);
       // 削除されたグループが選択されていた場合は選択を解除
-      if (selectedGroupId === groupId) {
+      if (selectedGroupId === deleteGroupTarget) {
         setSelectedGroupId(null);
       }
+      setDeleteGroupTarget(null);
     } catch (error) {
       console.error('Error deleting group:', error);
       toast.error('グループの削除に失敗しました');
+      setDeleteGroupTarget(null);
     }
   };
 
@@ -1933,9 +1946,9 @@ export function ProjectDetail({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleGroupDelete(group.group_id)}
-                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                    className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
                                   >
-                                    <X className="w-3.5 h-3.5 mr-2" />
+                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
                                     グループを削除
                                   </Button>
                                   <Button
@@ -2818,6 +2831,48 @@ export function ProjectDetail({
           <AlertDialogFooter>
             <AlertDialogAction onClick={() => setShowRadius30mWarning(false)}>
               了解しました
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* グループ削除確認ダイアログ */}
+      <AlertDialog open={deleteGroupTarget !== null} onOpenChange={() => setDeleteGroupTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              グループを削除しますか？
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-4">
+              <div className="space-y-2">
+                <p className="text-base font-medium text-gray-900">
+                  この操作は取り消せません。
+                </p>
+                {deleteGroupTarget && (() => {
+                  const groupPois = pois.filter(poi => poi.visit_measurement_group_id === deleteGroupTarget);
+                  return groupPois.length > 0 ? (
+                    <p className="text-sm text-gray-700">
+                      このグループには<strong className="text-gray-900">{groupPois.length}件</strong>の地点が登録されています。グループを削除しても地点は削除されませんが、地点のグループIDはクリアされます。
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-700">
+                      このグループには地点が登録されていません。
+                    </p>
+                  );
+                })()}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50">
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmGroupDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              削除する
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
