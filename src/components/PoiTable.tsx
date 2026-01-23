@@ -84,6 +84,13 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
   };
 
   const handleDelete = (poiId: string) => {
+    // 来店計測地点の場合は削除を実行しない
+    const poi = pois.find(p => p.poi_id === poiId);
+    if (poi && poi.poi_category === 'visit_measurement') {
+      toast.error('来店計測地点は削除できません');
+      setDeleteTarget(null);
+      return;
+    }
     onDelete(poiId);
     setDeleteTarget(null);
   };
@@ -644,15 +651,18 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeleteTarget(poi.poi_id!)}
-                            className="text-red-600 hover:text-red-700"
-                            title="削除"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {/* 来店計測地点の場合は削除ボタンを非表示 */}
+                          {poi.poi_category !== 'visit_measurement' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeleteTarget(poi.poi_id!)}
+                              className="text-red-600 hover:text-red-700"
+                              title="削除"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       )}
                     </td>
