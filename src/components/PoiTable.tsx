@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Edit, Trash2, MapPin, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Save, X, Settings, Copy } from 'lucide-react';
+import { Edit, Trash2, MapPin, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Save, X, Settings, Copy, Hash, MapPinned, Navigation, Ruler } from 'lucide-react';
 import { Button } from './ui/button';
 import type { PoiInfo } from '../types/schema';
 import { convertToPolygonWKT } from '../utils/polygonUtils';
@@ -173,21 +173,48 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
         <table className="w-full">
-          <thead className="bg-gray-50 border-y border-gray-200">
+          <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
             <tr>
-              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[12%]">地点ID</th>
-              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[18%]">地点名/エリア</th>
-              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[25%]">住所/市区町村</th>
-              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[12%]">指定半径</th>
-              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[18%]">緯度経度</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap w-[12%]">
+                <div className="flex items-center justify-center gap-1.5">
+                  <Hash className="w-3.5 h-3.5 text-gray-500" />
+                  <span>地点ID</span>
+                </div>
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap w-[18%]">
+                <div className="flex items-center justify-center gap-1.5">
+                  <MapPinned className="w-3.5 h-3.5 text-gray-500" />
+                  <span>地点名/エリア</span>
+                </div>
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap w-[25%]">
+                <div className="flex items-center justify-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                  <span>住所/市区町村</span>
+                </div>
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap w-[12%]">
+                <div className="flex items-center justify-center gap-1.5">
+                  <Ruler className="w-3.5 h-3.5 text-gray-500" />
+                  <span>指定半径</span>
+                </div>
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap w-[18%]">
+                <div className="flex items-center justify-center gap-1.5">
+                  <Navigation className="w-3.5 h-3.5 text-gray-500" />
+                  <span>緯度経度</span>
+                </div>
+              </th>
               {!readOnly && (
-                <th className="px-2 py-2.5 text-center text-xs font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap w-[5%]"></th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap w-[5%]">
+                  <span className="sr-only">操作</span>
+                </th>
               )}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-100">
             {currentPois.map((poi) => {
               const isEditing = editingId === poi.poi_id;
               
@@ -230,61 +257,74 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
               }
               
               return (
-                <tr key={poi.poi_id} className={`${isEditing ? "bg-blue-50/50" : "hover:bg-gray-50"} ${rowSizeClass}`}>
+                <tr key={poi.poi_id} className={`${isEditing ? "bg-blue-50/50 border-l-4 border-l-blue-500" : "hover:bg-blue-50/30 transition-colors"} ${rowSizeClass} border-l-4 border-l-transparent`}>
                   {/* 地点ID */}
-                  <td className="px-3 py-3 text-center align-middle">
+                  <td className="px-4 py-3 text-center align-middle">
                     {isEditing ? (
                       <div className="flex justify-center">
                         <Input
                           value={editForm.location_id || ''}
                           onChange={(e) => handleInputChange('location_id', e.target.value)}
-                          className="h-8 text-sm w-32"
+                          className="h-8 text-sm w-32 font-mono"
                           placeholder="地点ID"
                           disabled={true}
                           title="地点IDは自動採番のため編集できません"
                         />
                       </div>
                     ) : (
-                      <div className="text-sm text-gray-900 font-mono">{poi.location_id || '-'}</div>
+                      <div className="flex items-center justify-center">
+                        <span className="text-sm font-semibold text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                          {poi.location_id || '-'}
+                        </span>
+                      </div>
                     )}
                   </td>
 
                   {/* 地点名 */}
-                  <td className="px-3 text-center align-middle">
+                  <td className="px-4 text-center align-middle">
                     {isEditing ? (
                       <div className="flex justify-center">
                         <Input
                           value={editForm.poi_name || ''}
                           onChange={(e) => handleInputChange('poi_name', e.target.value)}
-                          className="h-8 text-sm w-full max-w-[180px]"
+                          className="h-8 text-sm w-full max-w-[180px] font-medium"
                           placeholder="地点名"
                           maxLength={50}
                         />
                       </div>
                     ) : (
-                      <div className="text-sm text-gray-900 flex flex-col items-center gap-1">
+                      <div className="text-sm flex flex-col items-center gap-1.5">
                         {poi.poi_type === 'prefecture' ? (
                           <>
-                            <div className="max-w-full truncate">{poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}</div>
+                            <div className="max-w-full truncate font-semibold text-gray-900">
+                              {poi.prefectures && poi.prefectures.length > 0 ? poi.prefectures.join('・') : '都道府県指定'}
+                            </div>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              都道府県指定
+                            </span>
                           </>
                         ) : isPolygonPoi ? (
                           <>
-                            <div className="max-w-full truncate" title={poi.poi_name || 'ポリゴン地点'}>{poi.poi_name || 'ポリゴン地点'}</div>
+                            <div className="max-w-full truncate font-semibold text-gray-900" title={poi.poi_name || 'ポリゴン地点'}>
+                              {poi.poi_name || 'ポリゴン地点'}
+                            </div>
                             {normalizedPolygon && normalizedPolygon.length > 0 && (
-                              <div className="mt-1 text-xs text-gray-500">
-                                座標数: {normalizedPolygon.length}点
-                              </div>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                ポリゴン ({normalizedPolygon.length}点)
+                              </span>
                             )}
                           </>
                         ) : (
-                          <div className="max-w-full truncate" title={poi.poi_name || '（地点名未設定）'}>{poi.poi_name || '（地点名未設定）'}</div>
+                          <div className="max-w-full truncate font-semibold text-gray-900" title={poi.poi_name || '（地点名未設定）'}>
+                            {poi.poi_name || <span className="text-gray-400 italic">（地点名未設定）</span>}
+                          </div>
                         )}
                       </div>
                     )}
                   </td>
 
                   {/* 住所 */}
-                  <td className="px-3 text-center align-middle">
+                  <td className="px-4 text-center align-middle">
                     {isEditing ? (
                       <div className="flex justify-center">
                         <Input
@@ -370,7 +410,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                   </td>
 
                   {/* 指定半径 */}
-                  <td className="px-3 text-center align-middle">
+                  <td className="px-4 text-center align-middle">
                     {isEditing ? (
                       isPolygonPoi ? (
                         <div className="text-sm text-gray-400">指定なし</div>
@@ -468,13 +508,13 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                         </div>
                       )
                     ) : (
-                      <div className="text-sm text-gray-900 font-medium text-center">
+                      <div className="text-sm text-center">
                         {(poi.poi_type === 'prefecture' || isPolygonPoi) ? (
-                          <span className="text-sm text-gray-400">指定なし</span>
+                          <span className="text-xs text-gray-400 italic">指定なし</span>
                         ) : (() => {
-                          if (!poi.designated_radius) return '-';
+                          if (!poi.designated_radius) return <span className="text-gray-400 italic">-</span>;
                           const radiusValue = parseInt(String(poi.designated_radius).replace('m', ''));
-                          if (isNaN(radiusValue)) return poi.designated_radius;
+                          if (isNaN(radiusValue)) return <span className="font-medium">{poi.designated_radius}</span>;
                           
                           // 選択可能な半径値（1000m以上）のリスト
                           const selectableRadiusValues = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
@@ -482,52 +522,59 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                           
                           if (isCategorySpecified) {
                             return (
-                              <div className="flex flex-col items-center gap-1">
-                                <span>{poi.designated_radius}</span>
-                              </div>
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                {poi.designated_radius}
+                              </span>
                             );
                           }
-                          return poi.designated_radius;
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                              {poi.designated_radius}
+                            </span>
+                          );
                         })()}
                       </div>
                     )}
                   </td>
 
                   {/* 緯度経度 */}
-                  <td className="px-3 text-center align-middle">
+                  <td className="px-4 text-center align-middle">
                     {isEditing ? (
                       isPolygonPoi ? (
-                        <div className="text-sm text-gray-400">ポリゴン座標から自動計算</div>
+                        <div className="text-sm text-gray-400 italic">ポリゴン座標から自動計算</div>
                       ) : (
                       <div className="flex gap-2 justify-center">
                         <Input
                           value={editForm.latitude || ''}
                           onChange={(e) => handleInputChange('latitude', e.target.value)}
-                          className="h-8 text-sm w-24"
+                          className="h-8 text-sm w-24 font-mono"
                           placeholder="緯度"
                         />
                         <Input
                           value={editForm.longitude || ''}
                           onChange={(e) => handleInputChange('longitude', e.target.value)}
-                          className="h-8 text-sm w-24"
+                          className="h-8 text-sm w-24 font-mono"
                           placeholder="経度"
                         />
                       </div>
                       )
                     ) : (
-                      <div className="text-sm text-gray-900 text-center">
+                      <div className="text-sm text-center">
                         {isPolygonPoi && normalizedPolygon && normalizedPolygon.length > 0 ? (
-                          <div className="text-sm text-gray-600">
-                            <div>中心: {(() => {
+                          <div className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                            <div className="font-medium">中心座標</div>
+                            <div className="mt-0.5">{(() => {
                               const centerLat = normalizedPolygon.reduce((sum: number, coord: number[]) => sum + coord[0], 0) / normalizedPolygon.length;
                               const centerLng = normalizedPolygon.reduce((sum: number, coord: number[]) => sum + coord[1], 0) / normalizedPolygon.length;
                               return `${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}`;
                             })()}</div>
                           </div>
                         ) : poi.latitude && poi.longitude ? (
-                          <span className={isManualRadiusPoi ? "font-medium" : ""}>{poi.latitude}, {poi.longitude}</span>
+                          <div className="text-xs text-gray-700 font-mono bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                            {poi.latitude}, {poi.longitude}
+                          </div>
                         ) : (
-                          '-'
+                          <span className="text-gray-400 italic">-</span>
                         )}
                       </div>
                     )}
@@ -603,13 +650,14 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
 
       {/* ページネーション */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 sm:px-6">
+        <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200 sm:px-6 rounded-b-lg">
           <div className="flex flex-1 justify-between sm:hidden">
             <Button
               variant="outline"
               size="sm"
               onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
+              className="font-medium"
             >
               前へ
             </Button>
@@ -618,6 +666,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
               size="sm"
               onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
+              className="font-medium"
             >
               次へ
             </Button>
@@ -625,7 +674,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
           <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-gray-700">
-                全 <span className="font-medium">{pois.length}</span> 件中 <span className="font-medium">{startIndex + 1}</span> から <span className="font-medium">{Math.min(endIndex, pois.length)}</span> 件目を表示
+                全 <span className="font-semibold text-gray-900">{pois.length}</span> 件中 <span className="font-semibold text-gray-900">{startIndex + 1}</span> から <span className="font-semibold text-gray-900">{Math.min(endIndex, pois.length)}</span> 件目を表示
               </p>
             </div>
             <div>
