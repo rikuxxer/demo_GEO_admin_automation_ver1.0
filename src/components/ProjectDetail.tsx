@@ -86,6 +86,19 @@ export function ProjectDetail({
   onEditRequestWithdraw,
   onUnreadCountUpdate
 }: ProjectDetailProps) {
+  // プロジェクトの存在チェック
+  if (!project || !project.project_id) {
+    console.error('Project or project_id is missing');
+    return (
+      <div className="p-6">
+        <p className="text-red-600">プロジェクト情報が正しく読み込まれていません。</p>
+        <Button onClick={onBack} className="mt-4">
+          戻る
+        </Button>
+      </div>
+    );
+  }
+
   const { user, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [showSegmentForm, setShowSegmentForm] = useState(false);
@@ -416,14 +429,20 @@ export function ProjectDetail({
   useEffect(() => {
     const loadGroups = async () => {
       try {
+        if (!project?.project_id) {
+          console.warn('Project ID is missing, skipping visit measurement groups load');
+          return;
+        }
         const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
-        setVisitMeasurementGroups(groups);
+        setVisitMeasurementGroups(groups || []);
       } catch (error) {
         console.error('Error loading visit measurement groups:', error);
+        // エラーが発生しても空配列を設定して続行
+        setVisitMeasurementGroups([]);
       }
     };
     loadGroups();
-  }, [project.project_id]);
+  }, [project?.project_id]);
 
   // 来店計測地点の矛盾を検出・修正
   useEffect(() => {
@@ -495,7 +514,7 @@ export function ProjectDetail({
   };
 
   const confirmGroupDelete = async () => {
-    if (!deleteGroupTarget) return;
+    if (!deleteGroupTarget || !project?.project_id) return;
     
     try {
       // グループに属する地点があるか確認
@@ -507,7 +526,7 @@ export function ProjectDetail({
       await bigQueryService.deleteVisitMeasurementGroup(deleteGroupTarget);
       toast.success('グループを削除しました');
       const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
-      setVisitMeasurementGroups(groups);
+      setVisitMeasurementGroups(groups || []);
       // 削除されたグループが選択されていた場合は選択を解除
       if (selectedGroupId === deleteGroupTarget) {
         setSelectedGroupId(null);
@@ -2240,7 +2259,7 @@ export function ProjectDetail({
               }
               // グループ一覧を更新
               const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
-              setVisitMeasurementGroups(groups);
+              setVisitMeasurementGroups(groups || []);
               setShowGroupForm(false);
               setEditingGroup(null);
             } catch (error) {
