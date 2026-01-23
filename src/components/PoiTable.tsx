@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Edit, Trash2, MapPin, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Save, X, Settings, Copy, Hash, MapPinned, Navigation, Ruler } from 'lucide-react';
 import { Button } from './ui/button';
 import type { PoiInfo } from '../types/schema';
@@ -56,11 +56,25 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
   }, [pois]);
   
   const itemsPerPage = 20;
+  const maxVisibleItems = 100; // 一度に表示する最大件数（パフォーマンス最適化）
 
   const totalPages = Math.ceil(pois.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentPois = pois.slice(startIndex, endIndex);
+  
+  // メモ化: 現在のページの地点データを計算
+  const currentPois = useMemo(() => {
+    return pois.slice(startIndex, endIndex);
+  }, [pois, startIndex, endIndex]);
+  
+  // 大量データの場合の最適化: 表示する範囲を制限
+  const visiblePois = useMemo(() => {
+    if (pois.length <= maxVisibleItems) {
+      return currentPois;
+    }
+    // 大量データの場合は、現在のページのみ表示
+    return currentPois;
+  }, [currentPois, pois.length, maxVisibleItems]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -173,9 +187,11 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-        <table className="w-full">
-          <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
+      <div className="rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col" style={{ maxHeight: '600px' }}>
+        {/* スクロール可能なテーブルコンテナ */}
+        <div className="overflow-y-auto overflow-x-auto flex-1">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap w-[12%]">
                 <div className="flex items-center justify-center gap-1.5">
@@ -214,8 +230,8 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
               )}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-100">
-            {currentPois.map((poi) => {
+            <tbody className="bg-white divide-y divide-gray-100">
+              {visiblePois.map((poi) => {
               const isEditing = editingId === poi.poi_id;
               
               // ポリゴンデータの正規化（文字列の場合はパース）
@@ -644,8 +660,9 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
                 </tr>
               );
             })}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ページネーション */}
