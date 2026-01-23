@@ -279,10 +279,18 @@ export function SegmentTable({ segments, pois = [], project, onEdit, onDelete, o
 
                   {/* 地点データ抽出状況 */}
                   <td className="px-3 py-3">
-                    <Badge className={`${extractionStatus.color} border justify-start text-[10px] h-6 px-2`}>
-                      <span className="mr-1">{extractionStatus.icon}</span>
-                      <span className="whitespace-nowrap">{extractionStatus.label}</span>
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge className={`${extractionStatus.color} border justify-start text-[10px] h-6 px-2`}>
+                        <span className="mr-1">{extractionStatus.icon}</span>
+                        <span className="whitespace-nowrap">{extractionStatus.label}</span>
+                      </Badge>
+                      {segment.registerd_provider_segment && (
+                        <Badge className="bg-blue-100 text-blue-700 border justify-start text-[10px] h-6 px-2">
+                          <span className="mr-1">✓</span>
+                          <span className="whitespace-nowrap">プロバイダセグメント取り込み済み</span>
+                        </Badge>
+                      )}
+                    </div>
                   </td>
 
                   {/* データ連携目途 */}

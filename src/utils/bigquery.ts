@@ -511,10 +511,11 @@ class BigQueryService {
     try {
       const data = localStorage.getItem(this.segmentStorageKey);
       const segments: Segment[] = data ? JSON.parse(data) : [];
-      // 既存データの整合性チェック: poi_categoryが未設定の場合は'tg'を設定
+      // 既存データの整合性チェック: poi_categoryが未設定の場合は'tg'を設定、registerd_provider_segmentが未設定の場合はfalseを設定
       return segments.map(segment => ({
         ...segment,
         poi_category: segment.poi_category || 'tg',
+        registerd_provider_segment: segment.registerd_provider_segment ?? false,
       }));
     } catch (error) {
       console.error('Error fetching segments:', error);
@@ -583,6 +584,7 @@ class BigQueryService {
         segment_id: segmentId,
         segment_registered_at: new Date().toISOString(),
         poi_category: segment.poi_category || 'tg', // デフォルトは'tg'
+        registerd_provider_segment: segment.registerd_provider_segment ?? false, // デフォルトはfalse
       };
       segments.unshift(newSegment);
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));

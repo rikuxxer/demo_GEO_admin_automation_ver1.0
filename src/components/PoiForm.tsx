@@ -301,13 +301,17 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     if (poi && (poi.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement')) {
       return; // entryMethodの変更を無効化
     }
+    // Excel一括登録（csv）は手動追加時には使用不可
+    if (value === 'csv') {
+      return; // entryMethodの変更を無効化
+    }
     setEntryMethod(value);
     if (value === 'prefecture') {
       handleChange('poi_type', 'prefecture');
     } else if (value === 'polygon') {
       handleChange('poi_type', 'polygon');
       setShowPolygonEditor(true);
-    } else if (value !== 'csv' && value !== 'paste') {
+    } else if (value !== 'paste') {
       handleChange('poi_type', value);
     }
   };
@@ -1468,7 +1472,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   };
 
   const canProceedToConditions = () => {
-    if (entryMethod === 'csv' || entryMethod === 'paste') return false;
+    if (entryMethod === 'paste') return false;
     if (formData.poi_type === 'manual') {
       return !!formData.poi_name;
     } else if (formData.poi_type === 'prefecture') {
@@ -1683,7 +1687,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               {/* 地点タイプ選択 */}
               {/* 登録モード切替タ��（新規登録時のみ） */}
               {!poi && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-6">
                   <button
                     type="button"
                     onClick={() => handleEntryMethodChange('paste')}
@@ -1712,19 +1716,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleEntryMethodChange('csv')}
-                    className={`flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all border ${
-                      entryMethod === 'csv'
-                        ? 'bg-white text-[#5b5fff] shadow-sm border-[#5b5fff]'
-                        : 'bg-gray-50 text-gray-600 hover:text-gray-900 border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <Table className="w-4 h-4" />
-                    <span className="hidden sm:inline">Excel一括登録</span>
-                    <span className="sm:hidden">Excel</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => handleEntryMethodChange('polygon')}
                     className={`flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md transition-all border ${
                       entryMethod === 'polygon'
@@ -1741,205 +1732,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
 
               {/* ���動登録の場合の地点タイプ選択 */}
 
-              {/* CSV一括登録 */}
-              {entryMethod === 'csv' && (
-                <div className="space-y-6">
-                  {/* Step 1: Upload */}
-                  {csvStep === 'upload' && (
-                    <div className="space-y-6">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                          <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-blue-900 mb-2">Excel一括登録</h3>
-                            <p className="text-sm text-blue-700 mb-2">
-                              Excelテンプレートをダウンロードし、地点情報を入力してアップロードしてください。<br />
-                              <strong>TG地点・来店計測地点の両方に対応しています。</strong>
-                            </p>
-                            <div className="bg-white/50 rounded p-2 mb-2">
-                              <p className="text-xs font-semibold text-blue-900 mb-1">📋 入力項目</p>
-                              <p className="text-xs text-blue-700">
-                                • <strong>地点名</strong>: 必須<br />
-                                • <strong>住所</strong>: 必須<br />
-                                • <strong>緯度・経度</strong>: 任意（未入力の場合、住所から自動変換されます）<br />
-                                • <strong>地点ID</strong>: 自動採番（入力不要）<br />
-                                • <strong>計測地点グループ</strong>: 来店計測地点では必須
-                              </p>
-                            </div>
-                            <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-3">
-                              <p className="text-xs font-semibold text-yellow-900 mb-1">⚠️ 処理上限</p>
-                              <p className="text-xs text-yellow-800">
-                                • <strong>推奨: 100件以下</strong> / 1回の登録<br />
-                                • <strong>最大: 5,000件</strong> / 1回の登録<br />
-                                • <strong>1,000件以上</strong>: 100件ずつバッチ処理で自動分割登録されます<br />
-                                • 大量登録時は自動ジオコーディングに時間がかかる場合があります
-                              </p>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => downloadExcelTemplate('basic')}
-                                className="text-blue-600 border border-gray-300 hover:bg-gray-50"
-                              >
-                                <Download className="w-4 h-4 mr-2 text-blue-600" />
-                                Excelテンプレート
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".xlsx,.xls"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                          id="csv-upload-form"
-                        />
-                        <label htmlFor="csv-upload-form" className="cursor-pointer block w-full h-full">
-                          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-900 mb-1">Excelファイルをアップロード</p>
-                          <p className="text-sm text-muted-foreground">
-                            クリックしてファイルを選択 (.xlsx, .xls)
-                          </p>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Step 2: Preview */}
-                  {csvStep === 'preview' && (
-                    <div className="space-y-6">
-                      {/* エラーメッセージ表示 */}
-                      {errorMessage && (
-                        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 shadow-md">
-                          <div className="flex items-start gap-3">
-                            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-sm font-semibold text-red-900 mb-1">エラー</p>
-                              <p className="text-sm text-red-800">{errorMessage}</p>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setErrorMessage(null)}
-                              className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                          <span className="text-xs text-gray-500 block mb-1">総データ数</span>
-                          <span className="text-lg font-bold">{csvTotalRows}件</span>
-                        </div>
-                        <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                          <span className="text-xs text-green-600 block mb-1">正常</span>
-                          <span className="text-lg font-bold text-green-700">{parsedPois.length}件</span>
-                        </div>
-                        <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                          <span className="text-xs text-red-600 block mb-1">エラー</span>
-                          <span className="text-lg font-bold text-red-700">{csvErrors.length}件</span>
-                        </div>
-                      </div>
-
-                      {parsedPois.length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-900 mb-2">プレビュー（最初の5件）</h3>
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <table className="w-full text-sm">
-                              <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                  <th className="px-4 py-2 text-left text-xs text-gray-500">地点名</th>
-                                  <th className="px-4 py-2 text-left text-xs text-gray-500">住所</th>
-                                  <th className="px-4 py-2 text-left text-xs text-gray-500">緯度</th>
-                                  <th className="px-4 py-2 text-left text-xs text-gray-500">経度</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-200">
-                                {parsedPois.slice(0, 5).map((poi, index) => (
-                                  <tr key={index} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2">{poi.poi_name}</td>
-                                    <td className="px-4 py-2 text-gray-600 text-xs">{poi.address || '-'}</td>
-                                    <td className="px-4 py-2 text-gray-600 text-xs">
-                                      {poi.latitude !== undefined ? poi.latitude : <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700">要取得</Badge>}
-                                    </td>
-                                    <td className="px-4 py-2 text-gray-600 text-xs">
-                                      {poi.longitude !== undefined ? poi.longitude : <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700">要取得</Badge>}
-                                    </td>
-                                    <td className="px-4 py-2 text-gray-600 text-xs">{poi.location_id || '-'}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-
-                      {csvErrors.length > 0 && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-40 overflow-y-auto">
-                          <h3 className="text-sm text-red-900 mb-2">エラー詳細</h3>
-                          <div className="space-y-1">
-                            {csvErrors.map((error, index) => (
-                              <div key={index} className="text-xs text-red-700">
-                                {error.row}行目 [{error.field}]: {error.message}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 計測地点グループ選択（来店計測地点の場合のみ） */}
-                      {(defaultCategory === 'visit_measurement' || bulkPoiCategory === 'visit_measurement' || parsedPois.some(p => p.poi_category === 'visit_measurement')) && (
-                        <div>
-                          <Label htmlFor="bulk_group_id" className="block mb-2">
-                            計測地点グループ
-                          </Label>
-                          <select
-                            id="bulk_group_id"
-                            value={bulkGroupId || ''}
-                            onChange={(e) => setBulkGroupId(e.target.value || null)}
-                            className="w-full h-10 px-3 py-2 border border-input rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
-                          >
-                            <option value="">グループなし</option>
-                            {visitMeasurementGroups.map(group => (
-                              <option key={group.group_id} value={group.group_id}>
-                                {group.group_name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between pt-4 border-t border-gray-100">
-                        <Button variant="outline" onClick={handleResetCsv} className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50">
-                          クリア
-                        </Button>
-                        <Button
-                          onClick={handleCsvSubmit}
-                          disabled={parsedPois.length === 0 || isBatchProcessing}
-                          className="bg-primary text-primary-foreground"
-                        >
-                          {isBatchProcessing ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              処理中...
-                            </>
-                          ) : (
-                            `この内容で登録する (${parsedPois.length}件)`
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* 表形式コピペ */}
               {entryMethod === 'paste' && (
@@ -3206,8 +2998,8 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                 キャンセル
               </Button>
               
-              {entryMethod === 'csv' || entryMethod === 'paste' ? (
-                // CSV/表形式コピペの場合はここでは何もしない（ステップ内で完結）
+              {entryMethod === 'paste' ? (
+                // 表形式コピペの場合はここでは何もしない（ステップ内で完結）
                 <></>
               ) : (
                 <>

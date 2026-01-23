@@ -40,24 +40,14 @@ export function VisitMeasurementGroupForm({
     extraction_start_date: group?.extraction_start_date || '',
     extraction_end_date: group?.extraction_end_date || '',
     extraction_dates: group?.extraction_dates || [],
-    attribute: group?.attribute || 'detector',
-    detection_count: group?.detection_count || 1,
+    // 来店計測地点の場合は指定属性と検知回数は使用しない（UIから非表示）
+    // 既存データがある場合は読み込むが、保存時にはundefinedにする
+    attribute: group?.attribute,
+    detection_count: group?.detection_count,
     detection_time_start: group?.detection_time_start || '',
     detection_time_end: group?.detection_time_end || '',
     stay_time: group?.stay_time || '',
   });
-
-  // 居住者・勤務者・居住者&勤務者の場合は抽出期間を3ヶ月に固定
-  useEffect(() => {
-    if (formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') {
-      setFormData(prev => ({
-        ...prev,
-        extraction_period: '3month',
-        extraction_period_type: 'custom',
-        extraction_dates: [],
-      }));
-    }
-  }, [formData.attribute]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -86,7 +76,14 @@ export function VisitMeasurementGroupForm({
       return;
     }
 
-    onSubmit(formData);
+    // 来店計測地点の場合は指定属性と検知回数をundefinedに設定（DBに保存しない）
+    const submitData = {
+      ...formData,
+      attribute: undefined,
+      detection_count: undefined,
+    };
+
+    onSubmit(submitData);
   };
 
   return (
@@ -162,6 +159,7 @@ export function VisitMeasurementGroupForm({
               titleLabel="計測条件"
               extractionLabel="計測期間"
               noteLabel="※ このグループに属する全地点に同じ条件が適用されます"
+              isVisitMeasurement={true}
             />
           </div>
 

@@ -1580,6 +1580,11 @@ export function ProjectDetail({
                                       <Badge className={`text-[10px] border-0 px-1.5 py-0.5 leading-tight ${statusInfo.color}`}>
                                         {statusInfo.icon} {statusInfo.label}
                                       </Badge>
+                                      {segment.registerd_provider_segment && (
+                                        <Badge className="text-[10px] border-0 px-1.5 py-0.5 leading-tight bg-blue-100 text-blue-700">
+                                          ✓ プロバイダセグメント取り込み済み
+                                        </Badge>
+                                      )}
                                       <span className="text-[10px] text-muted-foreground">
                                         媒体: {getMediaLabels(segment.media_id).join('、')}
                                       </span>

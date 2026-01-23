@@ -21,9 +21,11 @@ interface SegmentFormCommonConditionsProps {
   titleLabel?: string;
   extractionLabel?: string;
   noteLabel?: string;
+  // 来店計測地点の場合は指定属性と検知回数を無効化
+  isVisitMeasurement?: boolean;
 }
 
-export function SegmentFormCommonConditions({ formData, onChange, titleLabel, extractionLabel, noteLabel }: SegmentFormCommonConditionsProps) {
+export function SegmentFormCommonConditions({ formData, onChange, titleLabel, extractionLabel, noteLabel, isVisitMeasurement = false }: SegmentFormCommonConditionsProps) {
   const headingText = titleLabel ?? 'セグメント共通条件';
   const periodLabel = extractionLabel ?? '抽出期間';
   const noteText = noteLabel ?? '※ このセグメントに属する全地点に同じ条件が適用されます';
@@ -68,20 +70,20 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
   }, [formData.designated_radius]);
 
   return (
-    <div className="border-2 border-purple-200 rounded-lg p-6 bg-gradient-to-r from-purple-50 to-pink-50 space-y-6">
+    <div className="border border-gray-200 rounded-lg p-6 bg-white space-y-6">
       <div className="flex items-center gap-2 mb-4">
-        <Settings className="w-5 h-5 text-purple-600" />
-        <h3 className="font-medium text-purple-900">{headingText}</h3>
-        <Badge className="bg-purple-600 text-white ml-2">全地点に適用</Badge>
+        <Settings className="w-5 h-5 text-gray-600" />
+        <h3 className="font-medium text-gray-900">{headingText}</h3>
+        <Badge className="bg-gray-600 text-white ml-2">全地点に適用</Badge>
       </div>
-      <p className="text-sm text-purple-800 mb-4">
+      <p className="text-sm text-gray-700 mb-4">
         {noteText}
       </p>
 
       {/* 指定半径 */}
       <div>
         <Label htmlFor="designated_radius" className="block mb-2 flex items-center gap-2">
-          <Target className="w-4 h-4 text-purple-600" />
+          <Target className="w-4 h-4 text-gray-600" />
           指定半径 <span className="text-red-600">*</span>
         </Label>
         <p className="text-xs text-gray-500 mb-2">自由入力か選択のどちらかで指定してください</p>
@@ -171,7 +173,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                   setDesignatedRadiusDraft(value);
                   onChange('designated_radius', `${value}m`);
                 }}
-                className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               >
                 <option value="">自由入力に戻す</option>
                 {fixedRadiusOptions.map((value) => (
@@ -214,7 +216,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
       {/* 抽出期間 / 計測期間 */}
       <div>
         <Label className="block mb-2 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-purple-600" />
+          <Calendar className="w-4 h-4 text-gray-600" />
           {periodLabel} <span className="text-red-600">*</span>
         </Label>
         <div className="space-y-3">
@@ -224,7 +226,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                 type="radio"
                 checked={formData.extraction_period_type === 'preset'}
                 onChange={() => {}}
-                className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500"
                 disabled={true}
               />
               <span className="text-sm">プリセット（使用不可）</span>
@@ -234,7 +236,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                 type="radio"
                 checked={formData.extraction_period_type === 'custom'}
                 onChange={() => onChange('extraction_period_type', 'custom')}
-                className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500"
                 disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
               />
               <span className="text-sm">期間指定</span>
@@ -244,7 +246,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                 type="radio"
                 checked={formData.extraction_period_type === 'specific_dates'}
                 onChange={() => onChange('extraction_period_type', 'specific_dates')}
-                className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500"
                 disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
               />
               <span className="text-sm">特定日付</span>
@@ -257,7 +259,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
             </div>
           ) : formData.extraction_period_type === 'specific_dates' ? (
             <div className="space-y-2">
-              <p className="text-xs text-purple-700">抽出対象とする日付を複数選択できます（直近6ヶ月まで）</p>
+              <p className="text-xs text-gray-700">抽出対象とする日付を複数選択できます（直近6ヶ月まで）</p>
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {(formData.extraction_dates || []).map((d, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -294,7 +296,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
               <button
                 type="button"
                 onClick={() => onChange('extraction_dates', [...(formData.extraction_dates || []), ''])}
-                className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+                className="text-sm text-gray-600 hover:text-gray-800 font-medium"
               >
                 + 日付を追加
               </button>
@@ -324,36 +326,38 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
         </div>
       </div>
 
-      {/* 指定属性 */}
-      <div>
-        <Label htmlFor="attribute" className="block mb-2 flex items-center gap-2">
-          <Users className="w-4 h-4 text-purple-600" />
-          指定属性 <span className="text-red-600">*</span>
-        </Label>
-        <select
-          id="attribute"
-          value={formData.attribute || 'detector'}
-          onChange={(e) => onChange('attribute', e.target.value)}
-          className="w-full px-3 py-2 border border-purple-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-        >
-          {ATTRIBUTE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        {(formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') && (
-          <p className="text-xs text-purple-700 mt-2">
-            ※ 居住者・勤務者・居住者&勤務者の場合、抽出期間は3ヶ月固定です
-          </p>
-        )}
-      </div>
+      {/* 指定属性（来店計測地点の場合は非表示） */}
+      {!isVisitMeasurement && (
+        <div>
+          <Label htmlFor="attribute" className="block mb-2 flex items-center gap-2">
+            <Users className="w-4 h-4 text-gray-600" />
+            指定属性 <span className="text-red-600">*</span>
+          </Label>
+          <select
+            id="attribute"
+            value={formData.attribute || 'detector'}
+            onChange={(e) => onChange('attribute', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+          >
+            {ATTRIBUTE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {(formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') && (
+            <p className="text-xs text-gray-700 mt-2">
+              ※ 居住者・勤務者・居住者&勤務者の場合、抽出期間は3ヶ月固定です
+            </p>
+          )}
+        </div>
+      )}
 
-      {/* 検知回数（検知者の場合のみ） */}
-      {formData.attribute === 'detector' && (
+      {/* 検知回数（検知者の場合のみ、来店計測地点の場合は非表示） */}
+      {!isVisitMeasurement && formData.attribute === 'detector' && (
         <div>
           <Label htmlFor="detection_count" className="block mb-2 flex items-center gap-2">
-            <Target className="w-4 h-4 text-purple-600" />
+            <Target className="w-4 h-4 text-gray-600" />
             検知回数（〇回以上）
           </Label>
           <div className="flex items-center gap-2">
@@ -374,7 +378,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
       {formData.attribute === 'detector' && (
         <div>
           <Label className="block mb-2 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-purple-600" />
+            <Clock className="w-4 h-4 text-gray-600" />
             検知時間帯
           </Label>
           <div className="grid grid-cols-2 gap-3">
@@ -403,14 +407,14 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
       {/* 滞在時間 */}
       <div>
         <Label htmlFor="stay_time" className="block mb-2 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-purple-600" />
+          <Clock className="w-4 h-4 text-gray-600" />
           滞在時間
         </Label>
         <select
           id="stay_time"
           value={formData.stay_time || ''}
           onChange={(e) => onChange('stay_time', e.target.value)}
-          className="w-full px-3 py-2 border border-purple-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
         >
           <option value="">指定なし</option>
           {STAY_TIME_OPTIONS.map((option) => (

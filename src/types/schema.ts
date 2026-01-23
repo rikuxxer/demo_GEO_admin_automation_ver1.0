@@ -32,6 +32,7 @@ export interface Segment {
   data_coordination_date?: string; // データ連携目途（格納依頼日から自動計算）
   ads_account_id?: string; // AdsアカウントID（例：17890）
   provider_segment_id?: string; // パイロット/プロバイダセグメントID（管理部の入力）営業は入力しない
+  registerd_provider_segment?: boolean; // プロバイダセグメント取り込み済みフラグ（デフォルト: false）
   poi_id?: string; // 地点グループID（自動採番）
   segment_expire_date?: string; // セグメントの有効期限日（データ連携の完了から6ヶ月後）
   

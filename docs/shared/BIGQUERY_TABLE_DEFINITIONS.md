@@ -146,6 +146,7 @@ CREATE TABLE `universegeo_dataset.segments` (
   location_request_status STRING,
   data_coordination_date DATE,
   delivery_confirmed BOOL,
+  registerd_provider_segment BOOL DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 )
@@ -180,6 +181,7 @@ OPTIONS(
 | `location_request_status` | STRING | YES | 地点依頼ステータス | `not_requested`, `storing`, `completed` |
 | `data_coordination_date` | DATE | YES | データ連携目途 | `2025-02-01` |
 | `delivery_confirmed` | BOOL | YES | 配信確定フラグ | `true`, `false` |
+| `registerd_provider_segment` | BOOL | YES | プロバイダセグメント取り込み済みフラグ | `true`, `false` |
 | `created_at` | TIMESTAMP | YES | 作成日時 | `2025-01-13 10:00:00 UTC` |
 | `updated_at` | TIMESTAMP | YES | 更新日時 | `2025-01-13 10:00:00 UTC` |
 
@@ -895,6 +897,7 @@ SET OPTIONS(
 - **2025-01-13**: `sheet_exports`と`sheet_export_data`テーブルを追加（全12テーブル）
 - **2026-01-19**: `segments`テーブルに`extraction_dates`カラム（ARRAY<STRING>）を追加。`extraction_period_type`に`'specific_dates'`オプションを追加
 - **2026-01-22**: `segments`テーブルに`poi_category`カラム（STRING）を追加。TG地点/来店計測地点の判定を可能に（UIのタブ情報から自動判定、デフォルトは`'tg'`）
+- **2026-01-22**: `segments`テーブルに`registerd_provider_segment`カラム（BOOL）を追加。プロバイダセグメント取り込み済み状態の判定を可能に（デフォルトは`FALSE`）
 
 ---
 

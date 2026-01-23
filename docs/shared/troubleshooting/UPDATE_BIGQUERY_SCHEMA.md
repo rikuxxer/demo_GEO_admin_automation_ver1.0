@@ -235,22 +235,37 @@ cat visit_measurement_groups_schema.json
 
 ### 方法2: segmentsテーブルにpoi_categoryカラムを追加
 
-**注意**: BigQueryでは、ALTER TABLEでカラムを追加する際にデフォルト値を同時に設定できません。以下の3つのステップに分けて実行する必要があります：
+**注意**: BigQueryでは、`ALTER COLUMN SET DEFAULT`はサポートされていません。以下の2つのステップに分けて実行する必要があります：
 
 ```sql
 -- ステップ1: カラムを追加
 ALTER TABLE `universegeo_dataset.segments`
 ADD COLUMN IF NOT EXISTS poi_category STRING;
 
--- ステップ2: デフォルト値を設定
-ALTER TABLE `universegeo_dataset.segments`
-ALTER COLUMN poi_category SET DEFAULT 'tg';
-
--- ステップ3: 既存データにデフォルト値を設定
+-- ステップ2: 既存データにデフォルト値を設定
 UPDATE `universegeo_dataset.segments`
 SET poi_category = 'tg'
 WHERE poi_category IS NULL;
 ```
+
+**補足**: BigQueryでは、新規に追加されたカラムは自動的に`NULL`になります。デフォルト値を設定するには、`UPDATE`文で明示的に値を設定する必要があります。アプリケーション側でデフォルト値（`'tg'`）を処理するように実装されています。
+
+### 方法2-2: segmentsテーブルにregisterd_provider_segmentカラムを追加
+
+**注意**: BigQueryでは、`ALTER COLUMN SET DEFAULT`はサポートされていません。以下の2つのステップに分けて実行する必要があります：
+
+```sql
+-- ステップ1: カラムを追加
+ALTER TABLE `universegeo_dataset.segments`
+ADD COLUMN IF NOT EXISTS registerd_provider_segment BOOL;
+
+-- ステップ2: 既存データにデフォルト値を設定
+UPDATE `universegeo_dataset.segments`
+SET registerd_provider_segment = FALSE
+WHERE registerd_provider_segment IS NULL;
+```
+
+**補足**: BigQueryでは、新規に追加されたカラムは自動的に`NULL`になります。デフォルト値を設定するには、`UPDATE`文で明示的に値を設定する必要があります。アプリケーション側でデフォルト値（`false`）を処理するように実装されています。
 
 ### 方法3: スキーマを更新（既存フィールドを保持）
 
@@ -661,3 +676,50 @@ bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.visit_measurem
 ### エラー: "Cannot change field type"
 フィールドの型を変更することはできません。新しいフィールドを追加してデータを移行してください。
 
+### エラー: "Syntax error: Unexpected keyword IF"
+BigQueryでは`ADD COLUMN IF NOT EXISTS`構文がサポートされていない場合があります。以下のように修正してください：
+
+**修正前（エラーが発生する場合）:**
+```sql
+ALTER TABLE `universegeo_dataset.segments`
+ADD COLUMN IF NOT EXISTS registerd_provider_segment BOOL;
+```
+
+**修正後:**
+```sql
+-- カラムが存在しない場合のみ追加（エラーハンドリングが必要）
+ALTER TABLE `universegeo_dataset.segments`
+ADD COLUMN registerd_provider_segment BOOL;
+```
+
+**注意**: カラムが既に存在する場合はエラーが発生します。その場合は、エラーを無視して次のステップ（UPDATE）に進んでください。
+
+### エラー: "UPDATE statement cannot modify partition key column"
+パーティション分割テーブルでは、パーティションキーカラムを直接UPDATEすることはできません。新規追加したカラムは通常パーティションキーではないため、このエラーは発生しませんが、念のため確認してください。
+
+### エラー: "Query exceeded resource limits"
+大量のデータがある場合、UPDATE文がタイムアウトする可能性があります。以下のように条件を追加して、段階的に更新してください：
+
+```sql
+-- 例: 1000件ずつ更新
+UPDATE `universegeo_dataset.segments`
+SET registerd_provider_segment = FALSE
+WHERE registerd_provider_segment IS NULL
+LIMIT 1000;
+```
+
+### エラー: "Table not found" または "Dataset not found"
+プロジェクトID、データセットID、テーブル名が正しいか確認してください：
+
+```sql
+-- 正しい形式
+ALTER TABLE `プロジェクトID.データセットID.テーブル名`
+ADD COLUMN registerd_provider_segment BOOL;
+
+-- 例
+ALTER TABLE `univere-geo-demo.universegeo_dataset.segments`
+ADD COLUMN registerd_provider_segment BOOL;
+```
+
+### エラー: "Column name is reserved"
+カラム名がBigQueryの予約語と競合している可能性があります。カラム名を変更するか、バッククォートで囲んでください（通常は不要ですが、予約語の場合は必要です）。
