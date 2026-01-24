@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, ChevronRight, ChevronLeft, HelpCircle, Play, BookOpen, FileText, MapPin, Package, Upload, Settings } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, HelpCircle, Play, BookOpen, FileText, MapPin, Package, Upload, Settings, Target } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import {
