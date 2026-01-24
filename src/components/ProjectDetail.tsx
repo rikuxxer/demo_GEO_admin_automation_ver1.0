@@ -1464,7 +1464,6 @@ export function ProjectDetail({
                   <Plus className="w-4 h-4" />
                   新規セグメント追加
                 </Button>
-                data-guide="new-segment-button"
               )}
             </div>
           </div>
