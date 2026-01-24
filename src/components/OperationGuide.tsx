@@ -281,7 +281,19 @@ export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps
     }
 
     const findElement = async () => {
-      const element = document.querySelector(step.target) as HTMLElement;
+      // 要素を探す（複数回リトライ）
+      let element: HTMLElement | null = null;
+      let retryCount = 0;
+      const maxRetries = 10;
+      
+      while (!element && retryCount < maxRetries) {
+        element = document.querySelector(step.target) as HTMLElement;
+        if (!element) {
+          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
@@ -304,9 +316,14 @@ export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps
           }
         }, 500);
       } else {
-        console.warn(`Guide target not found: ${step.target}`);
+        console.warn(`Guide target not found after ${maxRetries} retries: ${step.target}`);
+        // 要素が見つからない場合でも、ツールチップを表示してユーザーに通知
+        setTargetElement(null);
+        // 次のステップに進むか、ガイドを終了
         if (currentStep < selectedGuide.steps.length - 1) {
-          setTimeout(() => setCurrentStep(currentStep + 1), 500);
+          setTimeout(() => setCurrentStep(currentStep + 1), 1000);
+        } else {
+          handleComplete();
         }
       }
     };
@@ -435,6 +452,10 @@ export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps
   const handleSelectGuide = (guide: OperationGuide) => {
     setSelectedGuide(guide);
     setCurrentStep(0);
+    // Dialogを閉じるために少し遅延させる
+    setTimeout(() => {
+      // Dialogは自動的に閉じられる（selectedGuideが設定されると条件分岐でDialogが表示されなくなる）
+    }, 100);
   };
 
   if (!isOpen) return null;
@@ -506,16 +527,16 @@ export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps
       )}
 
       {/* ツールチップ */}
-      {targetElement && (
+      {selectedGuide && (
         <Card
           ref={tooltipRef}
           className="z-[10000] w-80 p-4 shadow-2xl border border-primary"
           style={{
             position: 'fixed',
-            top: tooltipPosition ? `${tooltipPosition.top}px` : '0px',
-            left: tooltipPosition ? `${tooltipPosition.left}px` : '0px',
+            top: tooltipPosition ? `${tooltipPosition.top}px` : '50%',
+            left: tooltipPosition ? `${tooltipPosition.left}px` : '50%',
             margin: 0,
-            transform: 'none',
+            transform: tooltipPosition ? 'none' : 'translate(-50%, -50%)',
             opacity: 1,
             transition: 'opacity 0.2s',
             pointerEvents: 'auto',
@@ -536,6 +557,11 @@ export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps
             </Button>
           </div>
 
+          {!targetElement && (
+            <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+              ⚠️ 対象の要素が見つかりませんでした。ページを確認してください。
+            </div>
+          )}
           <p className="text-xs text-gray-600 mb-4 leading-relaxed">
             {step.content}
           </p>
