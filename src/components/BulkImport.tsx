@@ -345,7 +345,7 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
       </Card>
 
       {/* ファイルアップロード */}
-      <Card className="p-6">
+      <Card className="p-6" data-guide="bulk-import-form">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Upload className="w-5 h-5 text-[#5b5fff]" />

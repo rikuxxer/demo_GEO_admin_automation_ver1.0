@@ -93,7 +93,7 @@ export function ProjectForm({ isOpen, onClose, onSubmit }: ProjectFormProps) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl border border-gray-200">
+      <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl border border-gray-200" data-guide="project-form">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div>
@@ -271,7 +271,7 @@ export function ProjectForm({ isOpen, onClose, onSubmit }: ProjectFormProps) {
             <Button type="button" variant="outline" onClick={onClose} className="min-w-[100px] border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50">
               キャンセル
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[120px]">
+            <Button type="submit" data-guide="project-submit" className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[120px]">
               登録する
             </Button>
           </div>

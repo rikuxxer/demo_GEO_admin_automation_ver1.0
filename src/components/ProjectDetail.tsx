@@ -1125,6 +1125,7 @@ export function ProjectDetail({
             </TabsTrigger>
             <TabsTrigger 
               value="segments"
+              data-guide="segment-tab"
               className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all hover:bg-white/60 hover:shadow-sm"
             >
               <div className="flex items-center gap-2">
@@ -1135,6 +1136,7 @@ export function ProjectDetail({
             </TabsTrigger>
             <TabsTrigger 
               value="pois"
+              data-guide="poi-tab"
               className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all hover:bg-white/60 hover:shadow-sm"
             >
               <div className="flex items-center gap-2">
@@ -1456,11 +1458,13 @@ export function ProjectDetail({
               {canEditProject(user, project) && (
                 <Button
                   onClick={() => setShowSegmentForm(true)}
+                  data-guide="new-segment-button"
                   className="bg-[#5b5fff] text-white hover:bg-[#4949dd] h-10 px-6 gap-2 shadow-sm hover:shadow-md transition-all"
                 >
                   <Plus className="w-4 h-4" />
                   新規セグメント追加
                 </Button>
+                data-guide="new-segment-button"
               )}
             </div>
           </div>
@@ -1698,6 +1702,7 @@ export function ProjectDetail({
                                     size="sm"
                                     onClick={() => handleAddPoi(segment.segment_id)}
                                     disabled={segment.location_request_status !== 'not_requested'}
+                                    data-guide="new-poi-button"
                                     className={
                                       segment.location_request_status === 'not_requested'
                                         ? "bg-[#5b5fff] text-white hover:bg-[#4949dd] whitespace-nowrap"

@@ -16,6 +16,7 @@ import { Notifications } from "./components/Notifications";
 import { EditRequestList } from "./components/EditRequestList";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { UserGuideTour } from "./components/UserGuideTour";
+import { OperationGuide } from "./components/OperationGuide";
 import { ChatBot } from "./components/ChatBot";
 import { FeatureRequestList } from "./components/FeatureRequestList";
 import { UserManagement } from "./components/UserManagement";
@@ -50,6 +51,8 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState("projects");
   const [statusFilter, setStatusFilter] = useState<AutoProjectStatus | 'total' | null>(null);
   const [isTourOpen, setIsTourOpen] = useState(false);
+  const [isOperationGuideOpen, setIsOperationGuideOpen] = useState(false);
+  const [operationGuideId, setOperationGuideId] = useState<string | undefined>(undefined);
 
   // 初回ログイン時（営業のみ）にツアーを表示
   useEffect(() => {
@@ -69,6 +72,11 @@ function AppContent() {
 
   const handleTourOpen = () => {
     setIsTourOpen(true);
+  };
+
+  const handleOperationGuideOpen = (guideId?: string) => {
+    setOperationGuideId(guideId);
+    setIsOperationGuideOpen(true);
   };
 
   // Data & Logic from Custom Hook
@@ -275,7 +283,7 @@ function AppContent() {
               setCurrentPage('admin-dashboard');
             }
           }}
-          onOpenHelp={user?.role === 'sales' ? handleTourOpen : undefined}
+          onOpenHelp={user?.role === 'sales' ? () => handleOperationGuideOpen() : undefined}
         />
 
         {/* Content */}
@@ -616,6 +624,18 @@ function AppContent() {
           isOpen={isTourOpen}
           onClose={() => setIsTourOpen(false)}
           onComplete={handleTourComplete}
+        />
+      )}
+
+      {/* Operation Guide (営業のみ) */}
+      {user?.role === 'sales' && (
+        <OperationGuide
+          isOpen={isOperationGuideOpen}
+          onClose={() => {
+            setIsOperationGuideOpen(false);
+            setOperationGuideId(undefined);
+          }}
+          guideId={operationGuideId}
         />
       )}
 
