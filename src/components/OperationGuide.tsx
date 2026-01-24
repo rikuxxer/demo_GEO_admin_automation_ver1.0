@@ -78,7 +78,7 @@ export interface OperationGuide {
   id: string;
   title: string;
   description: string;
-  icon: React.ReactNode;
+  icon: React.ComponentType<{ className?: string }>;
   steps: GuideStep[];
 }
 
@@ -88,7 +88,7 @@ export const operationGuides: OperationGuide[] = [
     id: 'project-registration',
     title: '案件の新規登録',
     description: '案件を手動で登録する方法を説明します',
-    icon: <FileText className="w-5 h-5" />,
+    icon: FileText,
     steps: [
       {
         target: '[data-tour="new-project-button"]',
@@ -114,7 +114,7 @@ export const operationGuides: OperationGuide[] = [
     id: 'segment-registration',
     title: 'セグメントの登録',
     description: 'セグメントを作成して配信設定を行う方法を説明します',
-    icon: <Target className="w-5 h-5" />,
+    icon: Target,
     steps: [
       {
         target: '[data-guide="segment-tab"]',
@@ -146,7 +146,7 @@ export const operationGuides: OperationGuide[] = [
     id: 'poi-registration',
     title: '地点の登録',
     description: '地点情報を登録する方法を説明します（任意地点、都道府県市区町村、PKG）',
-    icon: <MapPin className="w-5 h-5" />,
+    icon: MapPin,
     steps: [
       {
         target: '[data-guide="poi-tab"]',
@@ -184,7 +184,7 @@ export const operationGuides: OperationGuide[] = [
     id: 'bulk-import',
     title: 'Excel一括登録',
     description: 'Excelファイルで案件・セグメント・地点を一括登録する方法を説明します',
-    icon: <Upload className="w-5 h-5" />,
+    icon: Upload,
     steps: [
       {
         target: '[data-tour="new-project-button"]',
@@ -216,7 +216,7 @@ export const operationGuides: OperationGuide[] = [
     id: 'segment-common-conditions',
     title: 'セグメント共通条件の設定',
     description: 'セグメント共通条件を設定して、地点に自動適用する方法を説明します',
-    icon: <Settings className="w-5 h-5" />,
+    icon: Settings,
     steps: [
       {
         target: '[data-guide="segment-common-conditions"]',
@@ -455,26 +455,29 @@ export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps
           </DialogHeader>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            {operationGuides.map((guide) => (
-              <Card
-                key={guide.id}
-                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => handleSelectGuide(guide)}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                    {guide.icon}
-                  </div>
+            {operationGuides.map((guide) => {
+              const IconComponent = guide.icon;
+              return (
+                <Card
+                  key={guide.id}
+                  className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => handleSelectGuide(guide)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                      <IconComponent className="w-5 h-5" />
+                    </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-sm mb-1">{guide.title}</h3>
                     <p className="text-xs text-gray-600">{guide.description}</p>
                     <div className="mt-2 text-xs text-gray-500">
                       {guide.steps.length}ステップ
                     </div>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
