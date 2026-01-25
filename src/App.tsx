@@ -659,6 +659,13 @@ function AppContent() {
               }
             }
           }}
+          onOpenForm={(formType) => {
+            if (formType === 'project-form') {
+              setIsProjectFormOpen(true);
+            } else if (formType === 'bulk-import') {
+              setIsBulkImportOpen(true);
+            }
+          }}
         />
       )}
 
