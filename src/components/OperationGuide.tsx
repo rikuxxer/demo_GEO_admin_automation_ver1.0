@@ -133,6 +133,7 @@ export const operationGuides: OperationGuide[] = [
         title: 'セグメント追加',
         content: '「セグメントを追加」ボタンをクリックして、セグメント登録フォームを開きます。',
         position: 'bottom',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="segment-form"]',
@@ -283,13 +284,18 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
       if (guide) {
         setSelectedGuide(guide);
         setCurrentStep(0);
+        // 最初のステップのページに遷移
+        const firstStep = guide.steps[0];
+        if (firstStep?.navigateToPage && onNavigate) {
+          onNavigate(firstStep.navigateToPage, firstStep.navigateToProjectId);
+        }
       }
     } else if (isOpen && !guideId) {
       // ガイドIDが指定されていない場合は選択画面を表示
       setSelectedGuide(null);
       setCurrentStep(0);
     }
-  }, [isOpen, guideId]);
+  }, [isOpen, guideId, onNavigate]);
 
   // ステップの実行
   useEffect(() => {
@@ -480,6 +486,11 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
   const handleSelectGuide = (guide: OperationGuide) => {
     setSelectedGuide(guide);
     setCurrentStep(0);
+    // 最初のステップのページに遷移
+    const firstStep = guide.steps[0];
+    if (firstStep?.navigateToPage && onNavigate) {
+      onNavigate(firstStep.navigateToPage, firstStep.navigateToProjectId);
+    }
     // Dialogを閉じるために少し遅延させる
     setTimeout(() => {
       // Dialogは自動的に閉じられる（selectedGuideが設定されると条件分岐でDialogが表示されなくなる）
