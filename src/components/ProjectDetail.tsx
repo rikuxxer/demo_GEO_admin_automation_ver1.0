@@ -506,55 +506,6 @@ export function ProjectDetail({
 
   // 計測地点グループの作成・更新
 
-  // 計測地点グループの削除
-  const [deleteGroupTarget, setDeleteGroupTarget] = useState<string | null>(null);
-
-  const handleGroupDelete = async (groupId: string) => {
-    setDeleteGroupTarget(groupId);
-  };
-
-  const confirmGroupDelete = async () => {
-    if (!deleteGroupTarget || !project?.project_id) return;
-    
-    try {
-      // グループに属する地点があるか確認
-      const groupPois = pois.filter(poi => poi.visit_measurement_group_id === deleteGroupTarget);
-      
-      // グループを削除
-      await bigQueryService.deleteVisitMeasurementGroup(deleteGroupTarget);
-      
-      // グループに属する地点のvisit_measurement_group_idをクリア
-      if (groupPois.length > 0) {
-        let clearedCount = 0;
-        for (const poi of groupPois) {
-          if (poi.poi_id) {
-            try {
-              await onPoiUpdate(poi.poi_id, { visit_measurement_group_id: undefined });
-              clearedCount++;
-            } catch (error) {
-              console.error(`地点「${poi.poi_name}」のグループIDクリアに失敗しました:`, error);
-            }
-          }
-        }
-        if (clearedCount > 0) {
-          toast.info(`${clearedCount}件の地点からグループIDをクリアしました`);
-        }
-      }
-      
-      toast.success('グループを削除しました');
-      const groups = await bigQueryService.getVisitMeasurementGroups(project.project_id);
-      setVisitMeasurementGroups(groups || []);
-      // 削除されたグループが選択されていた場合は選択を解除
-      if (selectedGroupId === deleteGroupTarget) {
-        setSelectedGroupId(null);
-      }
-      setDeleteGroupTarget(null);
-    } catch (error) {
-      console.error('Error deleting group:', error);
-      toast.error('グループの削除に失敗しました');
-      setDeleteGroupTarget(null);
-    }
-  };
 
   const handleDataLinkRequest = (segment: Segment) => {
     // データ連携依頼を実行（ステータス更新）
@@ -1982,15 +1933,6 @@ export function ProjectDetail({
                                   >
                                     <Edit className="w-3.5 h-3.5 mr-2" />
                                     計測条件の設定
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleGroupDelete(group.group_id)}
-                                    className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                    グループを削除
                                   </Button>
                                   <Button
                                     size="sm"
