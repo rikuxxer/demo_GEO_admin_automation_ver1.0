@@ -384,15 +384,15 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
         <div className="space-y-3">
           <div className="flex flex-wrap gap-4">
             {!isVisitMeasurement && (
-              <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   checked={formData.extraction_period_type === 'preset'}
-                  onChange={() => {}}
+                  onChange={() => onChange('extraction_period_type', 'preset')}
                   className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500"
-                  disabled={true}
+                  disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
                 />
-                <span className="text-sm">プリセット（使用不可）</span>
+                <span className="text-sm">プリセット</span>
               </label>
             )}
             <label className="flex items-center gap-2">
