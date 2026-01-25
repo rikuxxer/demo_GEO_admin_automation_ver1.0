@@ -636,6 +636,29 @@ function AppContent() {
             setOperationGuideId(undefined);
           }}
           guideId={operationGuideId}
+          onNavigate={(page, projectId) => {
+            if (page === 'projects') {
+              setCurrentPage('projects');
+              clearSelectedProject();
+            } else if (page === 'project-detail') {
+              // 案件詳細ページに遷移
+              if (projectId) {
+                // 特定の案件IDが指定されている場合
+                const project = projects.find(p => p.project_id === projectId);
+                if (project) {
+                  selectProject(project);
+                  setCurrentPage('project-detail');
+                }
+              } else if (projects.length > 0) {
+                // 最初の案件を選択
+                selectProject(projects[0]);
+                setCurrentPage('project-detail');
+              } else {
+                // 案件がない場合は案件一覧に遷移
+                setCurrentPage('projects');
+              }
+            }
+          }}
         />
       )}
 

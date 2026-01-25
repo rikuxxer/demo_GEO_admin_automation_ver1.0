@@ -72,6 +72,8 @@ export interface GuideStep {
   position?: 'top' | 'bottom' | 'left' | 'right';
   action?: () => void | Promise<void>; // 自動操作（オプション）
   waitBeforeAction?: number; // アクション実行前の待機時間（ms）
+  navigateToPage?: string; // 要素があるページ（例: 'projects', 'project-detail'）
+  navigateToProjectId?: string; // 案件詳細画面に遷移する場合の案件ID
 }
 
 export interface OperationGuide {
@@ -101,6 +103,7 @@ export const operationGuides: OperationGuide[] = [
         title: '案件情報の入力',
         content: '必須項目（広告主法人名、訴求内容、配信開始日・終了日）を入力します。代理店名やUNIVERSEサービスIDは任意です。',
         position: 'right',
+        navigateToPage: 'projects', // 案件一覧ページに遷移（フォームはモーダルで開く）
       },
       {
         target: '[data-guide="project-submit"]',
@@ -121,6 +124,7 @@ export const operationGuides: OperationGuide[] = [
         title: 'セグメント管理タブ',
         content: '案件詳細画面の「セグメント管理」タブを開きます。',
         position: 'bottom',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移（最初の案件を選択）
       },
       {
         target: '[data-guide="new-segment-button"]',
@@ -133,12 +137,14 @@ export const operationGuides: OperationGuide[] = [
         title: 'セグメント情報の入力',
         content: 'セグメント名、配信媒体、期間、属性、検知条件などを設定します。セグメント共通条件を設定すると、後から追加する地点に自動適用されます。',
         position: 'right',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="segment-submit"]',
         title: 'セグメントの登録',
         content: '入力内容を確認して「登録」ボタンをクリックします。',
         position: 'top',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
     ],
   },
@@ -153,6 +159,7 @@ export const operationGuides: OperationGuide[] = [
         title: '地点情報タブ',
         content: '案件詳細画面の「地点情報」タブを開きます。',
         position: 'bottom',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移（最初の案件を選択）
       },
       {
         target: '[data-guide="new-poi-button"]',
@@ -171,12 +178,14 @@ export const operationGuides: OperationGuide[] = [
         title: '地点情報の入力',
         content: '選択したタイプに応じて、住所や都道府県・市区町村、PKG情報を入力します。セグメント共通条件が設定されている場合は自動適用されます。',
         position: 'right',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="poi-submit"]',
         title: '地点の登録',
         content: '入力内容を確認して「登録」ボタンをクリックします。営業ユーザーの場合、TG地点は自動的にGoogleスプレッドシートに出力されます。',
         position: 'top',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
     ],
   },
@@ -197,18 +206,21 @@ export const operationGuides: OperationGuide[] = [
         title: 'Excelファイルのアップロード',
         content: 'テンプレートをダウンロードして、案件・セグメント・地点の情報を入力したExcelファイルをアップロードします。',
         position: 'right',
+        navigateToPage: 'projects', // 案件一覧ページに遷移（フォームはモーダルで開く）
       },
       {
         target: '[data-guide="bulk-import-preview"]',
         title: 'データの確認',
         content: 'アップロードしたデータのプレビューを確認し、エラーがないか確認します。エラーがある場合は修正して再アップロードします。',
         position: 'right',
+        navigateToPage: 'projects', // 案件一覧ページに遷移（フォームはモーダルで開く）
       },
       {
         target: '[data-guide="bulk-import-submit"]',
         title: '一括登録の実行',
         content: 'データを確認して「一括登録」ボタンをクリックします。登録が完了すると、案件一覧に反映されます。',
         position: 'top',
+        navigateToPage: 'projects', // 案件一覧ページに遷移（フォームはモーダルで開く）
       },
     ],
   },
@@ -244,9 +256,10 @@ interface OperationGuideProps {
   isOpen: boolean;
   onClose: () => void;
   guideId?: string; // 特定のガイドを直接開く場合
+  onNavigate?: (page: string, projectId?: string) => void; // ページ遷移コールバック
 }
 
-export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps) {
+export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: OperationGuideProps) {
   const [selectedGuide, setSelectedGuide] = useState<OperationGuide | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
@@ -281,10 +294,17 @@ export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps
     }
 
     const findElement = async () => {
+      // まず、ページ遷移が必要な場合は遷移する
+      if (step.navigateToPage && onNavigate) {
+        onNavigate(step.navigateToPage, step.navigateToProjectId);
+        // ページ遷移後に要素が表示されるまで待機
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
       // 要素を探す（複数回リトライ）
       let element: HTMLElement | null = null;
       let retryCount = 0;
-      const maxRetries = 10;
+      const maxRetries = 20; // ページ遷移後は少し多めにリトライ
       
       while (!element && retryCount < maxRetries) {
         element = document.querySelector(step.target) as HTMLElement;
@@ -330,7 +350,7 @@ export function OperationGuide({ isOpen, onClose, guideId }: OperationGuideProps
 
     const timer = setTimeout(findElement, 300);
     return () => clearTimeout(timer);
-  }, [isOpen, selectedGuide, currentStep]);
+  }, [isOpen, selectedGuide, currentStep, onNavigate]);
 
   // ツールチップの位置更新
   useEffect(() => {
