@@ -280,16 +280,17 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
 
   // 特定のガイドIDが指定されている場合は自動選択
   useEffect(() => {
-    if (isOpen && guideId) {
+    if (isOpen && guideId && onNavigate) {
       const guide = operationGuides.find(g => g.id === guideId);
       if (guide) {
-        setSelectedGuide(guide);
-        setCurrentStep(0);
-        // 最初のステップのページに遷移
+        // 最初のステップのページに遷移（selectedGuideを設定する前に実行）
         const firstStep = guide.steps[0];
-        if (firstStep?.navigateToPage && onNavigate) {
+        if (firstStep?.navigateToPage) {
+          console.log('[OperationGuide] Guide ID specified, navigating to:', firstStep.navigateToPage, 'projectId:', firstStep.navigateToProjectId);
           onNavigate(firstStep.navigateToPage, firstStep.navigateToProjectId);
         }
+        setSelectedGuide(guide);
+        setCurrentStep(0);
       }
     } else if (isOpen && !guideId) {
       // ガイドIDが指定されていない場合は選択画面を表示
@@ -300,7 +301,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
 
   // ステップの実行
   useEffect(() => {
-    if (!isOpen || !selectedGuide) return;
+    if (!isOpen || !selectedGuide || !onNavigate) return;
 
     const step = selectedGuide.steps[currentStep];
     if (!step) {
@@ -310,16 +311,17 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
 
     const findElement = async () => {
       // まず、ページ遷移が必要な場合は遷移する
-      if (step.navigateToPage && onNavigate) {
+      if (step.navigateToPage) {
+        console.log('[OperationGuide] Navigating to page:', step.navigateToPage, 'projectId:', step.navigateToProjectId);
         onNavigate(step.navigateToPage, step.navigateToProjectId);
-        // ページ遷移後に要素が表示されるまで待機
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // ページ遷移後に要素が表示されるまで待機（少し長めに待機）
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
       
       // 要素を探す（複数回リトライ）
       let element: HTMLElement | null = null;
       let retryCount = 0;
-      const maxRetries = 20; // ページ遷移後は少し多めにリトライ
+      const maxRetries = 30; // ページ遷移後は少し多めにリトライ
       
       while (!element && retryCount < maxRetries) {
         element = document.querySelector(step.target) as HTMLElement;
@@ -351,7 +353,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
           }
         }, 500);
       } else {
-        console.warn(`Guide target not found after ${maxRetries} retries: ${step.target}`);
+        console.warn(`[OperationGuide] Guide target not found after ${maxRetries} retries: ${step.target}`);
         // 要素が見つからない場合でも、ツールチップを表示してユーザーに通知
         setTargetElement(null);
         // 次のステップに進むか、ガイドを終了
@@ -363,7 +365,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
       }
     };
 
-    const timer = setTimeout(findElement, 300);
+    const timer = setTimeout(findElement, 500); // 少し遅延を増やす
     return () => clearTimeout(timer);
   }, [isOpen, selectedGuide, currentStep, onNavigate]);
 
@@ -485,13 +487,14 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
   };
 
   const handleSelectGuide = (guide: OperationGuide) => {
-    setSelectedGuide(guide);
-    setCurrentStep(0);
-    // 最初のステップのページに遷移
+    // 最初のステップのページに遷移（selectedGuideを設定する前に実行）
     const firstStep = guide.steps[0];
     if (firstStep?.navigateToPage && onNavigate) {
+      console.log('[OperationGuide] Selecting guide, navigating to:', firstStep.navigateToPage, 'projectId:', firstStep.navigateToProjectId);
       onNavigate(firstStep.navigateToPage, firstStep.navigateToProjectId);
     }
+    setSelectedGuide(guide);
+    setCurrentStep(0);
     // Dialogを閉じるために少し遅延させる
     setTimeout(() => {
       // Dialogは自動的に閉じられる（selectedGuideが設定されると条件分岐でDialogが表示されなくなる）
