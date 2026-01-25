@@ -110,6 +110,8 @@ export interface VisitMeasurementGroup {
   group_name: string; // グループ名
   // 抽出条件（グループ内の全地点で統一）
   designated_radius?: string; // 指定半径
+  use_polygon?: boolean; // ポリゴン指定を使用するか（trueの場合、designated_radiusは無視）
+  polygon?: number[][]; // ポリゴン座標（[経度, 緯度]の配列）
   extraction_period?: string; // 抽出期間
   extraction_period_type?: 'preset' | 'custom' | 'specific_dates'; // プリセット or 期間指定 or 特定日付
   extraction_start_date?: string; // 抽出開始日

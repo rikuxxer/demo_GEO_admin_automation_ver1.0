@@ -2,8 +2,12 @@ import { useState, useEffect } from 'react';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import { Settings, Target, Clock, Calendar, Users, AlertCircle } from 'lucide-react';
+import { Button } from './ui/button';
+import { Settings, Target, Clock, Calendar, Users, AlertCircle, Map } from 'lucide-react';
 import { Segment, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
+import { toast } from 'sonner';
+import { PolygonMapEditor } from './PolygonMapEditor';
+import { validatePolygonRange } from '../utils/polygonUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +19,7 @@ import {
 } from './ui/alert-dialog';
 
 interface SegmentFormCommonConditionsProps {
-  formData: Partial<Segment>;
+  formData: Partial<Segment> & { use_polygon?: boolean; polygon?: number[][] };
   onChange: (field: string, value: any) => void;
   // 文言上書き用（訪問計測向けに利用）
   titleLabel?: string;
@@ -26,9 +30,22 @@ interface SegmentFormCommonConditionsProps {
 }
 
 export function SegmentFormCommonConditions({ formData, onChange, titleLabel, extractionLabel, noteLabel, isVisitMeasurement = false }: SegmentFormCommonConditionsProps) {
+  const [showPolygonEditor, setShowPolygonEditor] = useState(false);
+  const [polygons, setPolygons] = useState<Array<{ id: string; coordinates: number[][]; name?: string }>>(
+    formData.polygon ? [{ id: 'polygon-0', coordinates: formData.polygon }] : []
+  );
   const headingText = titleLabel ?? 'セグメント共通条件';
   const periodLabel = extractionLabel ?? '抽出期間';
   const noteText = noteLabel ?? '※ このセグメントに属する全地点に同じ条件が適用されます';
+
+  // 既存のポリゴンデータを読み込む
+  useEffect(() => {
+    if (formData.polygon && formData.polygon.length > 0) {
+      setPolygons([{ id: 'polygon-0', coordinates: formData.polygon }]);
+    } else {
+      setPolygons([]);
+    }
+  }, [formData.polygon]);
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
@@ -46,6 +63,22 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
     const date = new Date();
     date.setMonth(date.getMonth() - 6);
     return date.toISOString().split('T')[0];
+  };
+
+  // 5日前の日付を計算（YYYY-MM-DD形式）
+  const getFiveDaysAgoDate = (): string => {
+    const date = new Date();
+    date.setDate(date.getDate() - 5);
+    return date.toISOString().split('T')[0];
+  };
+
+  // 日付が5日前より前かどうかをチェック
+  const isDateMoreThanFiveDaysAgo = (dateString: string): boolean => {
+    if (!dateString) return false;
+    const selectedDate = new Date(dateString);
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    return selectedDate < fiveDaysAgo;
   };
 
   // 日付が6ヶ月以上前かどうかをチェック
@@ -80,7 +113,44 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
         {noteText}
       </p>
 
-      {/* 指定半径 */}
+      {/* 指定方法の選択（来店計測の場合のみ） */}
+      {isVisitMeasurement && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <Label className="block mb-3 text-sm font-semibold text-gray-900">
+            計測範囲の指定方法
+          </Label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={!formData.use_polygon}
+                onChange={() => {
+                  onChange('use_polygon', false);
+                  onChange('polygon', undefined);
+                  setPolygons([]);
+                }}
+                className="w-4 h-4 text-[#5b5fff] border-gray-300 focus:ring-[#5b5fff]"
+              />
+              <span className="text-sm">指定半径</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={formData.use_polygon === true}
+                onChange={() => {
+                  onChange('use_polygon', true);
+                  onChange('designated_radius', undefined);
+                }}
+                className="w-4 h-4 text-[#5b5fff] border-gray-300 focus:ring-[#5b5fff]"
+              />
+              <span className="text-sm">ポリゴン指定</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* 指定半径（ポリゴン指定が選択されていない場合のみ） */}
+      {(!isVisitMeasurement || !formData.use_polygon) && (
       <div>
         <Label htmlFor="designated_radius" className="block mb-2 flex items-center gap-2">
           <Target className="w-4 h-4 text-gray-600" />
@@ -212,6 +282,73 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
           })()}
         </div>
       </div>
+      )}
+
+      {/* ポリゴン指定（来店計測でポリゴン指定が選択された場合） */}
+      {isVisitMeasurement && formData.use_polygon && (
+        <div>
+          <Label className="block mb-2 flex items-center gap-2">
+            <Map className="w-4 h-4 text-gray-600" />
+            ポリゴン指定 <span className="text-red-600">*</span>
+          </Label>
+          <p className="text-xs text-gray-500 mb-3">
+            地図上でポリゴンを描画して計測範囲を指定します
+          </p>
+          {!showPolygonEditor && (
+            <div className="space-y-2">
+              {polygons.length > 0 ? (
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-700 mb-2">
+                    ポリゴンが設定されています（{polygons.length}個）
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPolygonEditor(true)}
+                    className="text-sm"
+                  >
+                    ポリゴンを編集
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowPolygonEditor(true)}
+                  className="w-full"
+                >
+                  <Map className="w-4 h-4 mr-2" />
+                  ポリゴンを描画
+                </Button>
+              )}
+            </div>
+          )}
+          {showPolygonEditor && (
+            <div className="border border-gray-300 rounded-lg overflow-hidden">
+              <PolygonMapEditor
+                polygons={polygons}
+                maxPolygons={1}
+                onPolygonsChange={(newPolygons) => {
+                  setPolygons(newPolygons);
+                  if (newPolygons.length > 0) {
+                    // ポリゴンの範囲を検証
+                    const validation = validatePolygonRange(newPolygons[0].coordinates);
+                    if (!validation.valid) {
+                      toast.error(validation.error || 'ポリゴンの範囲が広すぎます');
+                      return;
+                    }
+                    onChange('polygon', newPolygons[0].coordinates);
+                  } else {
+                    onChange('polygon', undefined);
+                  }
+                }}
+                onClose={() => setShowPolygonEditor(false)}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 抽出期間 / 計測期間 */}
       <div>
@@ -308,18 +445,38 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                 <Input
                   type="date"
                   value={formData.extraction_start_date || ''}
-                  onChange={(e) => onChange('extraction_start_date', e.target.value)}
+                  min={getFiveDaysAgoDate()}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value;
+                    if (isDateMoreThanFiveDaysAgo(selectedDate)) {
+                      toast.error('開始日は5日前以降の日付を指定してください');
+                      return;
+                    }
+                    onChange('extraction_start_date', selectedDate);
+                  }}
                   className="w-full"
                 />
+                <p className="text-xs text-gray-500 mt-1">5日前以降の日付を指定してください</p>
               </div>
               <div>
                 <Label className="text-xs mb-1 block">終了日</Label>
                 <Input
                   type="date"
                   value={formData.extraction_end_date || ''}
-                  onChange={(e) => onChange('extraction_end_date', e.target.value)}
+                  min={getFiveDaysAgoDate()}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value;
+                    if (isDateMoreThanFiveDaysAgo(selectedDate)) {
+                      toast.error('終了日は5日前以降の日付を指定してください');
+                      return;
+                    }
+                    onChange('extraction_end_date', selectedDate);
+                  }}
                   className="w-full"
                 />
+                <p className="text-xs text-gray-500 mt-1">5日前以降の日付を指定してください</p>
               </div>
             </div>
           )}

@@ -31,6 +31,8 @@ export function VisitMeasurementGroupForm({
     project_id: projectId,
     group_name: group?.group_name || '',
     designated_radius: group?.designated_radius || '',
+    use_polygon: group?.use_polygon || false,
+    polygon: group?.polygon || undefined,
     extraction_period: group?.extraction_period || '1month',
     extraction_period_type: (() => {
       const periodType = group?.extraction_period_type || 'custom';
@@ -62,10 +64,17 @@ export function VisitMeasurementGroupForm({
       return;
     }
 
-    // 指定半径の必須チェック
-    if (!formData.designated_radius || formData.designated_radius.trim() === '') {
-      toast.error('指定半径は必須項目です');
-      return;
+    // 指定半径またはポリゴンの必須チェック
+    if (!formData.use_polygon) {
+      if (!formData.designated_radius || formData.designated_radius.trim() === '') {
+        toast.error('指定半径は必須項目です');
+        return;
+      }
+    } else {
+      if (!formData.polygon || formData.polygon.length === 0) {
+        toast.error('ポリゴンを描画してください');
+        return;
+      }
     }
 
     // グループ名の重複チェック（編集時は現在のグループを除外）
@@ -144,6 +153,8 @@ export function VisitMeasurementGroupForm({
             <SegmentFormCommonConditions
               formData={formData as Partial<{ 
                 designated_radius?: string;
+                use_polygon?: boolean;
+                polygon?: number[][];
                 extraction_period?: string;
                 extraction_period_type?: 'preset' | 'custom' | 'specific_dates';
                 extraction_start_date?: string;
