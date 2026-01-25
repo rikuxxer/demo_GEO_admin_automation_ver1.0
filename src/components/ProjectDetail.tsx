@@ -2447,16 +2447,16 @@ export function ProjectDetail({
                     抽出期間
                   </Label>
                   <div className="flex flex-wrap gap-4 mb-4">
-                    <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         name="period_type_popup"
                         checked={extractionConditionsFormData.extraction_period_type === 'preset'}
-                        onChange={() => {}}
-                        disabled={true}
+                        onChange={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period_type: 'preset' }))}
+                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
-                      <span className="text-sm text-gray-700">プリセット（使用不可）</span>
+                      <span className="text-sm text-gray-700">プリセット</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -2483,8 +2483,19 @@ export function ProjectDetail({
                   </div>
 
                   {extractionConditionsFormData.extraction_period_type === 'preset' ? (
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-sm text-yellow-800">プリセット抽出期間は使用できません。期間指定または特定日付を選択してください。</p>
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-700">プリセット期間を選択してください</p>
+                      <select
+                        value={extractionConditionsFormData.extraction_period || '1month'}
+                        onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                      >
+                        {EXTRACTION_PERIOD_PRESET_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   ) : extractionConditionsFormData.extraction_period_type === 'specific_dates' ? (
                     <div className="space-y-2">
