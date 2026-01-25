@@ -62,6 +62,22 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     return selectedDate < sixMonthsAgo;
   };
+
+  // 5日前の日付を計算（YYYY-MM-DD形式）
+  const getFiveDaysAgoDate = (): string => {
+    const date = new Date();
+    date.setDate(date.getDate() - 5);
+    return date.toISOString().split('T')[0];
+  };
+
+  // 日付が5日前より前かどうかをチェック
+  const isDateMoreThanFiveDaysAgo = (dateString: string): boolean => {
+    if (!dateString) return false;
+    const selectedDate = new Date(dateString);
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    return selectedDate < fiveDaysAgo;
+  };
   // 指定半径のドラフト状態（入力中の値を保持）
   const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
   const isFirstPoi = segmentPoiCount === 0 && !poi;
@@ -147,8 +163,11 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return groupPeriodType === 'preset' ? 'custom' : groupPeriodType;
       }
       const segmentPeriodType = segment?.extraction_period_type || 'custom';
-      // 既存データに'preset'が含まれている場合は'custom'に変換
-      return segmentPeriodType === 'preset' ? 'custom' : segmentPeriodType;
+      // 来店計測の場合は'preset'を'custom'に変換、TG地点の場合はそのまま使用
+      if (defaultCategory === 'visit_measurement') {
+        return segmentPeriodType === 'preset' ? 'custom' : segmentPeriodType;
+      }
+      return segmentPeriodType;
     })(),
     extraction_start_date: poi?.extraction_start_date || 
       (defaultCategory === 'visit_measurement' && initialSelectedGroup?.extraction_start_date 
@@ -2871,19 +2890,43 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <Input
-                        type="date"
-                        value={formData.extraction_start_date}
-                        onChange={(e) => handleChange('extraction_start_date', e.target.value)}
-                        className="bg-white"
-                      />
+                      <div className="flex-1">
+                        <Input
+                          type="date"
+                          value={formData.extraction_start_date}
+                          min={getFiveDaysAgoDate()}
+                          max={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => {
+                            const selectedDate = e.target.value;
+                            if (isDateMoreThanFiveDaysAgo(selectedDate)) {
+                              toast.error('開始日は5日前以降の日付を指定してください');
+                              return;
+                            }
+                            handleChange('extraction_start_date', selectedDate);
+                          }}
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">5日前以降</p>
+                      </div>
                       <span className="text-gray-500">〜</span>
-                      <Input
-                        type="date"
-                        value={formData.extraction_end_date}
-                        onChange={(e) => handleChange('extraction_end_date', e.target.value)}
-                        className="bg-white"
-                      />
+                      <div className="flex-1">
+                        <Input
+                          type="date"
+                          value={formData.extraction_end_date}
+                          min={getFiveDaysAgoDate()}
+                          max={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => {
+                            const selectedDate = e.target.value;
+                            if (isDateMoreThanFiveDaysAgo(selectedDate)) {
+                              toast.error('終了日は5日前以降の日付を指定してください');
+                              return;
+                            }
+                            handleChange('extraction_end_date', selectedDate);
+                          }}
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">5日前以降</p>
+                      </div>
                     </div>
                   )}
                   
