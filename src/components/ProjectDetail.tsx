@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2 } from 'lucide-react';
 import { EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
