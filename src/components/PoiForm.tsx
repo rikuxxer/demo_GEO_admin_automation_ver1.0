@@ -1302,9 +1302,9 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     }
     // 抽出期間のバリデーション（来店計測地点の場合はグループの抽出条件から継承されるため除外）
     if (!(formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement')) {
-      // プリセット抽出期間は無効化されているため、カスタムまたは特定日付のみ有効
-      if (formData.extraction_period_type === 'preset') {
-        setErrorMessage('プリセット抽出期間は使用できません。期間指定または特定日付を選択してください。');
+      // プリセットの場合はextraction_periodが必須
+      if (formData.extraction_period_type === 'preset' && !formData.extraction_period) {
+        setErrorMessage('プリセット期間を選択してください。');
         return;
       }
       if (formData.extraction_period_type === 'custom' && (!formData.extraction_start_date || !formData.extraction_end_date)) {
