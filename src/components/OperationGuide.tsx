@@ -235,18 +235,21 @@ export const operationGuides: OperationGuide[] = [
         title: '共通条件の設定',
         content: 'セグメント登録フォームで「セグメント共通条件を設定する」にチェックを入れます。',
         position: 'right',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="common-conditions-form"]',
         title: '条件の入力',
         content: '指定半径、抽出期間、属性、滞在時間などの条件を設定します。これらの条件は、このセグメントに追加する地点に自動適用されます。',
         position: 'right',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="common-conditions-save"]',
         title: '条件の保存',
         content: '条件を設定してセグメントを登録すると、共通条件が保存されます。',
         position: 'top',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
     ],
   },
