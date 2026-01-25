@@ -325,8 +325,8 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
             </div>
           )}
           {showPolygonEditor && (
-            <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '600px', minHeight: '600px' }}>
-              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-[90vw] h-[90vh] max-w-7xl flex flex-col">
                 <PolygonMapEditor
                   polygons={polygons}
                   maxPolygons={1}
