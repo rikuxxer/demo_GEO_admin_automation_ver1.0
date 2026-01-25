@@ -2819,48 +2819,6 @@ export function ProjectDetail({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* グループ削除確認ダイアログ */}
-      <AlertDialog open={deleteGroupTarget !== null} onOpenChange={() => setDeleteGroupTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              グループを削除しますか？
-            </AlertDialogTitle>
-            <AlertDialogDescription className="pt-4">
-              <div className="space-y-2">
-                <p className="text-base font-medium text-gray-900">
-                  この操作は取り消せません。
-                </p>
-                {deleteGroupTarget && (() => {
-                  const groupPois = pois.filter(poi => poi.visit_measurement_group_id === deleteGroupTarget);
-                  return groupPois.length > 0 ? (
-                    <p className="text-sm text-gray-700">
-                      このグループには<strong className="text-gray-900">{groupPois.length}件</strong>の地点が登録されています。グループを削除しても地点は削除されませんが、地点のグループIDはクリアされます。
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-700">
-                      このグループには地点が登録されていません。
-                    </p>
-                  );
-                })()}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50">
-              キャンセル
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmGroupDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              削除する
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* 6ヶ月以上前の日付選択警告ポップアップ */}
       <AlertDialog open={showDateRangeWarning} onOpenChange={setShowDateRangeWarning}>
         <AlertDialogContent>
