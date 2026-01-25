@@ -180,7 +180,7 @@ export function VisitMeasurementGroupForm({
               type="button"
               variant="outline"
               onClick={onCancel}
-              className="border-gray-300 hover:border-gray-400 text-gray-700 hover:bg-gray-100 px-6"
+              className="border-gray-300 hover:border-gray-400 text-gray-700 hover:bg-gray-50 px-6"
             >
               キャンセル
             </Button>

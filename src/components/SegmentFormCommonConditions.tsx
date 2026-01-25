@@ -306,7 +306,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                     variant="outline"
                     size="sm"
                     onClick={() => setShowPolygonEditor(true)}
-                    className="text-sm"
+                    className="text-sm border-gray-300"
                   >
                     ポリゴンを編集
                   </Button>
@@ -316,7 +316,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                   type="button"
                   variant="outline"
                   onClick={() => setShowPolygonEditor(true)}
-                  className="w-full"
+                  className="w-full border-gray-300"
                 >
                   <Map className="w-4 h-4 mr-2" />
                   ポリゴンを描画
@@ -325,26 +325,28 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
             </div>
           )}
           {showPolygonEditor && (
-            <div className="border border-gray-300 rounded-lg overflow-hidden">
-              <PolygonMapEditor
-                polygons={polygons}
-                maxPolygons={1}
-                onPolygonsChange={(newPolygons) => {
-                  setPolygons(newPolygons);
-                  if (newPolygons.length > 0) {
-                    // ポリゴンの範囲を検証
-                    const validation = validatePolygonRange(newPolygons[0].coordinates);
-                    if (!validation.valid) {
-                      toast.error(validation.error || 'ポリゴンの範囲が広すぎます');
-                      return;
+            <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '600px', minHeight: '600px' }}>
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <PolygonMapEditor
+                  polygons={polygons}
+                  maxPolygons={1}
+                  onPolygonsChange={(newPolygons) => {
+                    setPolygons(newPolygons);
+                    if (newPolygons.length > 0) {
+                      // ポリゴンの範囲を検証
+                      const validation = validatePolygonRange(newPolygons[0].coordinates);
+                      if (!validation.valid) {
+                        toast.error(validation.error || 'ポリゴンの範囲が広すぎます');
+                        return;
+                      }
+                      onChange('polygon', newPolygons[0].coordinates);
+                    } else {
+                      onChange('polygon', undefined);
                     }
-                    onChange('polygon', newPolygons[0].coordinates);
-                  } else {
-                    onChange('polygon', undefined);
-                  }
-                }}
-                onClose={() => setShowPolygonEditor(false)}
-              />
+                  }}
+                  onClose={() => setShowPolygonEditor(false)}
+                />
+              </div>
             </div>
           )}
         </div>
