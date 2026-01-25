@@ -337,7 +337,7 @@ function AppContent() {
                       <DropdownMenuContent align="end" className="w-56 border-gray-200">
                         <DropdownMenuItem
                           onClick={() => setIsProjectFormOpen(true)}
-                          className="cursor-pointer"
+                          className="cursor-pointer dropdown-menu-item-manual-register"
                         >
                           手動で登録
                         </DropdownMenuItem>

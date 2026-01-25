@@ -98,6 +98,30 @@ export const operationGuides: OperationGuide[] = [
         content: '「新規案件登録」ボタンをクリックして、案件登録フォームを開きます。',
         position: 'bottom',
         navigateToPage: 'projects', // 案件一覧ページに遷移
+        action: async () => {
+          // ボタンをクリックしてドロップダウンを開く
+          const button = document.querySelector('[data-tour="new-project-button"]') as HTMLElement;
+          if (button) {
+            button.click();
+            // ドロップダウンメニューが表示されるまで待機
+            await new Promise(resolve => setTimeout(resolve, 300));
+            // 「手動で登録」メニュー項目をクリック
+            const menuItem = document.querySelector('.dropdown-menu-item-manual-register') as HTMLElement;
+            if (menuItem) {
+              menuItem.click();
+            } else {
+              // セレクタが見つからない場合は、テキストで検索
+              const menuItems = document.querySelectorAll('[role="menuitem"]');
+              for (const item of menuItems) {
+                if (item.textContent?.includes('手動で登録')) {
+                  (item as HTMLElement).click();
+                  break;
+                }
+              }
+            }
+          }
+        },
+        waitBeforeAction: 500,
       },
       {
         target: '[data-guide="project-form"]',
@@ -207,6 +231,24 @@ export const operationGuides: OperationGuide[] = [
         content: '「新規案件登録」ボタンをクリックし、「一括登録」を選択します。',
         position: 'bottom',
         navigateToPage: 'projects', // 案件一覧ページに遷移
+        action: async () => {
+          // ボタンをクリックしてドロップダウンを開く
+          const button = document.querySelector('[data-tour="new-project-button"]') as HTMLElement;
+          if (button) {
+            button.click();
+            // ドロップダウンメニューが表示されるまで待機
+            await new Promise(resolve => setTimeout(resolve, 300));
+            // 「一括登録」メニュー項目をクリック
+            const menuItems = document.querySelectorAll('[role="menuitem"]');
+            for (const item of menuItems) {
+              if (item.textContent?.includes('一括登録')) {
+                (item as HTMLElement).click();
+                break;
+              }
+            }
+          }
+        },
+        waitBeforeAction: 500,
       },
       {
         target: '[data-guide="bulk-import-form"]',
@@ -267,9 +309,10 @@ interface OperationGuideProps {
   onClose: () => void;
   guideId?: string; // 特定のガイドを直接開く場合
   onNavigate?: (page: string, projectId?: string) => void; // ページ遷移コールバック
+  onOpenForm?: (formType: 'project-form' | 'bulk-import') => void; // フォームを開くコールバック
 }
 
-export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: OperationGuideProps) {
+export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenForm }: OperationGuideProps) {
   const [selectedGuide, setSelectedGuide] = useState<OperationGuide | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
@@ -344,9 +387,11 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate }: Operati
               if (step.waitBeforeAction) {
                 await new Promise(resolve => setTimeout(resolve, step.waitBeforeAction));
               }
+              console.log('[OperationGuide] Executing action for step:', step.title);
               await step.action();
+              console.log('[OperationGuide] Action completed for step:', step.title);
             } catch (error) {
-              console.error('Action execution error:', error);
+              console.error('[OperationGuide] Action execution error:', error);
             } finally {
               setIsExecutingAction(false);
             }
