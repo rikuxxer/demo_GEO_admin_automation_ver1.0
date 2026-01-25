@@ -2274,7 +2274,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                 <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex items-center gap-2 text-blue-900 mb-2">
                     <MapPin className="w-5 h-5" />
-                    <h3>{poi ? '地点情報編集' : '任意地点指定'}</h3>
+                    <h3>{poi ? '地点情報編集' : '地点コピペ'}</h3>
                   </div>
                   
                   <div>

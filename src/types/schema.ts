@@ -158,7 +158,7 @@ export const PROJECT_STATUS_OPTIONS = [
 
 // 地点タイプの選択肢
 export const POI_TYPE_OPTIONS = [
-  { value: 'manual', label: '任意地点指定' },
+  { value: 'manual', label: '地点コピペ' },
   { value: 'prefecture', label: '都道府県・市区町村指定' },
   { value: 'polygon', label: 'ポリゴン選択（地図上で描画）' },
 ] as const;
