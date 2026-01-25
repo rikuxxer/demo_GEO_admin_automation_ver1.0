@@ -37,8 +37,8 @@ export function VisitMeasurementGroupForm({
     extraction_period: group?.extraction_period || '1month',
     extraction_period_type: (() => {
       const periodType = group?.extraction_period_type || 'custom';
-      // 既存データに'preset'が含まれている場合は'custom'に変換
-      return periodType === 'preset' ? 'custom' : periodType;
+      // 既存データに'preset'や'specific_dates'が含まれている場合は'custom'に変換（来店計測では使用不可）
+      return (periodType === 'preset' || periodType === 'specific_dates') ? 'custom' : periodType;
     })(),
     extraction_start_date: group?.extraction_start_date || '',
     extraction_end_date: group?.extraction_end_date || '',

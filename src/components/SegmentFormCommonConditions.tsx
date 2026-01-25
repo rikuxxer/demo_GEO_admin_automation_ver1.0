@@ -419,11 +419,11 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
             )}
           </div>
 
-          {formData.extraction_period_type === 'preset' ? (
+          {!isVisitMeasurement && formData.extraction_period_type === 'preset' ? (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-sm text-yellow-800">プリセット抽出期間は使用できません。期間指定または特定日付を選択してください。</p>
             </div>
-          ) : formData.extraction_period_type === 'specific_dates' ? (
+          ) : !isVisitMeasurement && formData.extraction_period_type === 'specific_dates' ? (
             <div className="space-y-2">
               <p className="text-xs text-gray-700">抽出対象とする日付を複数選択できます（直近6ヶ月まで）</p>
               <div className="space-y-2 max-h-40 overflow-y-auto">
