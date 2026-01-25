@@ -154,8 +154,11 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     extraction_period_type: (() => {
       const poiPeriodType = poi?.extraction_period_type;
       if (poiPeriodType) {
-        // 既存データに'preset'が含まれている場合は'custom'に変換
-        return poiPeriodType === 'preset' ? 'custom' : poiPeriodType;
+        // 来店計測地点の場合は'preset'を'custom'に変換、TG地点の場合はそのまま使用
+        if (poi?.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') {
+          return poiPeriodType === 'preset' ? 'custom' : poiPeriodType;
+        }
+        return poiPeriodType;
       }
       if (defaultCategory === 'visit_measurement' && initialSelectedGroup?.extraction_period_type) {
         const groupPeriodType = initialSelectedGroup.extraction_period_type;
