@@ -19,7 +19,7 @@ import {
 } from './ui/alert-dialog';
 
 interface SegmentFormCommonConditionsProps {
-  formData: Partial<Segment> & { use_polygon?: boolean; polygon?: number[][] };
+  formData: Partial<Segment> & { use_polygon?: boolean; polygon?: number[][]; polygons?: number[][][] };
   onChange: (field: string, value: any) => void;
   // 文言上書き用（訪問計測向けに利用）
   titleLabel?: string;
@@ -31,21 +31,32 @@ interface SegmentFormCommonConditionsProps {
 
 export function SegmentFormCommonConditions({ formData, onChange, titleLabel, extractionLabel, noteLabel, isVisitMeasurement = false }: SegmentFormCommonConditionsProps) {
   const [showPolygonEditor, setShowPolygonEditor] = useState(false);
-  const [polygons, setPolygons] = useState<Array<{ id: string; coordinates: number[][]; name?: string }>>(
-    formData.polygon ? [{ id: 'polygon-0', coordinates: formData.polygon }] : []
-  );
+  
+  // ポリゴンデータの初期化（複数ポリゴン対応）
+  const initializePolygons = (): Array<{ id: string; coordinates: number[][]; name?: string }> => {
+    // 複数ポリゴン（polygons）を優先、なければ単一ポリゴン（polygon）を使用
+    if (formData.polygons && Array.isArray(formData.polygons) && formData.polygons.length > 0) {
+      return formData.polygons.map((poly, index) => ({
+        id: `polygon-${index}`,
+        coordinates: poly,
+      }));
+    } else if (formData.polygon && formData.polygon.length > 0) {
+      // 後方互換性：単一ポリゴンを複数ポリゴン形式に変換
+      return [{ id: 'polygon-0', coordinates: formData.polygon }];
+    }
+    return [];
+  };
+  
+  const [polygons, setPolygons] = useState<Array<{ id: string; coordinates: number[][]; name?: string }>>(initializePolygons());
   const headingText = titleLabel ?? 'セグメント共通条件';
   const periodLabel = extractionLabel ?? '抽出期間';
   const noteText = noteLabel ?? '※ このセグメントに属する全地点に同じ条件が適用されます';
 
   // 既存のポリゴンデータを読み込む
   useEffect(() => {
-    if (formData.polygon && formData.polygon.length > 0) {
-      setPolygons([{ id: 'polygon-0', coordinates: formData.polygon }]);
-    } else {
-      setPolygons([]);
-    }
-  }, [formData.polygon]);
+    const initialized = initializePolygons();
+    setPolygons(initialized);
+  }, [formData.polygon, formData.polygons]);
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
   const [hasShownRadiusWarning, setHasShownRadiusWarning] = useState(false);
@@ -299,7 +310,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
               {polygons.length > 0 ? (
                 <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                   <p className="text-sm text-gray-700 mb-2">
-                    ポリゴンが設定されています（{polygons.length}個）
+                    ポリゴンが設定されています（{polygons.length}/10個）
                   </p>
                   <Button
                     type="button"
@@ -329,19 +340,31 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
               <div className="bg-white rounded-xl shadow-2xl w-[90vw] h-[90vh] max-w-7xl flex flex-col">
                 <PolygonMapEditor
                   polygons={polygons}
-                  maxPolygons={1}
+                  maxPolygons={10}
                   onPolygonsChange={(newPolygons) => {
                     setPolygons(newPolygons);
                     if (newPolygons.length > 0) {
-                      // ポリゴンの範囲を検証
-                      const validation = validatePolygonRange(newPolygons[0].coordinates);
-                      if (!validation.valid) {
-                        toast.error(validation.error || 'ポリゴンの範囲が広すぎます');
-                        return;
+                      // すべてのポリゴンの範囲を検証
+                      for (const polygon of newPolygons) {
+                        const validation = validatePolygonRange(polygon.coordinates);
+                        if (!validation.valid) {
+                          toast.error(validation.error || 'ポリゴンの範囲が広すぎます');
+                          return;
+                        }
                       }
-                      onChange('polygon', newPolygons[0].coordinates);
+                      // 複数ポリゴンを保存（来店計測の場合）
+                      if (isVisitMeasurement) {
+                        const polygonsArray = newPolygons.map(p => p.coordinates);
+                        onChange('polygons', polygonsArray);
+                        // 後方互換性のため、最初のポリゴンもpolygonに保存
+                        onChange('polygon', newPolygons[0].coordinates);
+                      } else {
+                        // セグメント共通条件の場合は単一ポリゴンのみ
+                        onChange('polygon', newPolygons[0].coordinates);
+                      }
                     } else {
                       onChange('polygon', undefined);
+                      onChange('polygons', undefined);
                     }
                   }}
                   onClose={() => setShowPolygonEditor(false)}

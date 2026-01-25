@@ -33,6 +33,7 @@ export function VisitMeasurementGroupForm({
     designated_radius: group?.designated_radius || '',
     use_polygon: group?.use_polygon || false,
     polygon: group?.polygon || undefined,
+    polygons: group?.polygons || undefined,
     extraction_period: group?.extraction_period || '1month',
     extraction_period_type: (() => {
       const periodType = group?.extraction_period_type || 'custom';
@@ -71,7 +72,10 @@ export function VisitMeasurementGroupForm({
         return;
       }
     } else {
-      if (!formData.polygon || formData.polygon.length === 0) {
+      // 複数ポリゴンまたは単一ポリゴンのいずれかが必須
+      const hasPolygons = formData.polygons && formData.polygons.length > 0;
+      const hasPolygon = formData.polygon && formData.polygon.length > 0;
+      if (!hasPolygons && !hasPolygon) {
         toast.error('ポリゴンを描画してください');
         return;
       }
@@ -155,6 +159,7 @@ export function VisitMeasurementGroupForm({
                 designated_radius?: string;
                 use_polygon?: boolean;
                 polygon?: number[][];
+                polygons?: number[][][];
                 extraction_period?: string;
                 extraction_period_type?: 'preset' | 'custom' | 'specific_dates';
                 extraction_start_date?: string;
