@@ -97,6 +97,7 @@ export const operationGuides: OperationGuide[] = [
         title: '案件登録ボタン',
         content: '「新規案件登録」ボタンをクリックして、案件登録フォームを開きます。',
         position: 'bottom',
+        navigateToPage: 'projects', // 案件一覧ページに遷移
       },
       {
         target: '[data-guide="project-form"]',
@@ -110,6 +111,7 @@ export const operationGuides: OperationGuide[] = [
         title: '案件の登録',
         content: '入力内容を確認して「登録」ボタンをクリックします。登録後、案件詳細画面でセグメントや地点を追加できます。',
         position: 'top',
+        navigateToPage: 'projects', // 案件一覧ページに遷移（フォームはモーダルで開く）
       },
     ],
   },
@@ -166,12 +168,14 @@ export const operationGuides: OperationGuide[] = [
         title: '地点追加',
         content: '「地点を追加」ボタンをクリックして、地点登録フォームを開きます。',
         position: 'bottom',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="poi-type-select"]',
         title: '地点タイプの選択',
         content: '地点の登録方法を選択します。「地点コピペ」「都道府県・市区町村指定」「PKG指定」の3種類から選べます。',
         position: 'right',
+        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="poi-form"]',
@@ -200,6 +204,7 @@ export const operationGuides: OperationGuide[] = [
         title: '一括登録の開始',
         content: '「新規案件登録」ボタンをクリックし、「一括登録」を選択します。',
         position: 'bottom',
+        navigateToPage: 'projects', // 案件一覧ページに遷移
       },
       {
         target: '[data-guide="bulk-import-form"]',
