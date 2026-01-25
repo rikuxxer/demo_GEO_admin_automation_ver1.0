@@ -383,16 +383,18 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
         </Label>
         <div className="space-y-3">
           <div className="flex flex-wrap gap-4">
-            <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
-              <input
-                type="radio"
-                checked={formData.extraction_period_type === 'preset'}
-                onChange={() => {}}
-                className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500"
-                disabled={true}
-              />
-              <span className="text-sm">プリセット（使用不可）</span>
-            </label>
+            {!isVisitMeasurement && (
+              <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
+                <input
+                  type="radio"
+                  checked={formData.extraction_period_type === 'preset'}
+                  onChange={() => {}}
+                  className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500"
+                  disabled={true}
+                />
+                <span className="text-sm">プリセット（使用不可）</span>
+              </label>
+            )}
             <label className="flex items-center gap-2">
               <input
                 type="radio"
@@ -403,16 +405,18 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
               />
               <span className="text-sm">期間指定</span>
             </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                checked={formData.extraction_period_type === 'specific_dates'}
-                onChange={() => onChange('extraction_period_type', 'specific_dates')}
-                className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500"
-                disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
-              />
-              <span className="text-sm">特定日付</span>
-            </label>
+            {!isVisitMeasurement && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  checked={formData.extraction_period_type === 'specific_dates'}
+                  onChange={() => onChange('extraction_period_type', 'specific_dates')}
+                  className="w-4 h-4 text-gray-600 border-gray-300 focus:ring-gray-500"
+                  disabled={formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker'}
+                />
+                <span className="text-sm">特定日付</span>
+              </label>
+            )}
           </div>
 
           {formData.extraction_period_type === 'preset' ? (
