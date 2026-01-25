@@ -648,7 +648,7 @@ export function PolygonMapEditor({
               variant="outline"
               onClick={handleSearchAddress}
               disabled={isGeocoding}
-              className="h-8"
+              className="h-8 border-gray-300"
             >
               {isGeocoding ? '検索中...' : '住所検索'}
             </Button>
