@@ -58,11 +58,7 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
     // 共通条件
     designated_radius: segment?.designated_radius || '',
     extraction_period: segment?.extraction_period || '1month',
-    extraction_period_type: (() => {
-      const periodType = segment?.extraction_period_type || 'custom';
-      // 既存データに'preset'が含まれている場合は'custom'に変換
-      return periodType === 'preset' ? 'custom' : periodType;
-    })(),
+    extraction_period_type: segment?.extraction_period_type || 'custom',
     extraction_start_date: segment?.extraction_start_date || '',
     extraction_end_date: segment?.extraction_end_date || '',
     extraction_dates: segment?.extraction_dates || [],
