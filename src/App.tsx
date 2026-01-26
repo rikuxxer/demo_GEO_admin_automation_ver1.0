@@ -53,6 +53,7 @@ function AppContent() {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [isOperationGuideOpen, setIsOperationGuideOpen] = useState(false);
   const [operationGuideId, setOperationGuideId] = useState<string | undefined>(undefined);
+  const [pendingProjectNavigation, setPendingProjectNavigation] = useState<{ projectId?: string } | null>(null);
 
   // 初回ログイン時（営業のみ）にツアーを表示
   useEffect(() => {
@@ -64,6 +65,21 @@ function AppContent() {
       return () => clearTimeout(timer);
     }
   }, [isAuthenticated, user, isFirstLogin]);
+
+  // 案件一覧の読み込み後に、保留中の案件詳細遷移を実行
+  useEffect(() => {
+    if (!pendingProjectNavigation || projects.length === 0) return;
+    const { projectId } = pendingProjectNavigation;
+    if (projectId) {
+      const project = projects.find(p => p.project_id === projectId);
+      if (project) {
+        selectProject(project);
+      }
+    } else {
+      selectProject(projects[0]);
+    }
+    setPendingProjectNavigation(null);
+  }, [pendingProjectNavigation, projects, selectProject]);
 
   const handleTourComplete = () => {
     setIsTourOpen(false);
@@ -352,28 +368,54 @@ function AppContent() {
                     </DropdownMenu>
                   </div>
 
-                  {/* Summary Cards */}
-                  <div data-tour="summary-cards">
-                    <SummaryCards 
-                      projects={projects}
-                      segments={allSegments}
-                      pois={allPois}
-                      selectedStatus={statusFilter}
-                      onCardClick={setStatusFilter}
-                    />
-                  </div>
+                  {projects.length === 0 ? (
+                    <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">テスト画面</h3>
+                      <p className="text-sm text-gray-600 mb-6">
+                        まだ案件が登録されていません。テスト用に新規登録または一括登録を試せます。
+                      </p>
+                      <div className="flex items-center justify-center gap-3">
+                        <Button
+                          onClick={() => setIsProjectFormOpen(true)}
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                        >
+                          手動で登録
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsBulkImportOpen(true)}
+                          className="border-gray-300"
+                        >
+                          一括登録
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Summary Cards */}
+                      <div data-tour="summary-cards">
+                        <SummaryCards 
+                          projects={projects}
+                          segments={allSegments}
+                          pois={allPois}
+                          selectedStatus={statusFilter}
+                          onCardClick={setStatusFilter}
+                        />
+                      </div>
 
-                  {/* Project Table */}
-                  <div data-tour="project-table">
-                    <ProjectTable
-                      projects={projects}
-                      segments={allSegments}
-                      pois={allPois}
-                      onProjectClick={handleProjectClick}
-                      statusFilter={statusFilter}
-                      onClearStatusFilter={() => setStatusFilter('total')}
-                    />
-                  </div>
+                      {/* Project Table */}
+                      <div data-tour="project-table">
+                        <ProjectTable
+                          projects={projects}
+                          segments={allSegments}
+                          pois={allPois}
+                          onProjectClick={handleProjectClick}
+                          statusFilter={statusFilter}
+                          onClearStatusFilter={() => setStatusFilter('total')}
+                        />
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </>
@@ -640,23 +682,25 @@ function AppContent() {
             if (page === 'projects') {
               setCurrentPage('projects');
               clearSelectedProject();
-            } else if (page === 'project-detail') {
-              // 案件詳細ページに遷移
+              return;
+            }
+
+            if (page === 'project-detail') {
+              // 案件詳細は「projects」画面内で表示されるため、
+              // 必ず projects へ遷移してから案件を選択する
+              setCurrentPage('projects');
+              if (projects.length === 0) {
+                setPendingProjectNavigation({ projectId });
+                return;
+              }
               if (projectId) {
-                // 特定の案件IDが指定されている場合
                 const project = projects.find(p => p.project_id === projectId);
                 if (project) {
                   selectProject(project);
-                  setCurrentPage('project-detail');
+                  return;
                 }
-              } else if (projects.length > 0) {
-                // 最初の案件を選択
-                selectProject(projects[0]);
-                setCurrentPage('project-detail');
-              } else {
-                // 案件がない場合は案件一覧に遷移
-                setCurrentPage('projects');
               }
+              selectProject(projects[0]);
             }
           }}
           onOpenForm={(formType) => {

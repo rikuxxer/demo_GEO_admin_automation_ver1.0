@@ -420,11 +420,12 @@ export function ProjectTable({
                 </td>
               </tr>
             ) : (
-              currentProjects.map((project) => (
+              currentProjects.map((project, index) => (
                 <tr 
                   key={project.project_id} 
                   className="hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => handleRowClick(project)}
+                  data-guide={index === 0 ? 'project-row-first' : 'project-row'}
                 >
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <Checkbox className="w-4 h-4" />

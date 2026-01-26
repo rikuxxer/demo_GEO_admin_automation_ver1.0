@@ -151,6 +151,14 @@ export const operationGuides: OperationGuide[] = [
         content: '案件詳細画面の「セグメント管理」タブを開きます。',
         position: 'bottom',
         navigateToPage: 'project-detail', // 案件詳細ページに遷移（最初の案件を選択）
+        action: async () => {
+          // 案件一覧が表示されている場合は先頭案件をクリックして詳細画面へ遷移
+          const firstRow = document.querySelector('[data-guide="project-row-first"]') as HTMLElement;
+          if (firstRow) {
+            firstRow.click();
+          }
+        },
+        waitBeforeAction: 300,
       },
       {
         target: '[data-guide="new-segment-button"]',
@@ -187,6 +195,14 @@ export const operationGuides: OperationGuide[] = [
         content: '案件詳細画面の「地点情報」タブを開きます。',
         position: 'bottom',
         navigateToPage: 'project-detail', // 案件詳細ページに遷移（最初の案件を選択）
+        action: async () => {
+          // 案件一覧が表示されている場合は先頭案件をクリックして詳細画面へ遷移
+          const firstRow = document.querySelector('[data-guide="project-row-first"]') as HTMLElement;
+          if (firstRow) {
+            firstRow.click();
+          }
+        },
+        waitBeforeAction: 300,
       },
       {
         target: '[data-guide="new-poi-button"]',
@@ -285,6 +301,14 @@ export const operationGuides: OperationGuide[] = [
         content: 'セグメント登録フォームで「セグメント共通条件を設定する」にチェックを入れます。',
         position: 'right',
         navigateToPage: 'project-detail', // 案件詳細ページに遷移
+        action: async () => {
+          // 案件一覧が表示されている場合は先頭案件をクリックして詳細画面へ遷移
+          const firstRow = document.querySelector('[data-guide="project-row-first"]') as HTMLElement;
+          if (firstRow) {
+            firstRow.click();
+          }
+        },
+        waitBeforeAction: 300,
       },
       {
         target: '[data-guide="common-conditions-form"]',
