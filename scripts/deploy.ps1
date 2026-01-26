@@ -67,15 +67,15 @@ gcloud run deploy $SERVICE_NAME `
   --project $PROJECT_ID
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "`n✅ デプロイが完了しました！" -ForegroundColor Green
-    Write-Host "🌐 サービスURL:" -ForegroundColor Cyan
+    Write-Host "`nデプロイが完了しました。" -ForegroundColor Green
+    Write-Host "サービスURL:" -ForegroundColor Cyan
     gcloud run services describe $SERVICE_NAME `
       --platform managed `
       --region $REGION `
       --format 'value(status.url)' `
       --project $PROJECT_ID
 } else {
-    Write-Host "❌ デプロイに失敗しました" -ForegroundColor Red
+    Write-Host "デプロイに失敗しました。" -ForegroundColor Red
     exit 1
 }
 
