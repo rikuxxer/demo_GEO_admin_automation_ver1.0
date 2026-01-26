@@ -41,6 +41,7 @@ if (import.meta.env.DEV) {
   import("./utils/testSpreadsheetExport");
 }
 
+// Trigger deploy workflow update
 function AppContent() {
   const { isAuthenticated, hasPermission, user, isFirstLogin, markManualAsSeen } = useAuth();
   
