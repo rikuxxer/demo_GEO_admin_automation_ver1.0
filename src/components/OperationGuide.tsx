@@ -217,7 +217,6 @@ export const operationGuides: OperationGuide[] = [
         content: '地点の登録方法を選択します。「地点コピペ」「都道府県・市区町村指定」「PKG指定」の3種類から選べます。',
         position: 'right',
         navigateToPage: 'project-detail', // 案件詳細ページに遷移
-        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="poi-form"]',
