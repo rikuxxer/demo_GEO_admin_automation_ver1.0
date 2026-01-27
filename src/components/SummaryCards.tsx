@@ -1,6 +1,8 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { FileText, Link2, MapPin, Layers, User, Building2, FileEdit, Loader2, CheckCircle2, Info, Send, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getAutoProjectStatus, countProjectsByStatus } from '../utils/projectStatus';
+import { canViewProject } from '../utils/editRequest';
 
 interface SummaryCardsProps {
   projects: any[];
@@ -12,42 +14,9 @@ interface SummaryCardsProps {
 
 export function SummaryCards({ projects, segments, pois, selectedStatus, onCardClick }: SummaryCardsProps) {
   const { user } = useAuth();
-  const [projectStatusModule, setProjectStatusModule] = useState<{
-    getAutoProjectStatus: any;
-    countProjectsByStatus: any;
-  } | null>(null);
-  const [editRequestModule, setEditRequestModule] = useState<{
-    canViewProject: any;
-  } | null>(null);
-  
-  // モジュールを動的に読み込む
-  useEffect(() => {
-    let isMounted = true;
-    
-    Promise.all([
-      import('../utils/projectStatus'),
-      import('../utils/editRequest')
-    ]).then(([projectStatus, editRequest]) => {
-      if (isMounted) {
-        setProjectStatusModule({
-          getAutoProjectStatus: projectStatus.getAutoProjectStatus,
-          countProjectsByStatus: projectStatus.countProjectsByStatus,
-        });
-        setEditRequestModule({
-          canViewProject: editRequest.canViewProject,
-        });
-      }
-    }).catch(error => {
-      console.error('Error loading modules:', error);
-    });
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
   
   // segmentsとpoisが初期化されるまで待つ
-  if (!Array.isArray(segments) || !Array.isArray(pois) || !projectStatusModule || !editRequestModule) {
+  if (!Array.isArray(segments) || !Array.isArray(pois)) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
         <div className="bg-white p-4 rounded-lg border shadow-sm">読み込み中...</div>
@@ -62,20 +31,20 @@ export function SummaryCards({ projects, segments, pois, selectedStatus, onCardC
   // 管理者の場合: すべての案件
   const filteredProjects = useMemo(() => {
     try {
-      return projects.filter(project => {
-        const statusInfo = projectStatusModule.getAutoProjectStatus(project, segments, pois);
-        return editRequestModule.canViewProject(user, project, statusInfo.status);
+      return projects.filter((project: any) => {
+        const statusInfo = getAutoProjectStatus(project, segments, pois);
+        return canViewProject(user, project, statusInfo.status);
       });
     } catch (error) {
       console.error('Error filtering projects:', error);
       return [];
     }
-  }, [projects, segments, pois, user, projectStatusModule, editRequestModule]);
+  }, [projects, segments, pois, user]);
   
   // ステータス別の案件数を自動判定
   const statusCounts = useMemo(() => {
     try {
-      return projectStatusModule.countProjectsByStatus(filteredProjects, segments, pois);
+      return countProjectsByStatus(filteredProjects, segments, pois);
     } catch (error) {
       console.error('Error counting projects by status:', error);
       return {
@@ -90,7 +59,7 @@ export function SummaryCards({ projects, segments, pois, selectedStatus, onCardC
         total: 0,
       };
     }
-  }, [filteredProjects, segments, pois, projectStatusModule]);
+  }, [filteredProjects, segments, pois]);
 
   // 入力不備の合計件数
   const waitingInputCount = useMemo(() => {

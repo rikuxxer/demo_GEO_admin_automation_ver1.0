@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, ChevronDown, HelpCircle } from "lucide-react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Login } from "./components/Login";
 import { PasswordReset } from "./components/PasswordReset";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
-const SummaryCards = lazy(() => import("./components/SummaryCards").then(module => ({ default: module.SummaryCards })));
+import { SummaryCards } from "./components/SummaryCards";
 import { ProjectTable } from "./components/ProjectTable";
 import { ProjectForm } from "./components/ProjectForm";
 import { BulkImport } from "./components/BulkImport";
@@ -398,15 +398,13 @@ function AppContent() {
                     <>
                       {/* Summary Cards */}
                       <div data-tour="summary-cards">
-                        <Suspense fallback={<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-5"><div className="bg-white p-4 rounded-lg border shadow-sm">読み込み中...</div></div>}>
-                          <SummaryCards 
-                            projects={projects}
-                            segments={allSegments}
-                            pois={allPois}
-                            selectedStatus={statusFilter}
-                            onCardClick={setStatusFilter}
-                          />
-                        </Suspense>
+                        <SummaryCards 
+                          projects={projects}
+                          segments={allSegments}
+                          pois={allPois}
+                          selectedStatus={statusFilter}
+                          onCardClick={setStatusFilter}
+                        />
                       </div>
 
                       {/* Project Table */}

@@ -1,10 +1,10 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Card } from './ui/card';
-const SummaryCards = lazy(() => import('./SummaryCards').then(module => ({ default: module.SummaryCards })));
+import { SummaryCards } from './SummaryCards';
 import { DATA_LINK_STATUS_OPTIONS, MEDIA_OPTIONS, LOCATION_REQUEST_STATUS_OPTIONS } from '../types/schema';
 import type { Project, Segment, PoiInfo } from '../types/schema';
 import { AutoProjectStatus, getAutoProjectStatus } from '../utils/projectStatus';
@@ -159,15 +159,13 @@ export function StatusManager({
       </div>
 
       {/* 案件サマリ */}
-      <Suspense fallback={<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-5"><div className="bg-white p-4 rounded-lg border shadow-sm">読み込み中...</div></div>}>
-        <SummaryCards 
-          projects={projects}
-          segments={segments}
-          pois={pois}
-          selectedStatus={statusFilter}
-          onCardClick={setStatusFilter}
-        />
-      </Suspense>
+      <SummaryCards 
+        projects={projects}
+        segments={segments}
+        pois={pois}
+        selectedStatus={statusFilter}
+        onCardClick={setStatusFilter}
+      />
 
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
         <div className="p-4 space-y-4">
