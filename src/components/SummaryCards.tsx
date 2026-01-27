@@ -1,15 +1,13 @@
 import { useMemo, useState, useEffect } from 'react';
 import { FileText, Link2, MapPin, Layers, User, Building2, FileEdit, Loader2, CheckCircle2, Info, Send, AlertTriangle } from 'lucide-react';
-import type { Project, Segment, PoiInfo } from '../types/schema';
 import { useAuth } from '../contexts/AuthContext';
-import type { AutoProjectStatus } from '../utils/projectStatus';
 
 interface SummaryCardsProps {
-  projects: Project[];
-  segments: Segment[] | any[];
-  pois: PoiInfo[] | any[];
-  selectedStatus?: AutoProjectStatus | 'total' | null;
-  onCardClick?: (status: AutoProjectStatus | 'total') => void;
+  projects: any[];
+  segments: any[];
+  pois: any[];
+  selectedStatus?: string | null;
+  onCardClick?: (status: string) => void;
 }
 
 export function SummaryCards({ projects, segments, pois, selectedStatus, onCardClick }: SummaryCardsProps) {
