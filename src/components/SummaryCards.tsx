@@ -6,8 +6,8 @@ import type { AutoProjectStatus } from '../utils/projectStatus';
 
 interface SummaryCardsProps {
   projects: Project[];
-  segments: Segment[];
-  pois: PoiInfo[];
+  segments: Segment[] | any[];
+  pois: PoiInfo[] | any[];
   selectedStatus?: AutoProjectStatus | 'total' | null;
   onCardClick?: (status: AutoProjectStatus | 'total') => void;
 }
