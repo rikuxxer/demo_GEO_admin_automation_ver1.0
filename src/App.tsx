@@ -70,6 +70,9 @@ function AppContent() {
   // 案件一覧の読み込み後に、保留中の案件詳細遷移を実行
   useEffect(() => {
     if (!pendingProjectNavigation || projects.length === 0) return;
+    // segmentsとpoisが読み込まれるまで待つ
+    if (!allSegments || !allPois) return;
+    
     const { projectId } = pendingProjectNavigation;
     if (projectId) {
       const project = projects.find(p => p.project_id === projectId);
@@ -80,7 +83,7 @@ function AppContent() {
       selectProject(projects[0]);
     }
     setPendingProjectNavigation(null);
-  }, [pendingProjectNavigation, projects, selectProject]);
+  }, [pendingProjectNavigation, projects, allSegments, allPois, selectProject]);
 
   const handleTourComplete = () => {
     setIsTourOpen(false);

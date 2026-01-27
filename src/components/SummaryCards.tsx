@@ -16,15 +16,21 @@ interface SummaryCardsProps {
 export function SummaryCards({ projects, segments, pois, selectedStatus, onCardClick }: SummaryCardsProps) {
   const { user } = useAuth();
   
+  // segmentsとpoisが初期化されるまで待つ
+  if (!Array.isArray(segments) || !Array.isArray(pois)) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
+        <div className="bg-white p-4 rounded-lg border shadow-sm">読み込み中...</div>
+      </div>
+    );
+  }
+  
   // 【閲覧権限のある案件のみをフィルタリング】
   // 営業の場合: 
   //   - 自分が主担当または副担当の案件（すべてのステータス）
   //   - 他の営業の連携完了案件のみ
   // 管理者の場合: すべての案件
   const filteredProjects = useMemo(() => {
-    if (!Array.isArray(segments) || !Array.isArray(pois)) {
-      return [];
-    }
     try {
       return projects.filter(project => {
         const statusInfo = getAutoProjectStatus(project, segments, pois);
@@ -38,19 +44,6 @@ export function SummaryCards({ projects, segments, pois, selectedStatus, onCardC
   
   // ステータス別の案件数を自動判定
   const statusCounts = useMemo(() => {
-    if (!Array.isArray(segments) || !Array.isArray(pois)) {
-      return {
-        draft: 0,
-        waiting_poi: 0,
-        waiting_account_id: 0,
-        waiting_service_id: 0,
-        in_progress: 0,
-        link_requested: 0,
-        linked: 0,
-        expiring_soon: 0,
-        total: 0,
-      };
-    }
     try {
       return countProjectsByStatus(filteredProjects, segments, pois);
     } catch (error) {
