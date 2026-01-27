@@ -48,7 +48,20 @@ export function getAutoProjectStatus(
   }
   
   // この案件に属するセグメントを取得
-  const projectSegments = allSegments.filter((s: any) => s?.project_id === project.project_id);
+  const projectId = project?.project_id;
+  if (!projectId) {
+    return {
+      status: 'draft',
+      label: '下書き',
+      reason: '案件IDが設定されていません',
+      segmentCount: 0,
+      poiCount: 0,
+      hasAllAccountIds: false,
+      linkedSegmentCount: 0,
+    };
+  }
+  
+  const projectSegments = allSegments.filter((s: any) => s?.project_id === projectId);
   const segmentCount = projectSegments.length;
 
   // セグメントIDリストを取得
@@ -65,7 +78,7 @@ export function getAutoProjectStatus(
     projectSegments.every((s: any) => s?.ads_account_id && String(s.ads_account_id).trim() !== '');
 
   // 2. サービスIDチェック
-  const hasServiceId = !!(project.universe_service_id && project.universe_service_id.trim() !== '');
+  const hasServiceId = !!(project?.universe_service_id && String(project.universe_service_id).trim() !== '');
 
   // 3. 地点登録チェック
   // 各セグメントに最低1つの地点があるか

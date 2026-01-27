@@ -62,16 +62,16 @@ export function requiresEditRequest(
   switch (type) {
     case 'project': {
       // 案件: 配下のセグメントが1件以上存在する場合
-      const project = data as Project;
-      const projectSegments = allSegments?.filter(s => s.project_id === project.project_id) || [];
+      if (!data || !data.project_id) return false;
+      const projectSegments = allSegments?.filter((s: any) => s?.project_id === data.project_id) || [];
       return projectSegments.length >= 1;
     }
     
     case 'segment': {
       // セグメント: 地点格納依頼後（格納対応中または格納完了）
-      const segment = data as Segment;
-      return segment.location_request_status === 'storing' || 
-             segment.location_request_status === 'completed';
+      if (!data) return false;
+      return data.location_request_status === 'storing' || 
+             data.location_request_status === 'completed';
     }
     
     case 'poi': {
