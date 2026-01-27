@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { FileText, Link2, MapPin, Layers, User, Building2, FileEdit, Loader2, CheckCircle2, Info, Send, AlertTriangle } from 'lucide-react';
 import { Project, Segment, PoiInfo } from '../types/schema';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,27 +21,32 @@ export function SummaryCards({ projects, segments, pois, selectedStatus, onCardC
   //   - 自分が主担当または副担当の案件（すべてのステータス）
   //   - 他の営業の連携完了案件のみ
   // 管理者の場合: すべての案件
-  const filteredProjects = projects.filter(project => {
-    const statusInfo = getAutoProjectStatus(project, segments, pois);
-    return canViewProject(user, project, statusInfo.status);
-  });
+  const filteredProjects = useMemo(() => {
+    return projects.filter(project => {
+      const statusInfo = getAutoProjectStatus(project, segments, pois);
+      return canViewProject(user, project, statusInfo.status);
+    });
+  }, [projects, segments, pois, user]);
   
   // ステータス別の案件数を自動判定
-  const statusCounts = countProjectsByStatus(filteredProjects, segments, pois);
+  const statusCounts = useMemo(() => {
+    return countProjectsByStatus(filteredProjects, segments, pois);
+  }, [filteredProjects, segments, pois]);
 
   // 入力不備の合計件数
-  const waitingInputCount = 
-    statusCounts.waiting_poi + 
-    statusCounts.waiting_account_id + 
-    statusCounts.waiting_service_id;
+  const waitingInputCount = useMemo(() => {
+    return statusCounts.waiting_poi + 
+           statusCounts.waiting_account_id + 
+           statusCounts.waiting_service_id;
+  }, [statusCounts]);
 
-  const cards = [
+  const cards = useMemo(() => [
     {
       status: 'total' as const,
       icon: FileText,
       title: user?.role === 'sales' ? '担当案件数' : '総案件数',
       value: filteredProjects.length.toString(),
-      subtitle: user?.role === 'sales' ? `${user.name}が担当` : '全案件',
+      subtitle: user?.role === 'sales' ? `${user?.name || ''}が担当` : '全案件',
       bgColor: 'bg-[#5b5fff]/10',
       iconColor: 'text-[#5b5fff]',
       tooltip: null,
@@ -105,7 +111,7 @@ export function SummaryCards({ projects, segments, pois, selectedStatus, onCardC
       iconColor: 'text-red-600',
       tooltip: '【期限切れ間近】\n・データ連携済みですが、有効期限（連携から6ヶ月）が30日以内に迫っています',
     },
-  ];
+  ], [user, filteredProjects.length, statusCounts, waitingInputCount]);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
