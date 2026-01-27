@@ -1,4 +1,5 @@
-import type { EditRequest, Project, Segment, PoiInfo } from '../types/schema';
+// 型の初期化順序の問題を回避するため、型インポートを削除
+// import type { EditRequest, Project, Segment, PoiInfo } from '../types/schema';
 
 /**
  * 案件フィールドで承認が不要なフィールド
@@ -54,23 +55,23 @@ export function isApprovalRequiredField(fieldName: string): boolean {
  */
 export function requiresEditRequest(
   type: 'project' | 'segment' | 'poi',
-  data: Project | Segment | PoiInfo,
-  allSegments?: Segment[],
-  parentSegment?: Segment
+  data: any,
+  allSegments?: any[],
+  parentSegment?: any
 ): boolean {
   switch (type) {
     case 'project': {
       // 案件: 配下のセグメントが1件以上存在する場合
-      const project = data as Project;
-      const projectSegments = allSegments?.filter(s => s.project_id === project.project_id) || [];
+      if (!data || !data.project_id) return false;
+      const projectSegments = allSegments?.filter((s: any) => s?.project_id === data.project_id) || [];
       return projectSegments.length >= 1;
     }
     
     case 'segment': {
       // セグメント: 地点格納依頼後（格納対応中または格納完了）
-      const segment = data as Segment;
-      return segment.location_request_status === 'storing' || 
-             segment.location_request_status === 'completed';
+      if (!data) return false;
+      return data.location_request_status === 'storing' || 
+             data.location_request_status === 'completed';
     }
     
     case 'poi': {
@@ -120,7 +121,7 @@ export function createChangeDiff(
  * @returns 変更を適用した新しいデータ
  */
 export function applyEditRequest(
-  request: EditRequest,
+  request: any,
   currentData: Record<string, any>
 ): Record<string, any> {
   const updatedData = { ...currentData };
@@ -143,11 +144,11 @@ export function applyEditRequest(
  * @returns 競合がある場合true
  */
 export function checkEditRequestConflict(
-  newRequest: Partial<EditRequest>,
-  pendingRequests: EditRequest[]
+  newRequest: Partial<any>,
+  pendingRequests: any[]
 ): {
   hasConflict: boolean;
-  conflictingRequests: EditRequest[];
+  conflictingRequests: any[];
 } {
   const conflictingRequests = pendingRequests.filter(req => {
     // 同じ対象に対する依頼かチェック
@@ -283,7 +284,7 @@ function formatValue(value: any): string {
  * @returns バリデーション結果
  */
 export function validateEditRequest(
-  request: Partial<EditRequest>
+  request: Partial<any>
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   
@@ -313,7 +314,7 @@ export function validateEditRequest(
 /**
  * 修正依頼のステータスに応じた色を取得
  */
-export function getEditRequestStatusColor(status: EditRequest['status']): {
+export function getEditRequestStatusColor(status: string): {
   bg: string;
   text: string;
   border: string;
@@ -353,7 +354,7 @@ export function getEditRequestStatusColor(status: EditRequest['status']): {
  */
 export function canEditProject(
   user: { role: string; name: string } | null,
-  project: Project
+  project: any
 ): boolean {
   // 管理者は常に編集可能
   if (user?.role === 'admin') {
@@ -382,9 +383,9 @@ export function canEditProject(
  */
 export function canDirectEdit(
   type: 'project' | 'segment' | 'poi',
-  data: Project | Segment | PoiInfo,
-  allSegments?: Segment[],
-  parentSegment?: Segment
+  data: any,
+  allSegments?: any[],
+  parentSegment?: any
 ): boolean {
   return !requiresEditRequest(type, data, allSegments, parentSegment);
 }
@@ -405,20 +406,25 @@ export function canDirectEdit(
  */
 export function canViewProject(
   user: { role: string; name: string } | null,
-  project: Project,
+  project: any,
   projectStatus: string
 ): boolean {
+  // 型の初期化順序の問題を回避するため、実行時チェックを追加
+  if (!user || !project || !projectStatus) {
+    return false;
+  }
+  
   // 管理者は常に閲覧可能
-  if (user?.role === 'admin') {
+  if (user.role === 'admin') {
     return true;
   }
   
   // 営業の場合
-  if (user?.role === 'sales') {
+  if (user.role === 'sales') {
     // 自身が主担当または副担当の案件の場合、すべてのステータスで閲覧可能
     const isAssigned = 
-      project.person_in_charge === user.name ||
-      project.sub_person_in_charge === user.name;
+      project?.person_in_charge === user.name ||
+      project?.sub_person_in_charge === user.name;
     
     if (isAssigned) {
       return true;

@@ -1,4 +1,5 @@
-import type { Project, Segment, PoiInfo } from '../types/schema';
+// 型の初期化順序の問題を回避するため、型インポートを削除
+// import type { Project, Segment, PoiInfo } from '../types/schema';
 
 /**
  * 案件ステータスの自動判定
@@ -29,39 +30,65 @@ export interface ProjectStatusInfo {
  * 案件のステータスを自動判定
  */
 export function getAutoProjectStatus(
-  project: Project,
-  allSegments: Segment[],
-  allPois: PoiInfo[]
+  project: any,
+  allSegments: any[],
+  allPois: any[]
 ): ProjectStatusInfo {
+  // 型の初期化順序の問題を回避するため、実行時チェックを追加
+  if (!project || !Array.isArray(allSegments) || !Array.isArray(allPois)) {
+    return {
+      status: 'draft',
+      label: '下書き',
+      reason: 'データが初期化されていません',
+      segmentCount: 0,
+      poiCount: 0,
+      hasAllAccountIds: false,
+      linkedSegmentCount: 0,
+    };
+  }
+  
   // この案件に属するセグメントを取得
-  const projectSegments = allSegments.filter(s => s.project_id === project.project_id);
+  const projectId = project?.project_id;
+  if (!projectId) {
+    return {
+      status: 'draft',
+      label: '下書き',
+      reason: '案件IDが設定されていません',
+      segmentCount: 0,
+      poiCount: 0,
+      hasAllAccountIds: false,
+      linkedSegmentCount: 0,
+    };
+  }
+  
+  const projectSegments = allSegments.filter((s: any) => s?.project_id === projectId);
   const segmentCount = projectSegments.length;
 
   // セグメントIDリストを取得
-  const segmentIds = projectSegments.map(s => s.segment_id);
+  const segmentIds = projectSegments.map((s: any) => s?.segment_id).filter(Boolean);
 
   // この案件に属する地点を取得
-  const projectPois = allPois.filter(p => segmentIds.includes(p.segment_id));
+  const projectPois = allPois.filter((p: any) => p?.segment_id && segmentIds.includes(p.segment_id));
   const poiCount = projectPois.length;
 
   // 各ステータス判定用フラグ
   
   // 1. アカウントIDチェック
   const hasAllAccountIds = projectSegments.length > 0 && 
-    projectSegments.every(s => s.ads_account_id && s.ads_account_id.trim() !== '');
+    projectSegments.every((s: any) => s?.ads_account_id && String(s.ads_account_id).trim() !== '');
 
   // 2. サービスIDチェック
-  const hasServiceId = !!(project.universe_service_id && project.universe_service_id.trim() !== '');
+  const hasServiceId = !!(project?.universe_service_id && String(project.universe_service_id).trim() !== '');
 
   // 3. 地点登録チェック
   // 各セグメントに最低1つの地点があるか
-  const allSegmentsHavePois = projectSegments.length > 0 && projectSegments.every(seg => 
-    projectPois.some(poi => poi.segment_id === seg.segment_id)
+  const allSegmentsHavePois = projectSegments.length > 0 && projectSegments.every((seg: any) => 
+    projectPois.some((poi: any) => poi?.segment_id === seg?.segment_id)
   );
 
   // 4. データ連携ステータスチェック
-  const linkedSegmentCount = projectSegments.filter(s => s.data_link_status === 'linked').length;
-  const requestedSegmentCount = projectSegments.filter(s => s.data_link_status === 'requested').length;
+  const linkedSegmentCount = projectSegments.filter((s: any) => s?.data_link_status === 'linked').length;
+  const requestedSegmentCount = projectSegments.filter((s: any) => s?.data_link_status === 'requested').length;
   
   const isAllLinked = segmentCount > 0 && linkedSegmentCount === segmentCount;
   // 「依頼済」判定: 全てがrequested以上（linked含む）で、かつlinked完了していないものがある場合、
@@ -72,8 +99,8 @@ export function getAutoProjectStatus(
   // 5. 期限切れ間近チェック
   // データ連携済み、かつ有効期限が30日以内のものがあるか
   const today = new Date();
-  const isExpiringSoon = isAllLinked && projectSegments.some(s => {
-    if (!s.segment_expire_date) return false;
+  const isExpiringSoon = isAllLinked && projectSegments.some((s: any) => {
+    if (!s?.segment_expire_date) return false;
     const expireDate = new Date(s.segment_expire_date);
     const diffTime = expireDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -137,7 +164,7 @@ export function getAutoProjectStatus(
 
   // 5. 地点登録待ち
   if (!allSegmentsHavePois) {
-    const count = projectSegments.filter(seg => !projectPois.some(poi => poi.segment_id === seg.segment_id)).length;
+    const count = projectSegments.filter((seg: any) => !projectPois.some((poi: any) => poi?.segment_id === seg?.segment_id)).length;
     return {
       status: 'waiting_poi',
       label: '地点登録待ち',
@@ -151,7 +178,7 @@ export function getAutoProjectStatus(
 
   // 6. アカウントID登録待ち
   if (!hasAllAccountIds) {
-    const count = projectSegments.filter(s => !s.ads_account_id || s.ads_account_id.trim() === '').length;
+    const count = projectSegments.filter((s: any) => !s?.ads_account_id || String(s.ads_account_id || '').trim() === '').length;
     return {
       status: 'waiting_account_id',
       label: 'アカウントID登録待ち',
@@ -192,9 +219,9 @@ export function getAutoProjectStatus(
  * 案件リストをステータス別にカウント
  */
 export function countProjectsByStatus(
-  projects: Project[],
-  allSegments: Segment[],
-  allPois: PoiInfo[]
+  projects: any[],
+  allSegments: any[],
+  allPois: any[]
 ): Record<AutoProjectStatus | 'total', number> {
   const counts: Record<AutoProjectStatus | 'total', number> = {
     draft: 0,
@@ -205,12 +232,22 @@ export function countProjectsByStatus(
     link_requested: 0,
     linked: 0,
     expiring_soon: 0,
-    total: projects.length,
+    total: Array.isArray(projects) ? projects.length : 0,
   };
 
-  projects.forEach(project => {
-    const statusInfo = getAutoProjectStatus(project, allSegments, allPois);
-    counts[statusInfo.status]++;
+  if (!Array.isArray(projects) || !Array.isArray(allSegments) || !Array.isArray(allPois)) {
+    return counts;
+  }
+
+  projects.forEach((project: any) => {
+    try {
+      const statusInfo = getAutoProjectStatus(project, allSegments, allPois);
+      if (statusInfo && statusInfo.status) {
+        counts[statusInfo.status]++;
+      }
+    } catch (error) {
+      console.error('Error counting project status:', error);
+    }
   });
 
   return counts;

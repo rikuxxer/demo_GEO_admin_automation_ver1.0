@@ -119,7 +119,25 @@ export function UserGuideTour({ isOpen, onClose, onComplete }: UserGuideTourProp
     }
 
     // 要素を探す（少し待ってから探す）
-    const findElement = () => {
+    const findElement = async () => {
+      // SummaryCardsコンポーネントの初期化を待つ（data-tour="summary-cards"の場合）
+      if (step.target === '[data-tour="summary-cards"]') {
+        // SummaryCardsが完全にレンダリングされるまで待つ
+        let checkCount = 0;
+        const maxChecks = 20;
+        while (checkCount < maxChecks) {
+          const summaryCardsContainer = document.querySelector('[data-tour="summary-cards"]') as HTMLElement;
+          // SummaryCardsがレンダリングされ、かつ「読み込み中...」が表示されていないことを確認
+          if (summaryCardsContainer && !summaryCardsContainer.textContent?.includes('読み込み中')) {
+            // さらに少し待機してモジュールの初期化を確実にする
+            await new Promise(resolve => setTimeout(resolve, 300));
+            break;
+          }
+          checkCount++;
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
       const element = document.querySelector(step.target) as HTMLElement;
       if (element) {
         // スクロールして要素を表示
@@ -140,7 +158,9 @@ export function UserGuideTour({ isOpen, onClose, onComplete }: UserGuideTourProp
       }
     };
 
-    const timer = setTimeout(findElement, 300);
+    const timer = setTimeout(() => {
+      findElement();
+    }, 300);
     return () => clearTimeout(timer);
   }, [isOpen, currentStep, onComplete]);
 

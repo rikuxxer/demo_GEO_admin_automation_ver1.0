@@ -380,8 +380,26 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       if (step.navigateToPage) {
         console.log('[OperationGuide] Navigating to page:', step.navigateToPage, 'projectId:', step.navigateToProjectId);
         onNavigate(step.navigateToPage, step.navigateToProjectId);
-        // ページ遷移後に要素が表示されるまで待機（少し長めに待機）
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // ページ遷移後に要素が表示されるまで待機（SummaryCardsの初期化を待つため長めに待機）
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+      
+      // SummaryCardsコンポーネントの初期化を待つ（data-tour="summary-cards"の場合）
+      if (step.target === '[data-tour="summary-cards"]') {
+        // SummaryCardsが完全にレンダリングされるまで待つ
+        let checkCount = 0;
+        const maxChecks = 20;
+        while (checkCount < maxChecks) {
+          const summaryCardsContainer = document.querySelector('[data-tour="summary-cards"]') as HTMLElement;
+          // SummaryCardsがレンダリングされ、かつ「読み込み中...」が表示されていないことを確認
+          if (summaryCardsContainer && !summaryCardsContainer.textContent?.includes('読み込み中')) {
+            // さらに少し待機してモジュールの初期化を確実にする
+            await new Promise(resolve => setTimeout(resolve, 300));
+            break;
+          }
+          checkCount++;
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
       
       // 要素を探す（複数回リトライ）
