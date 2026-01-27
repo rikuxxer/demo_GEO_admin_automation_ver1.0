@@ -94,7 +94,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   エラー詳細:
                 </p>
                 <pre className="text-xs text-red-600 overflow-auto max-h-40">
-                  {this.state.error.toString()}
+                  {this.state.error.stack || this.state.error.toString()}
                 </pre>
                 {this.state.errorInfo && (
                   <details className="mt-2">
