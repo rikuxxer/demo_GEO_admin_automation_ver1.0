@@ -1,4 +1,4 @@
-import { Project, Segment, PoiInfo } from '../types/schema';
+import type { Project, Segment, PoiInfo } from '../types/schema';
 
 /**
  * 案件ステータスの自動判定

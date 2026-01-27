@@ -1,4 +1,4 @@
-import { EditRequest, Project, Segment, PoiInfo } from '../types/schema';
+import type { EditRequest, Project, Segment, PoiInfo } from '../types/schema';
 
 /**
  * 案件フィールドで承認が不要なフィールド

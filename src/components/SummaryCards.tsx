@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { FileText, Link2, MapPin, Layers, User, Building2, FileEdit, Loader2, CheckCircle2, Info, Send, AlertTriangle } from 'lucide-react';
-import { Project, Segment, PoiInfo } from '../types/schema';
+import type { Project, Segment, PoiInfo } from '../types/schema';
 import { useAuth } from '../contexts/AuthContext';
 import { countProjectsByStatus, getAutoProjectStatus, AutoProjectStatus } from '../utils/projectStatus';
 import { canViewProject } from '../utils/editRequest';
