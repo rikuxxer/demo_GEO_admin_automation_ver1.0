@@ -22,15 +22,51 @@ export function SummaryCards({ projects, segments, pois, selectedStatus, onCardC
   //   - 他の営業の連携完了案件のみ
   // 管理者の場合: すべての案件
   const filteredProjects = useMemo(() => {
-    return projects.filter(project => {
-      const statusInfo = getAutoProjectStatus(project, segments, pois);
-      return canViewProject(user, project, statusInfo.status);
-    });
+    if (!Array.isArray(segments) || !Array.isArray(pois)) {
+      return [];
+    }
+    try {
+      return projects.filter(project => {
+        const statusInfo = getAutoProjectStatus(project, segments, pois);
+        return canViewProject(user, project, statusInfo.status);
+      });
+    } catch (error) {
+      console.error('Error filtering projects:', error);
+      return [];
+    }
   }, [projects, segments, pois, user]);
   
   // ステータス別の案件数を自動判定
   const statusCounts = useMemo(() => {
-    return countProjectsByStatus(filteredProjects, segments, pois);
+    if (!Array.isArray(segments) || !Array.isArray(pois)) {
+      return {
+        draft: 0,
+        waiting_poi: 0,
+        waiting_account_id: 0,
+        waiting_service_id: 0,
+        in_progress: 0,
+        link_requested: 0,
+        linked: 0,
+        expiring_soon: 0,
+        total: 0,
+      };
+    }
+    try {
+      return countProjectsByStatus(filteredProjects, segments, pois);
+    } catch (error) {
+      console.error('Error counting projects by status:', error);
+      return {
+        draft: 0,
+        waiting_poi: 0,
+        waiting_account_id: 0,
+        waiting_service_id: 0,
+        in_progress: 0,
+        link_requested: 0,
+        linked: 0,
+        expiring_soon: 0,
+        total: 0,
+      };
+    }
   }, [filteredProjects, segments, pois]);
 
   // 入力不備の合計件数
