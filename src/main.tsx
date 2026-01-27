@@ -6,6 +6,26 @@ import './index.css';
 import './styles/globals.css';
 import './utils/fixSampleDataRegistrationTime';
 
+declare global {
+  interface Window {
+    process?: {
+      env?: Record<string, string | undefined>;
+    };
+  }
+}
+
+// process.env を参照する既存コードのためのフォールバック（本番での ReferenceError を防止）
+if (!window.process) {
+  window.process = { env: {} };
+}
+if (!window.process.env) {
+  window.process.env = {};
+}
+window.process.env.NODE_ENV = import.meta.env.MODE;
+if (!window.process.env.GOOGLE_MAPS_API_KEY) {
+  window.process.env.GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+}
+
 // ブラウザ拡張機能関連のエラーを無視するグローバルエラーハンドラー
 window.addEventListener('unhandledrejection', (event) => {
   const errorMessage = event.reason?.message || String(event.reason);

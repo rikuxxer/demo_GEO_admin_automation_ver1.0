@@ -88,10 +88,10 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {this.state.error && (
               <div className="mb-4 p-4 bg-gray-50 rounded border border-gray-200">
                 <p className="text-sm font-medium text-gray-700 mb-2">
-                  開発モード - エラー詳細:
+                  エラー詳細:
                 </p>
                 <pre className="text-xs text-red-600 overflow-auto max-h-40">
                   {this.state.error.toString()}
@@ -116,6 +116,25 @@ export class ErrorBoundary extends Component<Props, State> {
               >
                 再試行
               </Button>
+              {this.state.error && (
+                <Button
+                  onClick={async () => {
+                    const details = [
+                      this.state.error?.toString(),
+                      this.state.errorInfo?.componentStack || ''
+                    ].filter(Boolean).join('\n');
+                    try {
+                      await navigator.clipboard.writeText(details);
+                    } catch (e) {
+                      console.error('Failed to copy error details:', e);
+                    }
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  詳細をコピー
+                </Button>
+              )}
               <Button
                 onClick={() => window.location.href = '/'}
                 variant="outline"
