@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "./components/ui/dropdown-menu";
 import { Toaster } from "./components/ui/sonner";
+import { toast } from "sonner";
 import type { Project, PoiInfo, Segment, EditRequest } from "./types/schema";
 import { AutoProjectStatus } from "./utils/projectStatus";
 import { useProjectSystem } from "./hooks/useProjectSystem";
@@ -55,6 +56,45 @@ function AppContent() {
   const [isOperationGuideOpen, setIsOperationGuideOpen] = useState(false);
   const [operationGuideId, setOperationGuideId] = useState<string | undefined>(undefined);
   const [pendingProjectNavigation, setPendingProjectNavigation] = useState<{ projectId?: string } | null>(null);
+
+  // Data & Logic from Custom Hook (useEffectより前に定義する必要がある)
+  const {
+    // Data
+    projects,
+    segments,
+    allSegments,
+    pois,
+    allPois,
+    editRequests,
+    selectedProject,
+    unreadNotificationsCount,
+    
+    // Data Refreshers
+    refreshProjects,
+    refreshSegments,
+    
+    // Actions
+    createProject,
+    selectProject,
+    clearSelectedProject,
+    updateProject,
+    updateProjectStatus,
+    createSegment,
+    updateSegment,
+    deleteSegment,
+    requestSegmentEdit,
+    updateSegmentStatus,
+    confirmSegmentLink,
+    createPoi,
+    createPoisBulk,
+    updatePoi,
+    deletePoi,
+    createEditRequest,
+    approveEditRequest,
+    rejectEditRequest,
+    withdrawEditRequest,
+    loadUnreadNotifications
+  } = useProjectSystem();
 
   // 初回ログイン時（営業のみ）にツアーを表示
   useEffect(() => {
@@ -98,45 +138,6 @@ function AppContent() {
     setOperationGuideId(guideId);
     setIsOperationGuideOpen(true);
   };
-
-  // Data & Logic from Custom Hook
-  const {
-    // Data
-    projects,
-    segments,
-    allSegments,
-    pois,
-    allPois,
-    editRequests,
-    selectedProject,
-    unreadNotificationsCount,
-    
-    // Data Refreshers
-    refreshProjects,
-    refreshSegments,
-    
-    // Actions
-    createProject,
-    selectProject,
-    clearSelectedProject,
-    updateProject,
-    updateProjectStatus,
-    createSegment,
-    updateSegment,
-    deleteSegment,
-    requestSegmentEdit,
-    updateSegmentStatus,
-    confirmSegmentLink,
-    createPoi,
-    createPoisBulk,
-    updatePoi,
-    deletePoi,
-    createEditRequest,
-    approveEditRequest,
-    rejectEditRequest,
-    withdrawEditRequest,
-    loadUnreadNotifications
-  } = useProjectSystem();
 
   // 修正依頼（pending）件数をお知らせ通知に反映
   const pendingEditRequestsCount = useMemo(() => {
