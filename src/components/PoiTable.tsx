@@ -70,7 +70,7 @@ export function PoiTable({ pois, onEdit, onUpdate, onDelete, readOnly = false }:
   // 大量データの場合の最適化: 表示する範囲を制限
   const visiblePois = useMemo(() => {
     if (pois.length <= maxVisibleItems) {
-      return currentPois;
+      return currentPois; 
     }
     // 大量データの場合は、現在のページのみ表示
     return currentPois;

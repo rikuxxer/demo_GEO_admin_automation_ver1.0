@@ -186,12 +186,37 @@ app.post('/api/projects', async (req, res) => {
     
     // project_idの事前チェックと自動生成
     let projectData = { ...req.body };
-    
-    if (!projectData.project_id || typeof projectData.project_id !== 'string' || projectData.project_id.trim() === '') {
-      // project_idが存在しない、または空文字列の場合、連番で自動生成
-      const generatedProjectId = await getBqService().generateNextProjectId();
-      console.warn('⚠️ リクエストボディにproject_idが含まれていません。自動生成します:', generatedProjectId);
-      projectData.project_id = generatedProjectId;
+    const isProjectIdProvided =
+      !!projectData.project_id &&
+      typeof projectData.project_id === 'string' &&
+      projectData.project_id.trim() !== '';
+
+    // NOTE:
+    // - project_idが未指定の場合はバックエンドで自動採番する
+    // - 本番では同時作成などで採番衝突が起こり得るため、未指定時のみリトライする
+    const MAX_ID_GENERATION_RETRIES = 5;
+
+    if (!isProjectIdProvided) {
+      let lastError: any = null;
+
+      for (let attempt = 1; attempt <= MAX_ID_GENERATION_RETRIES; attempt++) {
+        const generatedProjectId = await getBqService().generateNextProjectId();
+        console.warn(
+          `⚠️ リクエストボディにproject_idが含まれていません。自動生成します: ${generatedProjectId} (attempt ${attempt}/${MAX_ID_GENERATION_RETRIES})`,
+        );
+        projectData.project_id = generatedProjectId;
+
+        try {
+          break; // createProjectの前にループを抜けるのではなく、下で実際に作成する
+        } catch (e) {
+          lastError = e;
+        }
+      }
+
+      // createProject は下で実行するが、念のため project_id が生成できていない場合はエラー
+      if (!projectData.project_id || typeof projectData.project_id !== 'string' || projectData.project_id.trim() === '') {
+        throw lastError || new Error('Failed to generate project_id');
+      }
     }
     
     // person_in_chargeが存在しない場合、デフォルト値を設定
@@ -209,7 +234,47 @@ app.post('/api/projects', async (req, res) => {
       allKeys: Object.keys(projectData),
     });
     
-    await getBqService().createProject(projectData);
+    // project_id未指定（自動生成）の場合のみ、重複時に採番し直してリトライ
+    if (!isProjectIdProvided) {
+      let created = false;
+      let lastError: any = null;
+
+      for (let attempt = 1; attempt <= MAX_ID_GENERATION_RETRIES; attempt++) {
+        try {
+          // 初回はすでにprojectData.project_idが入っている（上で生成済み）
+          if (attempt > 1) {
+            const regeneratedProjectId = await getBqService().generateNextProjectId();
+            console.warn(
+              `⚠️ project_id重複のため再採番します: ${regeneratedProjectId} (attempt ${attempt}/${MAX_ID_GENERATION_RETRIES})`,
+            );
+            projectData.project_id = regeneratedProjectId;
+          }
+
+          await getBqService().createProject(projectData);
+          created = true;
+          break;
+        } catch (e: any) {
+          lastError = e;
+          const msg = e?.message || '';
+          // BigQueryService.createProject が投げる重複エラー文言に合わせて判定
+          const isDuplicateId =
+            typeof msg === 'string' &&
+            (msg.includes('already exists') || msg.includes('project_id') && msg.includes('exists'));
+
+          if (!isDuplicateId) {
+            throw e;
+          }
+          console.warn('⚠️ project_id重複エラーを検知:', msg);
+        }
+      }
+
+      if (!created) {
+        throw lastError || new Error('Failed to create project after retries');
+      }
+    } else {
+      // project_idが明示指定された場合は、そのまま作成（重複はエラーとして返す）
+      await getBqService().createProject(projectData);
+    }
     
     // 作成されたプロジェクトを取得して返す
     const createdProject = await getBqService().getProjectById(projectData.project_id);
