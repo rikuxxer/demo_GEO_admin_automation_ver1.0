@@ -112,9 +112,29 @@ export function useProjectSystem() {
       setProjects((prev) => [newProject, ...prev]);
       toast.success("新しい案件が登録されました");
       return newProject;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating project:", error);
-      toast.error("案件の登録に失敗しました");
+      
+      // エラーメッセージを詳細に表示
+      let errorMessage = "案件の登録に失敗しました";
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.details?.error) {
+        errorMessage = error.details.error;
+      }
+      
+      // エラーの詳細情報をコンソールに出力
+      if (error?.details) {
+        console.error("Error details:", error.details);
+        if (error.details.type) {
+          console.error("Error type:", error.details.type);
+        }
+        if (error.details.errors) {
+          console.error("BigQuery errors:", error.details.errors);
+        }
+      }
+      
+      toast.error(errorMessage);
       throw error;
     }
   };

@@ -386,14 +386,40 @@ class BigQueryService {
         if (!response.ok) {
           const contentType = response.headers.get('content-type');
           let errorMessage = 'プロジェクトの作成に失敗しました';
+          let errorDetails: any = null;
+          
           if (contentType && contentType.includes('application/json')) {
             const error = await response.json();
+            errorDetails = error;
             errorMessage = error.error || errorMessage;
+            
+            // 詳細なエラー情報をコンソールに出力（デバッグ用）
+            console.error('❌ プロジェクト作成APIエラー詳細:');
+            console.error('  Status:', response.status, response.statusText);
+            console.error('  Error object:', error);
+            console.error('  Error message:', error.error || error.message);
+            console.error('  Error type:', error.type);
+            if (error.details) {
+              console.error('  Details:', error.details);
+            }
+            if (error.errors) {
+              console.error('  BigQuery errors:', error.errors);
+            }
+            if (error.code) {
+              console.error('  Error code:', error.code);
+            }
           } else {
             const errorText = await response.text();
             errorMessage = errorText || errorMessage;
+            console.error('❌ プロジェクト作成APIエラー（非JSON）:');
+            console.error('  Status:', response.status, response.statusText);
+            console.error('  Response text:', errorText);
           }
-          throw new Error(errorMessage);
+          
+          const fullError = new Error(errorMessage);
+          (fullError as any).details = errorDetails;
+          (fullError as any).status = response.status;
+          throw fullError;
         }
 
         // レスポンスからプロジェクト情報を取得（バックエンドが返す場合）
