@@ -23,6 +23,10 @@ env:
   SERVICE_NAME: universegeo
   REPOSITORY: universegeo
 
+concurrency:
+  group: deploy-universegeo-frontend
+  cancel-in-progress: false
+
 jobs:
   deploy-frontend:
     name: Deploy Frontend to Cloud Run
@@ -221,29 +225,46 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
-          # リージョンの値を明示的に設定
           REGION_VALUE="${{ env.REGION }}"
-          if [ -z "$REGION_VALUE" ] || [ "$REGION_VALUE" != "asia-northeast1" ]; then
-            REGION_VALUE="asia-northeast1"
-          fi
-          
+          [ -z "$REGION_VALUE" ] && REGION_VALUE="asia-northeast1"
           IMAGE_NAME="${REGION_VALUE}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}"
           
           echo "🚀 Deploying to Cloud Run..."
-          echo "Region: $REGION_VALUE"
-          
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image "${IMAGE_NAME}:${{ github.sha }}" \
-            --region "$REGION_VALUE" \
-            --platform managed \
-            --allow-unauthenticated \
-            --port 8080 \
-            --memory 512Mi \
-            --cpu 1 \
-            --min-instances 0 \
-            --max-instances 10 \
-            --timeout 300 \
-            --project ${{ env.PROJECT_ID }}
+          MAX_RETRIES=3
+          RETRY=0
+          SUCCESS=false
+          while [ $RETRY -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+            if [ $RETRY -gt 0 ]; then
+              echo "⏳ リトライ $RETRY/$MAX_RETRIES: 15秒待機..."
+              sleep 15
+            fi
+            set +e
+            gcloud run deploy ${{ env.SERVICE_NAME }} \
+              --image "${IMAGE_NAME}:${{ github.sha }}" \
+              --region "$REGION_VALUE" \
+              --platform managed \
+              --allow-unauthenticated \
+              --port 8080 \
+              --memory 512Mi \
+              --cpu 1 \
+              --min-instances 0 \
+              --max-instances 10 \
+              --timeout 300 \
+              --project ${{ env.PROJECT_ID }}
+            EXIT=$?
+            set -e
+            if [ $EXIT -eq 0 ]; then
+              SUCCESS=true
+              echo "✅ Deploy succeeded"
+            else
+              RETRY=$((RETRY + 1))
+              if [ $RETRY -ge $MAX_RETRIES ]; then
+                echo "❌ Deploy failed after $MAX_RETRIES retries"
+                exit 1
+              fi
+              echo "⚠️ Deploy failed (exit $EXIT). Retrying..."
+            fi
+          done
 
       - name: Get service URL
         id: get-url

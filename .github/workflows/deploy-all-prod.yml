@@ -18,6 +18,10 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: asia-northeast1
 
+concurrency:
+  group: deploy-universegeo-frontend
+  cancel-in-progress: false
+
 jobs:
   deploy-backend:
     name: Deploy Backend (Production)
@@ -217,16 +221,39 @@ jobs:
           REGION_VALUE="${{ env.REGION }}"
           IMAGE_NAME="${REGION_VALUE}-docker.pkg.dev/${{ env.PROJECT_ID }}/universegeo/universegeo"
           
-          gcloud run deploy universegeo \
-            --image "${IMAGE_NAME}:${{ github.sha }}" \
-            --region "$REGION_VALUE" \
-            --platform managed \
-            --allow-unauthenticated \
-            --port 8080 \
-            --memory 512Mi \
-            --cpu 1 \
-            --max-instances 10 \
-            --project ${{ env.PROJECT_ID }}
+          MAX_RETRIES=3
+          RETRY=0
+          SUCCESS=false
+          while [ $RETRY -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+            if [ $RETRY -gt 0 ]; then
+              echo "⏳ リトライ $RETRY/$MAX_RETRIES: 15秒待機..."
+              sleep 15
+            fi
+            set +e
+            gcloud run deploy universegeo \
+              --image "${IMAGE_NAME}:${{ github.sha }}" \
+              --region "$REGION_VALUE" \
+              --platform managed \
+              --allow-unauthenticated \
+              --port 8080 \
+              --memory 512Mi \
+              --cpu 1 \
+              --max-instances 10 \
+              --project ${{ env.PROJECT_ID }}
+            EXIT=$?
+            set -e
+            if [ $EXIT -eq 0 ]; then
+              SUCCESS=true
+              echo "✅ Deploy succeeded"
+            else
+              RETRY=$((RETRY + 1))
+              if [ $RETRY -ge $MAX_RETRIES ]; then
+                echo "❌ Deploy failed after $MAX_RETRIES retries"
+                exit 1
+              fi
+              echo "⚠️ Deploy failed (exit $EXIT). Retrying..."
+            fi
+          done
 
       - name: Get Frontend URL
         id: frontend-url

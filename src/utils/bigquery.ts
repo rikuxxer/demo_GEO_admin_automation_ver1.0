@@ -375,51 +375,65 @@ class BigQueryService {
         console.log('📤 project_idはバックエンドで自動生成されます');
         console.log('📤 送信する完全なデータ:', JSON.stringify(projectData, null, 2));
         
-        const response = await fetch(`${API_BASE_URL}/api/projects`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(projectData),
-        });
+        // バックエンドにリトライが未デプロイでも、「already exists」の500時は再送で通ることがあるためリトライする
+        const MAX_CREATE_RETRIES = 3;
+        let lastError: Error | null = null;
+        let response: Response | null = null;
 
-        if (!response.ok) {
+        for (let attempt = 1; attempt <= MAX_CREATE_RETRIES; attempt++) {
+          response = await fetch(`${API_BASE_URL}/api/projects`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(projectData),
+          });
+
+          if (response.ok) break;
+
           const contentType = response.headers.get('content-type');
           let errorMessage = 'プロジェクトの作成に失敗しました';
           let errorDetails: any = null;
-          
+
           if (contentType && contentType.includes('application/json')) {
             const error = await response.json();
             errorDetails = error;
-            errorMessage = error.error || errorMessage;
-            
-            // 詳細なエラー情報をコンソールに出力（デバッグ用）
-            console.error('❌ プロジェクト作成APIエラー詳細:');
-            console.error('  Status:', response.status, response.statusText);
-            console.error('  Error object:', error);
-            console.error('  Error message:', error.error || error.message);
-            console.error('  Error type:', error.type);
-            if (error.details) {
-              console.error('  Details:', error.details);
+            errorMessage = error.error || error.message || errorMessage;
+
+            console.error(`❌ プロジェクト作成APIエラー (attempt ${attempt}/${MAX_CREATE_RETRIES}):`, errorMessage);
+            if (error.details) console.error('  Details:', error.details);
+            if (error.errors) console.error('  BigQuery errors:', error.errors);
+
+            const isDuplicate =
+              response.status === 500 &&
+              typeof errorMessage === 'string' &&
+              (errorMessage.includes('already exists') || (errorMessage.includes('project_id') && errorMessage.includes('exists')));
+
+            if (isDuplicate && attempt < MAX_CREATE_RETRIES) {
+              console.warn(`⚠️ project_id重複のため再送します (attempt ${attempt + 1}/${MAX_CREATE_RETRIES})`);
+              lastError = new Error(errorMessage);
+              (lastError as any).details = errorDetails;
+              (lastError as any).status = response.status;
+              await new Promise((r) => setTimeout(r, 300 * attempt));
+              continue;
             }
-            if (error.errors) {
-              console.error('  BigQuery errors:', error.errors);
-            }
-            if (error.code) {
-              console.error('  Error code:', error.code);
-            }
+
+            lastError = new Error(errorMessage);
+            (lastError as any).details = errorDetails;
+            (lastError as any).status = response.status;
+            throw lastError;
           } else {
             const errorText = await response.text();
             errorMessage = errorText || errorMessage;
-            console.error('❌ プロジェクト作成APIエラー（非JSON）:');
-            console.error('  Status:', response.status, response.statusText);
-            console.error('  Response text:', errorText);
+            console.error('❌ プロジェクト作成APIエラー（非JSON）:', response.status, errorText);
+            lastError = new Error(errorMessage);
+            (lastError as any).status = response.status;
+            throw lastError;
           }
-          
-          const fullError = new Error(errorMessage);
-          (fullError as any).details = errorDetails;
-          (fullError as any).status = response.status;
-          throw fullError;
+        }
+
+        if (!response || !response.ok) {
+          throw lastError || new Error('プロジェクトの作成に失敗しました');
         }
 
         // レスポンスからプロジェクト情報を取得（バックエンドが返す場合）
