@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
+import { DemoScreen } from './DemoScreen';
 
 // ハイライトマスクコンポーネント
 function HighlightMask({ targetElement }: { targetElement: HTMLElement }) {
@@ -341,8 +342,29 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
+  const [useDemoMode, setUseDemoMode] = useState(false); // 本番環境では実際の画面で動作
+  const [demoHighlightedElement, setDemoHighlightedElement] = useState<string | undefined>(undefined);
   const overlayRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  // selectedGuideの最新値を追跡するためのref（onOpenChangeのクロージャ問題を回避）
+  const selectedGuideRef = useRef<OperationGuide | null>(null);
+
+  // selectedGuideのrefを更新
+  useEffect(() => {
+    selectedGuideRef.current = selectedGuide;
+  }, [selectedGuide]);
+
+  // デバッグログ
+  useEffect(() => {
+    console.log('[OperationGuide] Props changed:', {
+      isOpen,
+      guideId,
+      hasOnNavigate: !!onNavigate,
+      hasOnOpenForm: !!onOpenForm,
+      selectedGuide: selectedGuide?.id,
+      currentStep
+    });
+  }, [isOpen, guideId, onNavigate, onOpenForm, selectedGuide, currentStep]);
 
   // 特定のガイドIDが指定されている場合は自動選択
   useEffect(() => {
@@ -360,100 +382,229 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       }
     } else if (isOpen && !guideId) {
       // ガイドIDが指定されていない場合は選択画面を表示
-      setSelectedGuide(null);
-      setCurrentStep(0);
+      // 既にselectedGuideが設定されている場合はリセットしない（ガイド実行中の場合）
+      if (!selectedGuide) {
+        setSelectedGuide(null);
+        setCurrentStep(0);
+      }
     }
   }, [isOpen, guideId, onNavigate]);
 
-  // ステップの実行
+  // ステップの実行（デモ画面モード）
   useEffect(() => {
-    if (!isOpen || !selectedGuide || !onNavigate) return;
+    if (!isOpen || !selectedGuide || !useDemoMode) return;
 
     const step = selectedGuide.steps[currentStep];
     if (!step) {
       // ガイド完了
+      handleComplete();
       return;
     }
+
+    // デモ画面モードでは、要素を探す代わりにデモ画面内の要素をハイライト
+    const executeDemoStep = async () => {
+      console.log('[OperationGuide] Executing demo step:', step.title);
+      
+      // デモ画面内の要素IDを取得（targetから変換）
+      let demoElementId: string | undefined;
+      if (step.target === '[data-tour="new-project-button"]') {
+        demoElementId = 'new-project-button';
+      } else if (step.target === '[data-tour="summary-cards"]') {
+        demoElementId = 'summary-cards';
+      } else if (step.target === '[data-guide="project-form"]') {
+        demoElementId = 'project-form';
+      } else if (step.target === '[data-guide="project-submit"]') {
+        demoElementId = 'project-submit';
+      } else if (step.target.includes('manual-register')) {
+        demoElementId = 'manual-register';
+      } else if (step.target.includes('bulk-import')) {
+        demoElementId = 'bulk-import';
+      }
+
+      // デモ画面の要素をハイライト
+      if (demoElementId) {
+        setDemoHighlightedElement(demoElementId);
+      }
+
+      // 自動操作がある場合は実行（デモ画面内でシミュレート）
+      // デモ画面モードでは、実際のDOM操作は行わず、デモ画面内の要素をクリックするだけ
+      if (step.action && demoElementId) {
+        setIsExecutingAction(true);
+        try {
+          if (step.waitBeforeAction) {
+            await new Promise(resolve => setTimeout(resolve, step.waitBeforeAction));
+          }
+          console.log('[OperationGuide] Simulating demo action for step:', step.title);
+          // デモ画面内の要素クリックをシミュレート（実際のDOM操作は行わない）
+          await new Promise(resolve => setTimeout(resolve, 500));
+          console.log('[OperationGuide] Demo action completed for step:', step.title);
+        } catch (error) {
+          console.error('[OperationGuide] Demo action execution error:', error);
+        } finally {
+          setIsExecutingAction(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(executeDemoStep, 300);
+    return () => clearTimeout(timer);
+  }, [isOpen, selectedGuide, currentStep, useDemoMode]);
+
+  // ステップの実行（通常モード - 実際の画面で動作）
+  useEffect(() => {
+    console.log('[OperationGuide] Step execution effect triggered:', {
+      isOpen,
+      hasSelectedGuide: !!selectedGuide,
+      hasOnNavigate: !!onNavigate,
+      currentStep,
+      selectedGuideId: selectedGuide?.id,
+      useDemoMode,
+      selectedGuideSteps: selectedGuide?.steps.length
+    });
+    
+    if (!isOpen || !selectedGuide || !onNavigate || useDemoMode) {
+      if (useDemoMode) {
+        console.log('[OperationGuide] Skipping real mode - using demo mode');
+      } else {
+        console.warn('[OperationGuide] Step execution skipped:', {
+          isOpen,
+          hasSelectedGuide: !!selectedGuide,
+          hasOnNavigate: !!onNavigate,
+          useDemoMode
+        });
+      }
+      return;
+    }
+
+    const step = selectedGuide.steps[currentStep];
+    if (!step) {
+      console.log('[OperationGuide] No step found at index:', currentStep, 'total steps:', selectedGuide.steps.length);
+      // ガイド完了
+      if (currentStep >= selectedGuide.steps.length) {
+        handleComplete();
+      }
+      return;
+    }
+
+    console.log('[OperationGuide] Starting step execution:', {
+      stepTitle: step.title,
+      stepTarget: step.target,
+      currentStep,
+      totalSteps: selectedGuide.steps.length
+    });
 
     const findElement = async () => {
       // まず、ページ遷移が必要な場合は遷移する
       if (step.navigateToPage) {
         console.log('[OperationGuide] Navigating to page:', step.navigateToPage, 'projectId:', step.navigateToProjectId);
         onNavigate(step.navigateToPage, step.navigateToProjectId);
-        // ページ遷移後に要素が表示されるまで待機（SummaryCardsの初期化を待つため長めに待機）
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // ページ遷移後に要素が表示されるまで待機（長めに待機）
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
       // SummaryCardsコンポーネントの初期化を待つ（data-tour="summary-cards"の場合）
       if (step.target === '[data-tour="summary-cards"]') {
         // SummaryCardsが完全にレンダリングされるまで待つ
         let checkCount = 0;
-        const maxChecks = 20;
+        const maxChecks = 30; // チェック回数を増やす
         while (checkCount < maxChecks) {
           const summaryCardsContainer = document.querySelector('[data-tour="summary-cards"]') as HTMLElement;
           // SummaryCardsがレンダリングされ、かつ「読み込み中...」が表示されていないことを確認
           if (summaryCardsContainer && !summaryCardsContainer.textContent?.includes('読み込み中')) {
             // さらに少し待機してモジュールの初期化を確実にする
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 500));
             break;
           }
           checkCount++;
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
       }
       
-      // 要素を探す（複数回リトライ）
+      // 要素を探す（複数回リトライ、より長い待機時間）
       let element: HTMLElement | null = null;
       let retryCount = 0;
-      const maxRetries = 30; // ページ遷移後は少し多めにリトライ
+      const maxRetries = 50; // リトライ回数を増やす
       
       while (!element && retryCount < maxRetries) {
+        // セレクタで要素を探す
         element = document.querySelector(step.target) as HTMLElement;
+        
+        // 見つからない場合、より柔軟な検索を試す
+        if (!element) {
+          // IDのみの場合（例: #element-id）
+          if (step.target.startsWith('#') && step.target.length > 1) {
+            const id = step.target.substring(1);
+            element = document.getElementById(id) as HTMLElement;
+          }
+          // data属性の場合、より柔軟に検索
+          if (!element && step.target.includes('data-')) {
+            const attributeMatch = step.target.match(/\[([^\]]+)\]/);
+            if (attributeMatch) {
+              const [attrName, attrValue] = attributeMatch[1].split('=');
+              if (attrValue) {
+                const value = attrValue.replace(/['"]/g, '');
+                element = document.querySelector(`[${attrName}="${value}"]`) as HTMLElement;
+              } else {
+                element = document.querySelector(`[${attrName}]`) as HTMLElement;
+              }
+            }
+          }
+        }
+        
         if (!element) {
           retryCount++;
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 300)); // 待機時間を少し長く
         }
       }
       
       if (element) {
+        // 要素が見つかった場合、スクロールして表示
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        setTimeout(async () => {
-          setTargetElement(element);
-          
-          // 自動操作がある場合は実行
-          if (step.action) {
-            setIsExecutingAction(true);
-            try {
-              if (step.waitBeforeAction) {
-                await new Promise(resolve => setTimeout(resolve, step.waitBeforeAction));
-              }
-              console.log('[OperationGuide] Executing action for step:', step.title);
-              await step.action();
-              console.log('[OperationGuide] Action completed for step:', step.title);
-            } catch (error) {
-              console.error('[OperationGuide] Action execution error:', error);
-            } finally {
-              setIsExecutingAction(false);
+        // スクロール完了を待つ
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        setTargetElement(element);
+        
+        // 自動操作がある場合は実行
+        if (step.action) {
+          setIsExecutingAction(true);
+          try {
+            if (step.waitBeforeAction) {
+              await new Promise(resolve => setTimeout(resolve, step.waitBeforeAction));
             }
+            console.log('[OperationGuide] Executing action for step:', step.title);
+            await step.action();
+            console.log('[OperationGuide] Action completed for step:', step.title);
+          } catch (error) {
+            console.error('[OperationGuide] Action execution error:', error);
+          } finally {
+            setIsExecutingAction(false);
           }
-        }, 500);
+        }
       } else {
         console.warn(`[OperationGuide] Guide target not found after ${maxRetries} retries: ${step.target}`);
         // 要素が見つからない場合でも、ツールチップを表示してユーザーに通知
+        // 画面中央にツールチップを表示
         setTargetElement(null);
-        // 次のステップに進むか、ガイドを終了
-        if (currentStep < selectedGuide.steps.length - 1) {
-          setTimeout(() => setCurrentStep(currentStep + 1), 1000);
-        } else {
-          handleComplete();
-        }
+        setTooltipPosition({ top: window.innerHeight / 2, left: window.innerWidth / 2 });
+        
+        // ユーザーが手動で次のステップに進めるように、少し待ってから次のステップに進むオプションを表示
+        // ただし、自動的には進まない（ユーザーが「次へ」ボタンをクリックするまで待つ）
       }
     };
 
-    const timer = setTimeout(findElement, 500); // 少し遅延を増やす
-    return () => clearTimeout(timer);
-  }, [isOpen, selectedGuide, currentStep, onNavigate]);
+    // ページ遷移直後は少し長めに待つ
+    const delay = currentStep === 0 ? 1000 : 500;
+    const timer = setTimeout(() => {
+      console.log('[OperationGuide] Starting findElement after delay:', delay);
+      findElement();
+    }, delay);
+    return () => {
+      console.log('[OperationGuide] Cleaning up step execution effect');
+      clearTimeout(timer);
+    };
+  }, [isOpen, selectedGuide, currentStep, onNavigate, useDemoMode]);
 
   // ツールチップの位置更新
   useEffect(() => {
@@ -565,26 +716,33 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
   };
 
   const handleComplete = () => {
+    console.log('[OperationGuide] Guide completed');
     setSelectedGuide(null);
     setCurrentStep(0);
     setTargetElement(null);
     setTooltipPosition(null);
+    selectedGuideRef.current = null;
     onClose();
   };
 
-  const handleSelectGuide = (guide: OperationGuide) => {
+  const handleSelectGuide = async (guide: OperationGuide) => {
+    console.log('[OperationGuide] Guide selected:', guide.id, 'hasOnNavigate:', !!onNavigate);
     // 最初のステップのページに遷移（selectedGuideを設定する前に実行）
     const firstStep = guide.steps[0];
     if (firstStep?.navigateToPage && onNavigate) {
       console.log('[OperationGuide] Selecting guide, navigating to:', firstStep.navigateToPage, 'projectId:', firstStep.navigateToProjectId);
       onNavigate(firstStep.navigateToPage, firstStep.navigateToProjectId);
+      // ページ遷移が完了するまで少し待つ
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } else {
+      console.warn('[OperationGuide] Cannot navigate - firstStep:', firstStep, 'hasOnNavigate:', !!onNavigate);
     }
+    // selectedGuideを設定（これによりDialogが閉じられ、ガイド実行画面に切り替わる）
+    // refも同時に更新して、onOpenChangeが最新の値を参照できるようにする
+    selectedGuideRef.current = guide;
     setSelectedGuide(guide);
     setCurrentStep(0);
-    // Dialogを閉じるために少し遅延させる
-    setTimeout(() => {
-      // Dialogは自動的に閉じられる（selectedGuideが設定されると条件分岐でDialogが表示されなくなる）
-    }, 100);
+    console.log('[OperationGuide] Guide set, selectedGuide:', guide.id, 'currentStep:', 0);
   };
 
   if (!isOpen) return null;
@@ -592,7 +750,20 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
   // ガイド選択画面
   if (!selectedGuide) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog 
+        open={isOpen} 
+        onOpenChange={(open) => {
+          // ガイド選択中にDialogが閉じられようとした場合のみonCloseを呼ぶ
+          // selectedGuideが設定されている場合は閉じない（ガイド実行画面に切り替わるため）
+          // refを使用して最新の値を参照（クロージャ問題を回避）
+          if (!open && !selectedGuideRef.current) {
+            console.log('[OperationGuide] Dialog closing, calling onClose');
+            onClose();
+          } else if (!open && selectedGuideRef.current) {
+            console.log('[OperationGuide] Dialog close prevented - guide is selected:', selectedGuideRef.current.id);
+          }
+        }}
+      >
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -641,6 +812,99 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
     return null;
   }
 
+  // デモ画面モードの場合
+  if (useDemoMode) {
+    // デモ画面に表示する画面タイプを決定
+    let demoScreenType: 'projects' | 'project-form' | 'bulk-import' = 'projects';
+    if (step.target === '[data-guide="project-form"]' || step.target === '[data-guide="project-submit"]') {
+      demoScreenType = 'project-form';
+    } else if (step.target.includes('bulk-import')) {
+      demoScreenType = 'bulk-import';
+    }
+
+    return (
+      <div className="fixed inset-0 z-[9999] bg-white">
+        {/* デモ画面 */}
+        <div className="h-full overflow-auto">
+          <DemoScreen 
+            type={demoScreenType}
+            highlightedElement={demoHighlightedElement}
+            onElementClick={(elementId) => {
+              console.log('[OperationGuide] Demo element clicked:', elementId);
+              // 次のステップに進む
+              if (currentStep < selectedGuide.steps.length - 1) {
+                setCurrentStep(currentStep + 1);
+              } else {
+                handleComplete();
+              }
+            }}
+          />
+        </div>
+
+        {/* ツールチップ（デモ画面モード） */}
+        <Card
+          ref={tooltipRef}
+          className="fixed z-[10000] w-80 p-4 shadow-2xl border border-primary"
+          style={{
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            margin: 0,
+          }}
+        >
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm mb-1">{step.title}</h3>
+              <p className="text-sm text-gray-600">{step.content}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleComplete}
+              className="h-6 w-6 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-xs text-gray-500">
+              {currentStep + 1} / {selectedGuide.steps.length}
+            </div>
+            <div className="flex gap-2">
+              {currentStep > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentStep(currentStep - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  前へ
+                </Button>
+              )}
+              {currentStep < selectedGuide.steps.length - 1 ? (
+                <Button
+                  size="sm"
+                  onClick={() => setCurrentStep(currentStep + 1)}
+                >
+                  次へ
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleComplete}
+                >
+                  完了
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // 通常モード（実際の画面で動作）
   return (
     <>
       {/* オーバーレイ */}
@@ -659,7 +923,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       {selectedGuide && (
         <Card
           ref={tooltipRef}
-          className="z-[10000] w-80 p-4 shadow-2xl border border-primary"
+          className="z-[10000] w-80 p-4 shadow-2xl border border-primary bg-white"
           style={{
             position: 'fixed',
             top: tooltipPosition ? `${tooltipPosition.top}px` : '50%',
@@ -669,12 +933,21 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
             opacity: 1,
             transition: 'opacity 0.2s',
             pointerEvents: 'auto',
+            maxHeight: '80vh',
+            overflowY: 'auto',
           }}
         >
           <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold text-gray-900 text-sm">{step.title}</h3>
+            <div className="flex items-center gap-2 flex-1">
+              <HelpCircle className="w-4 h-4 text-primary flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900 text-sm">{step.title}</h3>
+                {!targetElement && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    ⚠️ 対象の要素が見つかりませんでした。手動で操作してください。
+                  </p>
+                )}
+              </div>
             </div>
             <Button
               variant="ghost"

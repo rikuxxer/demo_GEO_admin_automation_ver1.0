@@ -135,6 +135,7 @@ function AppContent() {
   };
 
   const handleOperationGuideOpen = (guideId?: string) => {
+    console.log('[App] Opening operation guide, guideId:', guideId);
     setOperationGuideId(guideId);
     setIsOperationGuideOpen(true);
   };
