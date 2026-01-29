@@ -243,9 +243,9 @@ app.post('/api/projects', async (req, res) => {
         try {
           // 初回はすでにprojectData.project_idが入っている（上で生成済み）
           if (attempt > 1) {
-            const regeneratedProjectId = await getBqService().generateNextProjectId();
+            const regeneratedProjectId = await getBqService().generateNextProjectId({ mode: 'timestamp' });
             console.warn(
-              `⚠️ project_id重複のため再採番します: ${regeneratedProjectId} (attempt ${attempt}/${MAX_ID_GENERATION_RETRIES})`,
+              `⚠️ project_id重複のためタイムスタンプ採番に切替: ${regeneratedProjectId} (attempt ${attempt}/${MAX_ID_GENERATION_RETRIES})`,
             );
             projectData.project_id = regeneratedProjectId;
           }

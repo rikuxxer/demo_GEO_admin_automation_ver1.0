@@ -316,55 +316,105 @@ function formatMediaIdForBigQuery(mediaIdValue: any): string | null {
   return String(mediaIdValue).trim() || null;
 }
 
+const COUNTERS_TABLE = 'id_counters';
+
+async function ensureCountersTable(): Promise<void> {
+  const currentProjectId = validateProjectId();
+  const cleanDatasetId = getCleanDatasetId();
+  const query = `
+    CREATE TABLE IF NOT EXISTS \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+    (
+      name STRING,
+      next_id INT64,
+      updated_at TIMESTAMP
+    )
+  `;
+  await initializeBigQueryClient().query({ query, location: BQ_LOCATION });
+}
+
+async function getNextIdFromCounter(counterName: string): Promise<number> {
+  const currentProjectId = validateProjectId();
+  const cleanDatasetId = getCleanDatasetId();
+  const client = initializeBigQueryClient();
+
+  await ensureCountersTable();
+
+  const query = `
+    BEGIN TRANSACTION;
+      DECLARE max_id INT64;
+      DECLARE next_val INT64;
+
+      SET max_id = (
+        SELECT IFNULL(
+          MAX(CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64)),
+          0
+        )
+        FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
+        WHERE project_id LIKE 'PRJ-%'
+          AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
+      );
+      SET next_val = max_id + 1;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+        WHERE name = @counter_name
+      ) THEN
+        INSERT INTO \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+          (name, next_id, updated_at)
+        VALUES
+          (@counter_name, next_val, CURRENT_TIMESTAMP());
+      ELSE
+        UPDATE \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+        SET next_id = GREATEST(next_id + 1, next_val),
+            updated_at = CURRENT_TIMESTAMP()
+        WHERE name = @counter_name;
+      END IF;
+
+      SELECT next_id FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+      WHERE name = @counter_name;
+    COMMIT TRANSACTION;
+  `;
+
+  const [rows] = await client.query({
+    query,
+    params: { counter_name: counterName },
+    location: BQ_LOCATION,
+  });
+
+  const nextId = rows?.[0]?.next_id;
+  if (typeof nextId !== 'number') {
+    throw new Error(`Failed to allocate next_id for counter: ${counterName}`);
+  }
+  return nextId;
+}
+
 export class BigQueryService {
   // ==================== プロジェクト ====================
   
   /**
    * 次の案件IDを生成（連番形式: PRJ-1, PRJ-2, ...）
    */
-  async generateNextProjectId(): Promise<string> {
+  async generateNextProjectId(options?: { mode?: 'sequential' | 'timestamp' }): Promise<string> {
     try {
-      const currentProjectId = validateProjectId();
-      const cleanDatasetId = getCleanDatasetId();
-      
-      // 既存の案件IDから最大の番号を取得
-      // REGEXP_EXTRACT_ALLを使用して数字部分を抽出し、最大値を取得
-      const query = `
-        SELECT project_id
-        FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
-        WHERE project_id LIKE 'PRJ-%'
-          AND REGEXP_CONTAINS(project_id, r'^PRJ-\d+$')
-        ORDER BY 
-          CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\d+)') AS INT64) DESC
-        LIMIT 1
-      `;
-      
-      const [rows] = await initializeBigQueryClient().query({
-        query,
-        location: BQ_LOCATION,
-      });
-      
-      let nextNumber = 1;
-      
-      if (rows && rows.length > 0) {
-        const lastProjectId = rows[0].project_id as string;
-        // PRJ-123 から 123 を抽出
-        const match = lastProjectId.match(/^PRJ-(\d+)$/);
-        if (match && match[1]) {
-          const lastNumber = parseInt(match[1], 10);
-          if (!isNaN(lastNumber)) {
-            nextNumber = lastNumber + 1;
-          }
-        }
+      const mode = options?.mode ?? 'sequential';
+      if (mode === 'timestamp') {
+        const fallbackId = `PRJ-${Date.now()}${Math.floor(Math.random() * 1000)
+          .toString()
+          .padStart(3, '0')}`;
+        console.warn('⚠️ タイムスタンプ採番を使用:', fallbackId);
+        return fallbackId;
       }
-      
+
+      const nextNumber = await getNextIdFromCounter('project_id');
       const newProjectId = `PRJ-${nextNumber}`;
       console.log('✅ 生成された案件ID:', newProjectId);
       return newProjectId;
     } catch (error: any) {
       console.error('❌ 案件ID生成エラー:', error);
       // エラーが発生した場合、タイムスタンプベースのフォールバック
-      const fallbackId = `PRJ-${Date.now()}`;
+      const fallbackId = `PRJ-${Date.now()}${Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, '0')}`;
       console.warn('⚠️ フォールバックIDを使用:', fallbackId);
       return fallbackId;
     }
