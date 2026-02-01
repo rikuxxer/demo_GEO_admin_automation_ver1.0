@@ -342,7 +342,8 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
-  const [useDemoMode, setUseDemoMode] = useState(false); // 本番環境では実際の画面で動作
+  // デフォルトはデモモード: 自動で画面を進め、ユーザーは「次へ」のみ操作
+  const [useDemoMode, setUseDemoMode] = useState(true);
   const [demoHighlightedElement, setDemoHighlightedElement] = useState<string | undefined>(undefined);
   const overlayRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -503,20 +504,18 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       if (step.navigateToPage) {
         console.log('[OperationGuide] Navigating to page:', step.navigateToPage, 'projectId:', step.navigateToProjectId);
         onNavigateRef.current?.(step.navigateToPage, step.navigateToProjectId);
-        // ページ遷移後に要素が表示されるまで待機（長めに待機）
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // 初回ステップは描画待ちを長めに（案件一覧のヘッダーがDOMに出るまで）
+        const waitMs = currentStep === 0 ? 3000 : 2000;
+        await new Promise(resolve => setTimeout(resolve, waitMs));
       }
       
       // SummaryCardsコンポーネントの初期化を待つ（data-tour="summary-cards"の場合）
       if (step.target === '[data-tour="summary-cards"]') {
-        // SummaryCardsが完全にレンダリングされるまで待つ
         let checkCount = 0;
-        const maxChecks = 30; // チェック回数を増やす
+        const maxChecks = 30;
         while (checkCount < maxChecks) {
           const summaryCardsContainer = document.querySelector('[data-tour="summary-cards"]') as HTMLElement;
-          // SummaryCardsがレンダリングされ、かつ「読み込み中...」が表示されていないことを確認
           if (summaryCardsContainer && !summaryCardsContainer.textContent?.includes('読み込み中')) {
-            // さらに少し待機してモジュールの初期化を確実にする
             await new Promise(resolve => setTimeout(resolve, 500));
             break;
           }
@@ -525,40 +524,55 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
         }
       }
       
-      // 要素を探す（複数回リトライ、より長い待機時間）
-      let element: HTMLElement | null = null;
-      let retryCount = 0;
-      const maxRetries = 50; // リトライ回数を増やす
-      
-      while (!element && retryCount < maxRetries) {
-        // セレクタで要素を探す
-        element = document.querySelector(step.target) as HTMLElement;
-        
-        // 見つからない場合、より柔軟な検索を試す
-        if (!element) {
-          // IDのみの場合（例: #element-id）
-          if (step.target.startsWith('#') && step.target.length > 1) {
-            const id = step.target.substring(1);
-            element = document.getElementById(id) as HTMLElement;
-          }
-          // data属性の場合、より柔軟に検索
-          if (!element && step.target.includes('data-')) {
-            const attributeMatch = step.target.match(/\[([^\]]+)\]/);
-            if (attributeMatch) {
-              const [attrName, attrValue] = attributeMatch[1].split('=');
-              if (attrValue) {
-                const value = attrValue.replace(/['"]/g, '');
-                element = document.querySelector(`[${attrName}="${value}"]`) as HTMLElement;
-              } else {
-                element = document.querySelector(`[${attrName}]`) as HTMLElement;
-              }
+      // 要素を探す（複数回リトライ + フォールバック）
+      const tryFind = (): HTMLElement | null => {
+        let el = document.querySelector(step.target) as HTMLElement;
+        if (el) return el;
+        if (step.target.startsWith('#') && step.target.length > 1) {
+          el = document.getElementById(step.target.substring(1)) as HTMLElement;
+          if (el) return el;
+        }
+        if (step.target.includes('data-')) {
+          const attributeMatch = step.target.match(/\[([^\]]+)\]/);
+          if (attributeMatch) {
+            const [attrName, attrValue] = attributeMatch[1].split('=');
+            if (attrValue) {
+              const value = attrValue.replace(/['"]/g, '');
+              el = document.querySelector(`[${attrName}="${value}"]`) as HTMLElement;
+            } else {
+              el = document.querySelector(`[${attrName}]`) as HTMLElement;
             }
+            if (el) return el;
           }
         }
-        
+        // よく使うターゲットのフォールバック（テキストやroleで検索）
+        if (step.target.includes('new-project-button')) {
+          el = document.querySelector('button[data-tour="new-project-button"]') as HTMLElement;
+          if (el) return el;
+          const buttons = Array.from(document.querySelectorAll('button'));
+          el = (buttons.find(b => b.textContent?.includes('案件の新規依頼') || b.textContent?.includes('新規依頼')) as HTMLElement) ?? null;
+          if (el) return el;
+        }
+        if (step.target.includes('project-form')) {
+          el = document.querySelector('[data-guide="project-form"]') as HTMLElement;
+          if (el) return el;
+        }
+        if (step.target.includes('project-submit')) {
+          el = document.querySelector('[data-guide="project-submit"]') as HTMLElement;
+          if (el) return el;
+        }
+        return null;
+      };
+      
+      let element: HTMLElement | null = null;
+      let retryCount = 0;
+      const maxRetries = 50;
+      
+      while (!element && retryCount < maxRetries) {
+        element = tryFind();
         if (!element) {
           retryCount++;
-          await new Promise(resolve => setTimeout(resolve, 300)); // 待機時間を少し長く
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
       }
       
@@ -782,7 +796,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
               操作ガイド
             </DialogTitle>
             <DialogDescription>
-              各操作の手順を確認できます。ガイドを選択すると、画面の自動操作で説明します。
+              各操作の手順をデモ画面で確認できます。ガイドを選択すると自動で画面が進み、「次へ」ボタンでステップを進めます。
             </DialogDescription>
           </DialogHeader>
           
