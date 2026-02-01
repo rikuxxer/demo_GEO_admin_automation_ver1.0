@@ -59,8 +59,8 @@ export function Header({
         
         {/* Right Section - Actions */}
         <div className="flex items-center gap-3">
-          {/* ヘルプボタン（営業のみ） */}
-          {user?.role === 'sales' && onOpenHelp && (
+          {/* ヘルプボタン（営業・管理者） */}
+          {(user?.role === 'sales' || user?.role === 'admin') && onOpenHelp && (
             <Button
               variant="ghost"
               size="sm"

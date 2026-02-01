@@ -348,6 +348,11 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
   const tooltipRef = useRef<HTMLDivElement>(null);
   // selectedGuideの最新値を追跡するためのref（onOpenChangeのクロージャ問題を回避）
   const selectedGuideRef = useRef<OperationGuide | null>(null);
+  // onNavigateをrefで保持し、effectの依存から外して重複実行を防ぐ
+  const onNavigateRef = useRef(onNavigate);
+  onNavigateRef.current = onNavigate;
+  // 同一ステップでfindElementを複数回実行しないためのキー
+  const completedStepKeyRef = useRef<string | null>(null);
 
   // selectedGuideのrefを更新
   useEffect(() => {
@@ -462,14 +467,14 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       selectedGuideSteps: selectedGuide?.steps.length
     });
     
-    if (!isOpen || !selectedGuide || !onNavigate || useDemoMode) {
+    if (!isOpen || !selectedGuide || !onNavigateRef.current || useDemoMode) {
       if (useDemoMode) {
         console.log('[OperationGuide] Skipping real mode - using demo mode');
       } else {
         console.warn('[OperationGuide] Step execution skipped:', {
           isOpen,
           hasSelectedGuide: !!selectedGuide,
-          hasOnNavigate: !!onNavigate,
+          hasOnNavigate: !!onNavigateRef.current,
           useDemoMode
         });
       }
@@ -497,7 +502,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       // まず、ページ遷移が必要な場合は遷移する
       if (step.navigateToPage) {
         console.log('[OperationGuide] Navigating to page:', step.navigateToPage, 'projectId:', step.navigateToProjectId);
-        onNavigate(step.navigateToPage, step.navigateToProjectId);
+        onNavigateRef.current?.(step.navigateToPage, step.navigateToProjectId);
         // ページ遷移後に要素が表示されるまで待機（長めに待機）
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
@@ -594,9 +599,15 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       }
     };
 
-    // ページ遷移直後は少し長めに待つ
+    // 同一ステップでfindElementを繰り返し実行しない（親の再レンダーでeffectが再実行されるのを防ぐ）
+    const stepKey = `${selectedGuide.id}-${currentStep}`;
     const delay = currentStep === 0 ? 1000 : 500;
     const timer = setTimeout(() => {
+      if (completedStepKeyRef.current === stepKey) {
+        console.log('[OperationGuide] Skipping duplicate findElement for step:', stepKey);
+        return;
+      }
+      completedStepKeyRef.current = stepKey;
       console.log('[OperationGuide] Starting findElement after delay:', delay);
       findElement();
     }, delay);
@@ -604,7 +615,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       console.log('[OperationGuide] Cleaning up step execution effect');
       clearTimeout(timer);
     };
-  }, [isOpen, selectedGuide, currentStep, onNavigate, useDemoMode]);
+  }, [isOpen, selectedGuide, currentStep, useDemoMode]);
 
   // ツールチップの位置更新
   useEffect(() => {

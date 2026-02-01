@@ -305,7 +305,7 @@ function AppContent() {
               setCurrentPage('admin-dashboard');
             }
           }}
-          onOpenHelp={user?.role === 'sales' ? () => handleOperationGuideOpen() : undefined}
+          onOpenHelp={(user?.role === 'sales' || user?.role === 'admin') ? () => handleOperationGuideOpen() : undefined}
         />
 
         {/* Content */}
@@ -675,8 +675,8 @@ function AppContent() {
         />
       )}
 
-      {/* Operation Guide (営業のみ) */}
-      {user?.role === 'sales' && (
+      {/* Operation Guide (営業・管理者) */}
+      {(user?.role === 'sales' || user?.role === 'admin') && (
         <OperationGuide
           isOpen={isOperationGuideOpen}
           onClose={() => {
