@@ -844,6 +844,20 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
     return null;
   }
 
+  // デモモード: 次へ・前へはデモ画面のステップのみ更新（実画面は遷移しない）
+  const handleDemoNext = () => {
+    if (currentStep >= selectedGuide.steps.length - 1) {
+      handleComplete();
+      return;
+    }
+    setCurrentStep(currentStep + 1);
+  };
+
+  const handleDemoPrev = () => {
+    if (currentStep <= 0) return;
+    setCurrentStep(currentStep - 1);
+  };
+
   // デモ画面モードの場合（全ガイドでステップの遷移先に応じたページを表示）
   if (useDemoMode) {
     // デモ画面タイプ: 必ず step.navigateToPage を優先し、同一ページ内のフォーム/一括は target で判定
@@ -871,9 +885,8 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
             highlightedElement={demoHighlightedElement}
             onElementClick={(elementId) => {
               console.log('[OperationGuide] Demo element clicked:', elementId);
-              // 次のステップに進む
               if (currentStep < selectedGuide.steps.length - 1) {
-                setCurrentStep(currentStep + 1);
+                handleDemoNext();
               } else {
                 handleComplete();
               }
@@ -915,7 +928,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentStep(currentStep - 1)}
+                  onClick={handleDemoPrev}
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   前へ
@@ -924,7 +937,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
               {currentStep < selectedGuide.steps.length - 1 ? (
                 <Button
                   size="sm"
-                  onClick={() => setCurrentStep(currentStep + 1)}
+                  onClick={handleDemoNext}
                 >
                   次へ
                   <ChevronRight className="h-4 w-4 ml-1" />
