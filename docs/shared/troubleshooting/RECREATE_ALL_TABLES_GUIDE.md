@@ -69,7 +69,7 @@ chmod +x recreate_all_tables.sh
   {"name": "project_id", "type": "STRING", "mode": "REQUIRED"},
   {"name": "segment_name", "type": "STRING", "mode": "NULLABLE"},
   {"name": "segment_registered_at", "type": "TIMESTAMP", "mode": "NULLABLE"},
-  {"name": "delivery_media", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "delivery_media", "type": "STRING", "mode": "REPEATED"},
   {"name": "media_id", "type": "STRING", "mode": "NULLABLE"},
   {"name": "attribute", "type": "STRING", "mode": "NULLABLE"},
   {"name": "extraction_period", "type": "STRING", "mode": "NULLABLE"},

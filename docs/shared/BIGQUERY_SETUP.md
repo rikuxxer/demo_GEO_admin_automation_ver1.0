@@ -102,7 +102,7 @@ CREATE TABLE `universegeo_dataset.segments` (
   project_id STRING NOT NULL,
   segment_name STRING,
   segment_registered_at TIMESTAMP,
-  delivery_media STRING,
+  delivery_media ARRAY<STRING>,
   media_id STRING,
   attribute STRING,
   extraction_period STRING,

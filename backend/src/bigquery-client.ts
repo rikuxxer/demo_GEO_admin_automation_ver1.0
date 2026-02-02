@@ -316,6 +316,17 @@ function formatMediaIdForBigQuery(mediaIdValue: any): string | null {
   return String(mediaIdValue).trim() || null;
 }
 
+// delivery_media を ARRAY<STRING> 用に正規化（string | string[] → string[]）
+function formatDeliveryMediaForBigQuery(value: any): string[] | null {
+  if (value == null) return null;
+  if (Array.isArray(value)) {
+    const arr = value.filter((s: any) => s != null && String(s).trim() !== '').map((s: any) => String(s).trim());
+    return arr.length > 0 ? arr : null;
+  }
+  const s = String(value).trim();
+  return s ? [s] : null;
+}
+
 const COUNTERS_TABLE = 'id_counters';
 
 async function ensureCountersTable(): Promise<void> {
@@ -987,6 +998,7 @@ export class BigQueryService {
         'segment_registered_at',
         'delivery_media',
         'media_id',
+        'poi_category',
         'attribute',
         'extraction_period',
         'extraction_period_type',
@@ -1001,6 +1013,7 @@ export class BigQueryService {
         'location_request_status',
         'data_coordination_date',
         'delivery_confirmed',
+        'registerd_provider_segment',
       ];
 
       const cleanedSegment: any = {
@@ -1015,13 +1028,17 @@ export class BigQueryService {
             cleanedSegment[field] = formatDateForBigQuery(segment[field]);
           } else if (field === 'detection_time_start' || field === 'detection_time_end') {
             cleanedSegment[field] = formatTimeForBigQuery(segment[field]);
-          } else if (field === 'delivery_confirmed') {
+          } else if (field === 'delivery_confirmed' || field === 'registerd_provider_segment') {
             cleanedSegment[field] = formatBoolForBigQuery(segment[field]);
           } else if (field === 'segment_registered_at') {
             cleanedSegment[field] = formatTimestampForBigQuery(segment[field] || new Date());
           } else if (field === 'media_id') {
             // media_idは配列の場合はカンマ区切りの文字列に変換
             cleanedSegment[field] = formatMediaIdForBigQuery(segment[field]);
+          } else if (field === 'delivery_media') {
+            // delivery_media: ARRAY<STRING>（universe, tver_sp, tver_ctv 等の複数可）
+            const arr = formatDeliveryMediaForBigQuery(segment[field]);
+            if (arr) cleanedSegment[field] = arr;
           } else if (field === 'extraction_dates') {
             // extraction_dates: ARRAY<STRING> 形式（YYYY-MM-DDの配列）
             if (Array.isArray(segment[field])) {
@@ -1077,9 +1094,25 @@ export class BigQueryService {
     if ('media_id' in processedUpdates && processedUpdates.media_id !== undefined && processedUpdates.media_id !== null) {
       processedUpdates.media_id = formatMediaIdForBigQuery(processedUpdates.media_id);
     }
-    // extraction_dates: 空文字を除いた配列（ARRAY<STRING>）
-    if ('extraction_dates' in processedUpdates && Array.isArray(processedUpdates.extraction_dates)) {
-      processedUpdates.extraction_dates = processedUpdates.extraction_dates.filter((s: any) => s != null && String(s).trim() !== '');
+    // delivery_media: ARRAY<STRING> に正規化
+    if ('delivery_media' in processedUpdates && processedUpdates.delivery_media !== undefined) {
+      const arr = formatDeliveryMediaForBigQuery(processedUpdates.delivery_media);
+      processedUpdates.delivery_media = arr;
+    }
+    // extraction_dates: ARRAY<STRING> に正規化（文字列の場合は [str] に）
+    if ('extraction_dates' in processedUpdates && processedUpdates.extraction_dates !== undefined) {
+      const v = processedUpdates.extraction_dates;
+      const arr = Array.isArray(v)
+        ? v.filter((s: any) => s != null && String(s).trim() !== '').map((s: any) => String(s).trim())
+        : (typeof v === 'string' && v.trim() ? [v.trim()] : []);
+      processedUpdates.extraction_dates = arr;
+    }
+    // BOOL フィールド
+    if ('delivery_confirmed' in processedUpdates && processedUpdates.delivery_confirmed !== undefined) {
+      processedUpdates.delivery_confirmed = formatBoolForBigQuery(processedUpdates.delivery_confirmed);
+    }
+    if ('registerd_provider_segment' in processedUpdates && processedUpdates.registerd_provider_segment !== undefined) {
+      processedUpdates.registerd_provider_segment = formatBoolForBigQuery(processedUpdates.registerd_provider_segment);
     }
     
     const setClause = Object.keys(processedUpdates)
@@ -1131,6 +1164,40 @@ export class BigQueryService {
       params: { project_id },
     });
     return rows;
+  }
+
+  /** セグメントIDで地点一覧を取得（同一セグメント内のpoi_typeチェック用） */
+  async getPoisBySegment(segment_id: string): Promise<any[]> {
+    if (!segment_id || typeof segment_id !== 'string' || segment_id.trim() === '') {
+      return [];
+    }
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const query = `
+      SELECT poi_id, segment_id, poi_type, polygon
+      FROM \`${currentProjectId}.${cleanDatasetId}.pois\`
+      WHERE segment_id = @segment_id
+    `;
+    const [rows] = await initializeBigQueryClient().query({
+      query,
+      params: { segment_id: segment_id.trim() },
+      location: BQ_LOCATION,
+    });
+    return rows || [];
+  }
+
+  /**
+   * 地点のpoi_typeを正規化（manual / prefecture / polygon のいずれか）。
+   * polygon フィールドが存在する場合は 'polygon' とみなす。
+   */
+  private normalizePoiType(poi: any): string {
+    if (poi.polygon != null) {
+      const p = typeof poi.polygon === 'string' ? (() => { try { return JSON.parse(poi.polygon); } catch { return []; } })() : poi.polygon;
+      if (Array.isArray(p) && p.length > 0) return 'polygon';
+    }
+    const t = poi.poi_type;
+    if (t === 'polygon' || t === 'prefecture' || t === 'manual') return t;
+    return t && typeof t === 'string' ? t : 'manual';
   }
 
   async createPoi(poi: any): Promise<void> {
@@ -1212,6 +1279,20 @@ export class BigQueryService {
       const now = new Date();
       cleanedPoi.created_at = formatTimestampForBigQuery(poi.created_at || now);
       cleanedPoi.updated_at = formatTimestampForBigQuery(poi.updated_at || now);
+
+      // 同一セグメント内では poi_type を1種類に限定（manual / prefecture / polygon の混在を禁止）
+      if (cleanedPoi.segment_id) {
+        const existingPois = await this.getPoisBySegment(cleanedPoi.segment_id);
+        const newType = this.normalizePoiType(cleanedPoi);
+        for (const existing of existingPois) {
+          const existingType = this.normalizePoiType(existing);
+          if (existingType !== newType) {
+            throw new Error(
+              `このセグメントには既に「${existingType}」タイプの地点が登録されています。同一セグメント内では地点タイプ（任意地点・都道府県・ポリゴン）を1種類に統一してください。`
+            );
+          }
+        }
+      }
 
       console.log('📋 Cleaned POI data for BigQuery:', {
         poi_id: cleanedPoi.poi_id,
@@ -1321,6 +1402,33 @@ export class BigQueryService {
         return cleanedPoi;
       });
 
+      // 同一セグメント内では poi_type を1種類に限定（混在禁止）
+      const segmentToTypes = new Map<string, Set<string>>();
+      for (const p of cleanedPois) {
+        if (!p.segment_id) continue;
+        const segId = String(p.segment_id).trim();
+        const type = this.normalizePoiType(p);
+        if (!segmentToTypes.has(segId)) segmentToTypes.set(segId, new Set());
+        segmentToTypes.get(segId)!.add(type);
+      }
+      for (const [segId, types] of segmentToTypes) {
+        if (types.size > 1) {
+          throw new Error(
+            `セグメント「${segId}」に複数の地点タイプ（${[...types].join('・')}）を含めています。同一セグメント内では地点タイプを1種類に統一してください。`
+          );
+        }
+        const existingPois = await this.getPoisBySegment(segId);
+        const newType = [...types][0];
+        for (const existing of existingPois) {
+          const existingType = this.normalizePoiType(existing);
+          if (existingType !== newType) {
+            throw new Error(
+              `このセグメントには既に「${existingType}」タイプの地点が登録されています。同一セグメント内では地点タイプを1種類に統一してください。`
+            );
+          }
+        }
+      }
+
       console.log(`📋 Cleaned ${cleanedPois.length} POIs for BigQuery bulk insert`);
 
       await getDataset().table('pois').insert(cleanedPois, { ignoreUnknownValues: true });
@@ -1345,20 +1453,78 @@ export class BigQueryService {
 
   async updatePoi(poi_id: string, updates: any): Promise<void> {
     const currentProjectId = validateProjectId();
-    const setClause = Object.keys(updates)
+    const cleanDatasetId = getCleanDatasetId();
+
+    // segment_id または poi_type を変更する場合は、同一セグメント内で poi_type が1種類に限定されるようチェック
+    if ('segment_id' in updates || 'poi_type' in updates || 'polygon' in updates) {
+      const [currentRows] = await initializeBigQueryClient().query({
+        query: `SELECT segment_id, poi_type, polygon FROM \`${currentProjectId}.${cleanDatasetId}.pois\` WHERE poi_id = @poi_id`,
+        params: { poi_id },
+        location: BQ_LOCATION,
+      });
+      const current = Array.isArray(currentRows) && currentRows.length > 0 ? currentRows[0] : null;
+      const targetSegmentId = updates.segment_id != null ? String(updates.segment_id).trim() : (current?.segment_id ?? '');
+      const merged = { ...current, ...updates };
+      const targetType = this.normalizePoiType(merged);
+      if (targetSegmentId) {
+        const existingPois = await this.getPoisBySegment(targetSegmentId);
+        for (const p of existingPois) {
+          if (p.poi_id === poi_id) continue; // 自分自身は除外
+          const existingType = this.normalizePoiType(p);
+          if (existingType !== targetType) {
+            throw new Error(
+              `このセグメントには既に「${existingType}」タイプの地点が登録されています。同一セグメント内では地点タイプを1種類に統一してください。`
+            );
+          }
+        }
+      }
+    }
+
+    // ARRAY<STRING> / STRING 型に合わせて正規化（createPoi と同様）
+    const processedUpdates = { ...updates };
+    if ('prefectures' in processedUpdates && processedUpdates.prefectures !== undefined) {
+      const v = processedUpdates.prefectures;
+      if (Array.isArray(v)) {
+        processedUpdates.prefectures = v;
+      } else if (typeof v === 'string') {
+        try {
+          processedUpdates.prefectures = JSON.parse(v);
+        } catch {
+          processedUpdates.prefectures = [v];
+        }
+      }
+    }
+    if ('cities' in processedUpdates && processedUpdates.cities !== undefined) {
+      const v = processedUpdates.cities;
+      if (Array.isArray(v)) {
+        processedUpdates.cities = v;
+      } else if (typeof v === 'string') {
+        try {
+          processedUpdates.cities = JSON.parse(v);
+        } catch {
+          processedUpdates.cities = [v];
+        }
+      }
+    }
+    if ('polygon' in processedUpdates && processedUpdates.polygon !== undefined && processedUpdates.polygon !== null) {
+      const v = processedUpdates.polygon;
+      if (Array.isArray(v) && v.length > 0) {
+        processedUpdates.polygon = JSON.stringify(v);
+      }
+      // 既に文字列の場合はそのまま
+    }
+
+    const setClause = Object.keys(processedUpdates)
       .map(key => `${key} = @${key}`)
       .join(', ');
-    
-      const cleanDatasetId = getCleanDatasetId();
-      const query = `
+    const query = `
         UPDATE \`${currentProjectId}.${cleanDatasetId}.pois\`
         SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
         WHERE poi_id = @poi_id
       `;
-    
     await initializeBigQueryClient().query({
       query,
-      params: { poi_id, ...updates },
+      params: { poi_id, ...processedUpdates },
       location: BQ_LOCATION,
     });
   }

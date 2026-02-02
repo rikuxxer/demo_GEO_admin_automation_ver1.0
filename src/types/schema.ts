@@ -22,6 +22,7 @@ export interface Segment {
   segment_id: string; // セグメントID（自動採番）
   segment_name?: string; // セグメント名（任意入力）
   segment_registered_at: string; // セグメント登録日時（自動採番）
+  delivery_media?: string | string[]; // 配信媒体（ARRAY: universe, tver_sp, tver_ctv の複数可）
   media_id: string | string[]; // 配信媒体ID（複数選択可。ただしTVer(CTV)は他と併用不可）
   poi_category?: 'tg' | 'visit_measurement'; // 地点カテゴリ（TG地点/来店計測地点、UIのタブ情報から自動判定）
   location_request_status: string; // 地点依頼ステータス（未依頼、格納対応中、格納完了）営業の依頼確定によって変更

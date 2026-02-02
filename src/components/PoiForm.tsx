@@ -1379,6 +1379,21 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
           polygon: polygon.coordinates,
         }));
 
+        // 同一セグメント内で poi_type を1種類に限定
+        const segIdForBulk = segmentId || finalFormData.segment_id;
+        if (segIdForBulk) {
+          const others = pois.filter(p => p.segment_id === segIdForBulk);
+          const hasNonPolygon = others.some(p => {
+            if (p.poi_type === 'polygon') return false;
+            if (p.polygon && Array.isArray(p.polygon) && p.polygon.length > 0) return false;
+            return true;
+          });
+          if (hasNonPolygon) {
+            toast.error('このセグメントには既にポリゴン以外のタイプの地点が登録されています。同一セグメント内では地点タイプを1種類に統一してください。');
+            return;
+          }
+        }
+
         onBulkSubmit(polygonPois);
         return;
       }
@@ -1420,6 +1435,35 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         return typeof lng === 'number' ? lng : undefined;
       })(),
     };
+
+    // 同一セグメント内では poi_type を1種類に限定（manual / prefecture / polygon の混在を禁止）
+    const segId = segmentId || submitData.segment_id;
+    if (segId) {
+      const normalizeType = (p: Partial<PoiInfo>): string => {
+        if (p.poi_type === 'polygon') return 'polygon';
+        if (p.polygon && Array.isArray(p.polygon) && p.polygon.length > 0) return 'polygon';
+        if (p.poi_type === 'prefecture') return 'prefecture';
+        return p.poi_type === 'manual' ? 'manual' : 'manual';
+      };
+      const newType = normalizeType(submitData);
+      const othersInSegment = pois.filter(
+        p => p.segment_id === segId && (!poi || p.poi_id !== poi.poi_id)
+      );
+      for (const p of othersInSegment) {
+        const existingType = normalizeType(p);
+        if (existingType !== newType) {
+          const typeLabels: Record<string, string> = {
+            manual: '任意地点',
+            prefecture: '都道府県・市区町村',
+            polygon: 'ポリゴン',
+          };
+          toast.error(
+            `このセグメントには既に「${typeLabels[existingType] || existingType}」タイプの地点が登録されています。同一セグメント内では地点タイプを1種類に統一してください。`
+          );
+          return;
+        }
+      }
+    }
 
     // デバッグ: ポリゴン指定の場合、送信データをログ出力
     if (submitData.poi_type === 'polygon' || (submitData.polygon && Array.isArray(submitData.polygon) && submitData.polygon.length > 0)) {

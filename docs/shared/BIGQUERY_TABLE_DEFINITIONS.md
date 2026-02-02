@@ -129,7 +129,7 @@ CREATE TABLE `universegeo_dataset.segments` (
   project_id STRING NOT NULL,
   segment_name STRING,
   segment_registered_at TIMESTAMP,
-  delivery_media STRING,
+  delivery_media ARRAY<STRING>,
   media_id STRING,
   poi_category STRING,
   attribute STRING,
@@ -164,7 +164,7 @@ OPTIONS(
 | `project_id` | STRING | NO | 案件ID（外部キー） | `PRJ-1` |
 | `segment_name` | STRING | YES | セグメント名 | `セグメント1` |
 | `segment_registered_at` | TIMESTAMP | YES | セグメント登録日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
-| `delivery_media` | STRING | YES | 配信媒体 | `universe`, `tver_sp`, `tver_ctv` |
+| `delivery_media` | ARRAY&lt;STRING&gt; | YES | 配信媒体（複数可） | `['universe']`, `['tver_sp','tver_ctv']` |
 | `media_id` | STRING | YES | 配信媒体ID | `MEDIA-001` |
 | `poi_category` | STRING | YES | 地点カテゴリ（TG地点/来店計測地点） | `tg`, `visit_measurement` |
 | `attribute` | STRING | YES | 属性 | `detector`, `resident`, `worker` |
