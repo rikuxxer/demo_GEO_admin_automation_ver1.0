@@ -51,6 +51,18 @@ export function DemoScreen({
     }
   }, [type, highlightedElement]);
 
+  // デモ画面タイプが project-form のときは案件登録フォームを開いた状態で表示
+  useEffect(() => {
+    if (type === 'project-form') {
+      setIsFormOpen(true);
+    } else if (type === 'projects') {
+      setIsFormOpen(false);
+      setIsBulkImportOpen(false);
+    } else if (type === 'bulk-import') {
+      setIsBulkImportOpen(false);
+    }
+  }, [type]);
+
   // 一括登録デモ（実物のBulkImportに合わせたレイアウト）
   if (type === 'bulk-import') {
     return (
@@ -277,7 +289,8 @@ export function DemoScreen({
     );
   }
 
-  if (type === 'projects') {
+  // projects と project-form は同じレイアウト（project-form のときはフォームを開いた状態）
+  if (type === 'projects' || type === 'project-form') {
     return (
       <div className="w-full h-full bg-[#f5f5ff] p-6">
         <div className="max-w-7xl mx-auto">
@@ -327,8 +340,8 @@ export function DemoScreen({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* デモ用のフォーム（実物のProjectFormに合わせたレイアウト） */}
-            {isFormOpen && (
+            {/* デモ用のフォーム（実物のProjectFormに合わせたレイアウト）※ project-form ステップでは常に表示 */}
+            {(type === 'project-form' || isFormOpen) && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-xl border border-gray-200" data-guide="project-form">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -336,7 +349,7 @@ export function DemoScreen({
                       <h2 className="text-gray-900">新規案件登録</h2>
                       <p className="text-muted-foreground mt-0.5">案件の基本情報を入力してください</p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => setIsFormOpen(false)} className="hover:bg-gray-200">
+                    <Button variant="ghost" size="icon" onClick={() => { if (type !== 'project-form') setIsFormOpen(false); }} className="hover:bg-gray-200">
                       <X className="w-5 h-5" />
                     </Button>
                   </div>
@@ -402,7 +415,7 @@ export function DemoScreen({
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-                    <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} className="min-w-[100px] border-gray-200">キャンセル</Button>
+                    <Button type="button" variant="outline" onClick={() => { if (type !== 'project-form') setIsFormOpen(false); }} className="min-w-[100px] border-gray-200">キャンセル</Button>
                     <Button 
                       id="demo-project-submit"
                       data-guide="project-submit"
