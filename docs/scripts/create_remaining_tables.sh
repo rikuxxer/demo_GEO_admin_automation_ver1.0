@@ -16,7 +16,7 @@ cat > /tmp/segments_schema.json << 'EOF'
   {"name": "segment_name", "type": "STRING", "mode": "NULLABLE"},
   {"name": "segment_registered_at", "type": "TIMESTAMP", "mode": "NULLABLE"},
   {"name": "delivery_media", "type": "STRING", "mode": "REPEATED"},
-  {"name": "media_id", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "media_id", "type": "STRING", "mode": "REPEATED"},
   {"name": "attribute", "type": "STRING", "mode": "NULLABLE"},
   {"name": "extraction_period", "type": "STRING", "mode": "NULLABLE"},
   {"name": "extraction_start_date", "type": "DATE", "mode": "NULLABLE"},

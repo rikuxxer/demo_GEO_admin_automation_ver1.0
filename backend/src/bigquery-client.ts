@@ -296,24 +296,15 @@ function formatBoolForBigQuery(boolValue: any): boolean {
   return false;
 }
 
-// media_idフィールドを配列から文字列に変換（BigQueryのSTRING型に合わせる）
-function formatMediaIdForBigQuery(mediaIdValue: any): string | null {
-  if (!mediaIdValue) return null;
-  
-  // 既に文字列の場合はそのまま返す
-  if (typeof mediaIdValue === 'string') {
-    return mediaIdValue.trim() || null;
+// media_id を ARRAY<STRING> 用に正規化（string | string[] → string[]）
+function formatMediaIdArrayForBigQuery(value: any): string[] | null {
+  if (value == null) return null;
+  if (Array.isArray(value)) {
+    const arr = value.filter((s: any) => s != null && String(s).trim() !== '').map((s: any) => String(s).trim());
+    return arr.length > 0 ? arr : null;
   }
-  
-  // 配列の場合はカンマ区切りの文字列に変換
-  if (Array.isArray(mediaIdValue)) {
-    const filtered = mediaIdValue.filter(id => id && typeof id === 'string' && id.trim() !== '');
-    if (filtered.length === 0) return null;
-    return filtered.join(',');
-  }
-  
-  // その他の型の場合は文字列に変換を試みる
-  return String(mediaIdValue).trim() || null;
+  const s = String(value).trim();
+  return s ? [s] : null;
 }
 
 // delivery_media を ARRAY<STRING> 用に正規化（string | string[] → string[]）
@@ -1033,8 +1024,9 @@ export class BigQueryService {
           } else if (field === 'segment_registered_at') {
             cleanedSegment[field] = formatTimestampForBigQuery(segment[field] || new Date());
           } else if (field === 'media_id') {
-            // media_idは配列の場合はカンマ区切りの文字列に変換
-            cleanedSegment[field] = formatMediaIdForBigQuery(segment[field]);
+            // media_id: ARRAY<STRING>（配信媒体IDの複数可）
+            const arr = formatMediaIdArrayForBigQuery(segment[field]);
+            if (arr) cleanedSegment[field] = arr;
           } else if (field === 'delivery_media') {
             // delivery_media: ARRAY<STRING>（universe, tver_sp, tver_ctv 等の複数可）
             const arr = formatDeliveryMediaForBigQuery(segment[field]);
@@ -1090,9 +1082,10 @@ export class BigQueryService {
     const currentProjectId = validateProjectId();
     
     const processedUpdates = { ...updates };
-    // media_idが配列の場合は文字列に変換
-    if ('media_id' in processedUpdates && processedUpdates.media_id !== undefined && processedUpdates.media_id !== null) {
-      processedUpdates.media_id = formatMediaIdForBigQuery(processedUpdates.media_id);
+    // media_id: ARRAY<STRING> に正規化
+    if ('media_id' in processedUpdates && processedUpdates.media_id !== undefined) {
+      const arr = formatMediaIdArrayForBigQuery(processedUpdates.media_id);
+      processedUpdates.media_id = arr;
     }
     // delivery_media: ARRAY<STRING> に正規化
     if ('delivery_media' in processedUpdates && processedUpdates.delivery_media !== undefined) {

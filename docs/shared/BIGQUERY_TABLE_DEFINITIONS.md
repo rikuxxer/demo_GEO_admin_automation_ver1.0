@@ -130,7 +130,7 @@ CREATE TABLE `universegeo_dataset.segments` (
   segment_name STRING,
   segment_registered_at TIMESTAMP,
   delivery_media ARRAY<STRING>,
-  media_id STRING,
+  media_id ARRAY<STRING>,
   poi_category STRING,
   attribute STRING,
   extraction_period STRING,
@@ -165,7 +165,7 @@ OPTIONS(
 | `segment_name` | STRING | YES | セグメント名 | `セグメント1` |
 | `segment_registered_at` | TIMESTAMP | YES | セグメント登録日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
 | `delivery_media` | ARRAY&lt;STRING&gt; | YES | 配信媒体（複数可） | `['universe']`, `['tver_sp','tver_ctv']` |
-| `media_id` | STRING | YES | 配信媒体ID | `MEDIA-001` |
+| `media_id` | ARRAY&lt;STRING&gt; | YES | 配信媒体ID（複数可） | `['MEDIA-001']`, `['MEDIA-001','MEDIA-002']` |
 | `poi_category` | STRING | YES | 地点カテゴリ（TG地点/来店計測地点） | `tg`, `visit_measurement` |
 | `attribute` | STRING | YES | 属性 | `detector`, `resident`, `worker` |
 | `extraction_period` | STRING | YES | 抽出期間 | `1month`, `2month`, `3month` |
@@ -892,7 +892,7 @@ SET OPTIONS(
 
 ## 定義書診断（2026-01-28）
 
-- **segments**: CREATE文・フィールド定義はバックエンド実装と一致（`delivery_media` ARRAY&lt;STRING&gt;、`poi_category`、`registerd_provider_segment`、`extraction_dates` ARRAY&lt;STRING&gt; を反映済み）。
+- **segments**: CREATE文・フィールド定義はバックエンド実装と一致（`delivery_media`・`media_id` を ARRAY&lt;STRING&gt;、`poi_category`、`registerd_provider_segment`、`extraction_dates` ARRAY&lt;STRING&gt; を反映済み）。
 - **pois**: `prefectures`/`cities` ARRAY&lt;STRING&gt;、`polygon` STRING（JSON）は実装と一致。`location_id`の例をビジネスルール（TG-{segment_id}-{連番}）に合わせて `TG-SEG-001-001` に修正済み。
 - **projects**: ドキュメントのCREATE文には `universe_service_id`、`universe_service_name`、`sub_person_in_charge` が含まれるが、バックエンドは「スキーマに存在しない」としてこれらを除外している。実際のBQテーブルにこれらの列がある場合は、バックエンドの `allowedFields` への追加を検討すること。
 - **表記**: `registerd_provider_segment` は BQ 列名上の typo（正しくは registered）のため、既存テーブル・コードと合わせて表記を統一している。
@@ -908,6 +908,7 @@ SET OPTIONS(
 - **2026-01-22**: `segments`テーブルに`poi_category`カラム（STRING）を追加。TG地点/来店計測地点の判定を可能に（UIのタブ情報から自動判定、デフォルトは`'tg'`）
 - **2026-01-22**: `segments`テーブルに`registerd_provider_segment`カラム（BOOL）を追加。プロバイダセグメント取り込み済み状態の判定を可能に（デフォルトは`FALSE`）
 - **2026-01-28**: `segments.delivery_media`をSTRINGからARRAY&lt;STRING&gt;に変更（配信媒体の複数指定に対応）。定義書診断セクションを追加。`pois.location_id`の例をビジネスルールに合わせて修正。バージョン2.2・最終更新日を更新
+- **2026-01-28**: `segments.media_id`をSTRINGからARRAY&lt;STRING&gt;に変更（配信媒体IDの複数指定に対応）。バックエンドは配列として正規化・保存するよう変更
 
 ---
 

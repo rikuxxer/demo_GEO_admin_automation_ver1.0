@@ -36,7 +36,7 @@
 - `segment_name` (STRING, NULLABLE)
 - `segment_registered_at` (TIMESTAMP, NULLABLE)
 - `delivery_media` (ARRAY&lt;STRING&gt;, REPEATED) - 配信媒体（universe, tver_sp, tver_ctv の複数可）
-- `media_id` (STRING, NULLABLE)
+- `media_id` (ARRAY&lt;STRING&gt;, REPEATED)
 - `attribute` (STRING, NULLABLE)
 - `extraction_period` (STRING, NULLABLE)
 - `extraction_start_date` (DATE, NULLABLE)
@@ -386,7 +386,7 @@ jq '
   addfield({"name":"segment_name","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"segment_registered_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
   addfield({"name":"delivery_media","type":"STRING","mode":"REPEATED"}) |
-  addfield({"name":"media_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"media_id","type":"STRING","mode":"REPEATED"}) |
   addfield({"name":"attribute","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"extraction_period","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"extraction_start_date","type":"DATE","mode":"NULLABLE"}) |
