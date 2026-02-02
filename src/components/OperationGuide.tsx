@@ -424,7 +424,8 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
       } else if (step.target.includes('manual-register')) {
         demoElementId = 'manual-register';
       } else if (step.target.includes('bulk-import')) {
-        demoElementId = 'bulk-import';
+        const dataGuideMatch = step.target.match(/data-guide="([^"]+)"/);
+        demoElementId = dataGuideMatch ? dataGuideMatch[1] : 'bulk-import-form';
       } else {
         // data-guide="xxx" 形式はそのままIDとして使用（案件詳細デモ用）
         const dataGuideMatch = step.target.match(/data-guide="([^"]+)"/);
@@ -843,16 +844,22 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
     return null;
   }
 
-  // デモ画面モードの場合
+  // デモ画面モードの場合（全ガイドでステップの遷移先に応じたページを表示）
   if (useDemoMode) {
-    // デモ画面に表示する画面タイプを決定（ステップの遷移先に合わせる）
+    // デモ画面タイプ: 必ず step.navigateToPage を優先し、同一ページ内のフォーム/一括は target で判定
     let demoScreenType: 'projects' | 'project-detail' | 'project-form' | 'bulk-import' = 'projects';
     if (step.navigateToPage === 'project-detail') {
       demoScreenType = 'project-detail';
-    } else if (step.target === '[data-guide="project-form"]' || step.target === '[data-guide="project-submit"]') {
-      demoScreenType = 'project-form';
-    } else if (step.target.includes('bulk-import')) {
-      demoScreenType = 'bulk-import';
+    } else if (step.navigateToPage === 'projects') {
+      if (step.target === '[data-guide="project-form"]' || step.target === '[data-guide="project-submit"]') {
+        demoScreenType = 'project-form';
+      } else if (step.target.includes('bulk-import')) {
+        demoScreenType = 'bulk-import';
+      } else {
+        demoScreenType = 'projects';
+      }
+    } else {
+      demoScreenType = 'projects';
     }
 
     return (
