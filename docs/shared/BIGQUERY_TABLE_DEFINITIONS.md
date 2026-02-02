@@ -1,7 +1,7 @@
 # BigQuery テーブル定義書
 
-**バージョン:** 2.1  
-**最終更新日:** 2026年1月  
+**バージョン:** 2.2  
+**最終更新日:** 2026年1月28日  
 **データベース:** Google BigQuery  
 **データセット:** `universegeo_dataset`
 
@@ -232,7 +232,7 @@ OPTIONS(
 | `poi_id` | STRING | NO | 地点ID（主キー） | `POI-1` |
 | `project_id` | STRING | NO | 案件ID（外部キー） | `PRJ-1` |
 | `segment_id` | STRING | YES | セグメントID（外部キー） | `SEG-1` |
-| `location_id` | STRING | YES | 地点ID（自動採番） | `TG-PRJ-1-001`, `VM-001` |
+| `location_id` | STRING | YES | 地点ID（自動採番） | `TG-SEG-001-001`, `VM-001` |
 | `poi_name` | STRING | NO | 地点名 | `東京駅` |
 | `address` | STRING | YES | 住所 | `東京都千代田区丸の内1-1-1` |
 | `latitude` | FLOAT64 | YES | 緯度 | `35.681236` |
@@ -890,6 +890,15 @@ SET OPTIONS(
 
 ---
 
+## 定義書診断（2026-01-28）
+
+- **segments**: CREATE文・フィールド定義はバックエンド実装と一致（`delivery_media` ARRAY&lt;STRING&gt;、`poi_category`、`registerd_provider_segment`、`extraction_dates` ARRAY&lt;STRING&gt; を反映済み）。
+- **pois**: `prefectures`/`cities` ARRAY&lt;STRING&gt;、`polygon` STRING（JSON）は実装と一致。`location_id`の例をビジネスルール（TG-{segment_id}-{連番}）に合わせて `TG-SEG-001-001` に修正済み。
+- **projects**: ドキュメントのCREATE文には `universe_service_id`、`universe_service_name`、`sub_person_in_charge` が含まれるが、バックエンドは「スキーマに存在しない」としてこれらを除外している。実際のBQテーブルにこれらの列がある場合は、バックエンドの `allowedFields` への追加を検討すること。
+- **表記**: `registerd_provider_segment` は BQ 列名上の typo（正しくは registered）のため、既存テーブル・コードと合わせて表記を統一している。
+
+---
+
 ## 更新履歴
 
 - **2025-01-13**: 初版作成（全10テーブルの定義を追加）
@@ -898,6 +907,7 @@ SET OPTIONS(
 - **2026-01-19**: `segments`テーブルに`extraction_dates`カラム（ARRAY<STRING>）を追加。`extraction_period_type`に`'specific_dates'`オプションを追加
 - **2026-01-22**: `segments`テーブルに`poi_category`カラム（STRING）を追加。TG地点/来店計測地点の判定を可能に（UIのタブ情報から自動判定、デフォルトは`'tg'`）
 - **2026-01-22**: `segments`テーブルに`registerd_provider_segment`カラム（BOOL）を追加。プロバイダセグメント取り込み済み状態の判定を可能に（デフォルトは`FALSE`）
+- **2026-01-28**: `segments.delivery_media`をSTRINGからARRAY&lt;STRING&gt;に変更（配信媒体の複数指定に対応）。定義書診断セクションを追加。`pois.location_id`の例をビジネスルールに合わせて修正。バージョン2.2・最終更新日を更新
 
 ---
 
