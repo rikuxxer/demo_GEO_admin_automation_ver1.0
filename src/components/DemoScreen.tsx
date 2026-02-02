@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, ChevronDown, FileText, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -20,12 +20,125 @@ export function DemoScreen({
   highlightedElement, 
   onElementClick 
 }: { 
-  type: 'projects' | 'project-form' | 'bulk-import';
+  type: 'projects' | 'project-detail' | 'project-form' | 'bulk-import';
   highlightedElement?: string;
   onElementClick?: (elementId: string) => void;
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'segment' | 'poi'>('segment');
+  const [isSegmentFormOpen, setIsSegmentFormOpen] = useState(false);
+  const [isPoiFormOpen, setIsPoiFormOpen] = useState(false);
+
+  // ハイライト要素に応じてタブ・フォーム表示を切り替え（ガイドのステップに合わせる）
+  useEffect(() => {
+    if (type === 'project-detail') {
+      if (highlightedElement === 'poi-tab' || highlightedElement === 'new-poi-button' || highlightedElement === 'poi-type-select' || highlightedElement === 'poi-form' || highlightedElement === 'poi-submit') {
+        setActiveTab('poi');
+        if (highlightedElement === 'new-poi-button' || highlightedElement === 'poi-type-select' || highlightedElement === 'poi-form' || highlightedElement === 'poi-submit') {
+          setIsPoiFormOpen(true);
+        }
+      } else if (highlightedElement === 'segment-tab' || highlightedElement === 'new-segment-button' || highlightedElement === 'segment-form' || highlightedElement === 'segment-submit' || highlightedElement?.startsWith('common-conditions')) {
+        setActiveTab('segment');
+        if (highlightedElement === 'new-segment-button' || highlightedElement === 'segment-form' || highlightedElement === 'segment-submit') {
+          setIsSegmentFormOpen(true);
+        }
+      }
+    }
+  }, [type, highlightedElement]);
+
+  // 案件詳細デモ（セグメント・地点のガイド用）
+  if (type === 'project-detail') {
+    return (
+      <div className="w-full h-full bg-[#f5f5ff] p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-2 mb-4">
+            <button type="button" className="text-sm text-gray-600 hover:text-gray-900">← 案件一覧へ</button>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">サンプル案件（デモ）</h2>
+          {/* タブ */}
+          <div className="flex gap-2 border-b border-gray-200 mb-4">
+            <button
+              type="button"
+              id="demo-segment-tab"
+              data-guide="segment-tab"
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                activeTab === 'segment'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              } ${highlightedElement === 'segment-tab' ? 'ring-2 ring-blue-400 ring-offset-2 rounded-t' : ''}`}
+              onClick={() => { setActiveTab('segment'); onElementClick?.('segment-tab'); }}
+            >
+              セグメント管理
+            </button>
+            <button
+              type="button"
+              id="demo-poi-tab"
+              data-guide="poi-tab"
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                activeTab === 'poi'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              } ${highlightedElement === 'poi-tab' ? 'ring-2 ring-blue-400 ring-offset-2 rounded-t' : ''}`}
+              onClick={() => { setActiveTab('poi'); onElementClick?.('poi-tab'); }}
+            >
+              地点情報
+            </button>
+          </div>
+          {activeTab === 'segment' && (
+            <div className="space-y-4">
+              <Button
+                id="demo-new-segment-button"
+                data-guide="new-segment-button"
+                className={highlightedElement === 'new-segment-button' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}
+                onClick={() => { setIsSegmentFormOpen(true); onElementClick?.('new-segment-button'); }}
+              >
+                セグメントを追加
+              </Button>
+              {isSegmentFormOpen && (
+                <Card className="p-4 space-y-4">
+                  <div data-guide="segment-form" className={highlightedElement === 'segment-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>
+                    <p className="text-sm text-gray-600">セグメント名・配信媒体・期間などを設定（デモ）</p>
+                  </div>
+                  <Button data-guide="segment-submit" className={highlightedElement === 'segment-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''} onClick={() => setIsSegmentFormOpen(false)}>登録</Button>
+                </Card>
+              )}
+              <div data-guide="segment-common-conditions" className={`p-2 rounded border border-gray-200 ${highlightedElement === 'segment-common-conditions' ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}>
+                セグメント共通条件を設定する（デモ）
+              </div>
+              <div data-guide="common-conditions-form" className={`p-2 rounded border border-gray-200 mt-2 ${highlightedElement === 'common-conditions-form' ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}>
+                指定半径・抽出期間・属性など（デモ）
+              </div>
+              <Button data-guide="common-conditions-save" className={highlightedElement === 'common-conditions-save' ? 'ring-4 ring-blue-400 ring-offset-2 mt-2' : 'mt-2'}>条件を保存</Button>
+            </div>
+          )}
+          {activeTab === 'poi' && (
+            <div className="space-y-4">
+              <Button
+                id="demo-new-poi-button"
+                data-guide="new-poi-button"
+                className={highlightedElement === 'new-poi-button' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}
+                onClick={() => { setIsPoiFormOpen(true); onElementClick?.('new-poi-button'); }}
+              >
+                地点を追加
+              </Button>
+              {isPoiFormOpen && (
+                <Card className="p-4 space-y-4">
+                  <div data-guide="poi-type-select" className={highlightedElement === 'poi-type-select' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>
+                    地点タイプ選択（デモ）
+                  </div>
+                  <div data-guide="poi-form" className={highlightedElement === 'poi-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>
+                    地点情報入力（デモ）
+                  </div>
+                  <Button data-guide="poi-submit" className={highlightedElement === 'poi-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''} onClick={() => setIsPoiFormOpen(false)}>登録</Button>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (type === 'projects') {
     return (
