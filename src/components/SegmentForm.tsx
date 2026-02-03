@@ -73,14 +73,20 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
   const [copyFromSegmentId, setCopyFromSegmentId] = useState<string>('');
 
   // 居住者・勤務者・居住者&勤務者の場合は抽出期間を3ヶ月に固定（プリセットを使用）
+  // 既に同じ値のときは setFormData しないことで不要な再レンダー・フリーズを防止
   useEffect(() => {
     if (formData.attribute === 'resident' || formData.attribute === 'worker' || formData.attribute === 'resident_and_worker') {
-      setFormData(prev => ({
-        ...prev,
-        extraction_period: '3month',
-        extraction_period_type: 'preset',
-        extraction_dates: [],
-      }));
+      setFormData(prev => {
+        if (prev.extraction_period === '3month' && prev.extraction_period_type === 'preset' && (!prev.extraction_dates || prev.extraction_dates.length === 0)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          extraction_period: '3month',
+          extraction_period_type: 'preset',
+          extraction_dates: [],
+        };
+      });
     }
   }, [formData.attribute]);
 

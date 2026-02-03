@@ -191,8 +191,11 @@ const MOCK_GEOCODE_DATA: { [key: string]: GeocodeResult } = {
   },
 };
 
-// Google Maps Geocoding API の設定
-const GOOGLE_MAPS_API_KEY = 'YOUR_API_KEY_HERE'; // 本番環境では環境変数から取得
+// Google Maps Geocoding API の設定（Viteビルド時に VITE_GOOGLE_MAPS_API_KEY を注入、main.tsx で process.env にも設定）
+const GOOGLE_MAPS_API_KEY =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_MAPS_API_KEY) ||
+  (typeof process !== 'undefined' && process?.env?.GOOGLE_MAPS_API_KEY) ||
+  'YOUR_API_KEY_HERE';
 const USE_MOCK_DATA = !GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_API_KEY_HERE';
 
 // ジオコーディング結果のキャッシュ（メモリ内）

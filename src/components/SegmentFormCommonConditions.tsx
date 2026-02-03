@@ -52,10 +52,18 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
   const periodLabel = extractionLabel ?? '抽出期間';
   const noteText = noteLabel ?? '※ このセグメントに属する全地点に同じ条件が適用されます';
 
-  // 既存のポリゴンデータを読み込む
+  // 既存のポリゴンデータを読み込む（内容が同じときは更新しないでフリーズ・不要な再レンダーを防止）
   useEffect(() => {
     const initialized = initializePolygons();
-    setPolygons(initialized);
+    setPolygons(prev => {
+      if (prev.length !== initialized.length) return initialized;
+      const same = prev.every((p, i) => {
+        const init = initialized[i];
+        if (!init || p.coordinates.length !== init.coordinates.length) return false;
+        return p.coordinates.every((c, j) => c[0] === init.coordinates[j][0] && c[1] === init.coordinates[j][1]);
+      });
+      return same ? prev : initialized;
+    });
   }, [formData.polygon, formData.polygons]);
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
@@ -101,16 +109,15 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
     return selectedDate < sixMonthsAgo;
   };
 
-  // 編集時に既存の指定半径をドラフトに反映
+  // 編集時に既存の指定半径をドラフトに反映（同じ値のときは更新しないで指定半径設定時のフリーズを防止）
   useEffect(() => {
-    if (formData.designated_radius) {
-      const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''), 10);
-      if (!isNaN(radiusNum)) {
-        setDesignatedRadiusDraft(String(radiusNum));
-      }
-    } else {
-      setDesignatedRadiusDraft('');
-    }
+    const nextDraft = formData.designated_radius
+      ? (() => {
+          const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''), 10);
+          return !isNaN(radiusNum) ? String(radiusNum) : '';
+        })()
+      : '';
+    setDesignatedRadiusDraft(prev => (prev === nextDraft ? prev : nextDraft));
   }, [formData.designated_radius]);
 
   return (

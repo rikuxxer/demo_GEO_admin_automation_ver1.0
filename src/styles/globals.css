@@ -3,7 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-size: 14px;
+  --font-size: 16px;
   --background: #f5f5ff;
   --foreground: #1f2937;
   --card: #ffffff;
@@ -132,60 +132,65 @@
 }
 
 /**
- * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ * Base typography. Fallbacks ensure font sizes resolve even if Tailwind theme loads after.
  */
 @layer base {
+  html {
+    font-size: var(--font-size, 16px);
+  }
+
+  body {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
     h1 {
-      font-size: var(--text-2xl);
+      font-size: var(--text-2xl, 1.5rem);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     h2 {
-      font-size: var(--text-xl);
+      font-size: var(--text-xl, 1.25rem);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     h3 {
-      font-size: var(--text-lg);
+      font-size: var(--text-lg, 1.125rem);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     h4 {
-      font-size: var(--text-base);
+      font-size: var(--text-base, 1rem);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     p {
-      font-size: var(--text-base);
+      font-size: var(--text-base, 1rem);
       font-weight: var(--font-weight-normal);
       line-height: 1.5;
     }
 
     label {
-      font-size: var(--text-base);
+      font-size: var(--text-base, 1rem);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     button {
-      font-size: var(--text-base);
+      font-size: var(--text-base, 1rem);
       font-weight: var(--font-weight-medium);
       line-height: 1.5;
     }
 
     input {
-      font-size: var(--text-base);
+      font-size: var(--text-base, 1rem);
       font-weight: var(--font-weight-normal);
       line-height: 1.5;
     }
   }
-}
-
-html {
-  font-size: var(--font-size);
 }
