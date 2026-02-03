@@ -189,7 +189,7 @@ export const operationGuides: OperationGuide[] = [
   {
     id: 'poi-registration',
     title: '地点の登録',
-    description: '地点情報を登録する方法を説明します（地点コピペ、都道府県市区町村、PKG）',
+    description: '地点情報を登録する方法を説明します（表形式コピペ、都道府県指定、ポリゴン選択）',
     icon: MapPin,
     steps: [
       {
@@ -217,14 +217,14 @@ export const operationGuides: OperationGuide[] = [
       {
         target: '[data-guide="poi-type-select"]',
         title: '地点タイプの選択',
-        content: '地点の登録方法を選択します。「地点コピペ」「都道府県・市区町村指定」「PKG指定」の3種類から選べます。',
+        content: '地点の登録方法を選択します。「表形式コピペ」「都道府県指定」「ポリゴン選択」の3種類から選べます。',
         position: 'right',
         navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
       {
         target: '[data-guide="poi-form"]',
         title: '地点情報の入力',
-        content: '選択したタイプに応じて、住所や都道府県・市区町村、PKG情報を入力します。セグメント共通条件が設定されている場合は自動適用されます。',
+        content: '選択したタイプに応じて、住所や都道府県・市区町村、ポリゴン情報などを入力します。セグメント共通条件が設定されている場合は自動適用されます。',
         position: 'right',
         navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
