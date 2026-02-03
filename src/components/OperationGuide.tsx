@@ -347,6 +347,8 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
   // デフォルトはデモモード: 自動で画面を進め、ユーザーは「次へ」のみ操作
   const [useDemoMode, setUseDemoMode] = useState(true);
   const [demoHighlightedElement, setDemoHighlightedElement] = useState<string | undefined>(undefined);
+  /** デモ用ポップアップの位置（null のときは中央表示） */
+  const [demoPopupPosition, setDemoPopupPosition] = useState<{ x: number; y: number } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   // selectedGuideの最新値を追跡するためのref（onOpenChangeのクロージャ問題を回避）
@@ -361,6 +363,11 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
   useEffect(() => {
     selectedGuideRef.current = selectedGuide;
   }, [selectedGuide]);
+
+  // ガイドを閉じたときにポップアップ位置をリセット
+  useEffect(() => {
+    if (!isOpen) setDemoPopupPosition(null);
+  }, [isOpen]);
 
   // デバッグログ
   useEffect(() => {
@@ -779,6 +786,29 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
     console.log('[OperationGuide] Guide set, selectedGuide:', guide.id, 'currentStep:', 0);
   };
 
+  /** デモ用ポップアップをドラッグ */
+  const handleDemoPopupMouseDown = (e: React.MouseEvent) => {
+    if (!tooltipRef.current || e.button !== 0) return;
+    e.preventDefault();
+    const rect = tooltipRef.current.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startLeft = demoPopupPosition?.x ?? rect.left;
+    const startTop = demoPopupPosition?.y ?? rect.top;
+    const onMove = (e2: MouseEvent) => {
+      setDemoPopupPosition({
+        x: startLeft + e2.clientX - startX,
+        y: startTop + e2.clientY - startY,
+      });
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   if (!isOpen) return null;
 
   // ガイド選択画面
@@ -911,19 +941,25 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
           </div>
         </div>
 
-        {/* ツールチップ（デモ画面モード） */}
+        {/* ツールチップ（デモ画面モード・ドラッグ可能） */}
         <Card
           ref={tooltipRef}
-          className="fixed z-[10000] w-80 p-4 shadow-2xl border border-primary"
-          style={{
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            margin: 0,
-          }}
+          className="fixed z-[10000] w-80 p-4 shadow-2xl border border-primary select-none"
+          style={
+            demoPopupPosition !== null
+              ? { left: demoPopupPosition.x, top: demoPopupPosition.y, margin: 0 }
+              : { top: '50%', left: '50%', transform: 'translate(-50%, -50%)', margin: 0 }
+          }
         >
           <div className="flex items-start justify-between mb-2">
-            <div className="flex-1">
+            <div
+              className="flex-1 cursor-move pr-2"
+              onMouseDown={handleDemoPopupMouseDown}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); }}
+              aria-label="ドラッグして位置を移動"
+            >
               <h3 className="font-semibold text-sm mb-1">{step.title}</h3>
               <p className="text-sm text-gray-600">{step.content}</p>
             </div>
@@ -931,7 +967,7 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
               variant="ghost"
               size="sm"
               onClick={handleComplete}
-              className="h-6 w-6 p-0"
+              className="h-6 w-6 p-0 flex-shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
