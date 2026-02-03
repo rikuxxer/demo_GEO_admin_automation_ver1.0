@@ -1,9 +1,10 @@
 # BigQuery テーブル定義書
 
-**バージョン:** 2.2  
+**バージョン:** 2.3  
 **最終更新日:** 2026年1月28日  
 **データベース:** Google BigQuery  
-**データセット:** `universegeo_dataset`
+**データセット:** `universegeo_dataset`  
+**備考:** 本定義書は `segments.poi_type` 追加後のテーブル定義を反映しています。
 
 ---
 
@@ -132,6 +133,7 @@ CREATE TABLE `universegeo_dataset.segments` (
   delivery_media ARRAY<STRING>,
   media_id ARRAY<STRING>,
   poi_category STRING,
+  poi_type STRING,
   attribute STRING,
   extraction_period STRING,
   extraction_period_type STRING,
@@ -167,6 +169,7 @@ OPTIONS(
 | `delivery_media` | ARRAY&lt;STRING&gt; | YES | 配信媒体（複数可） | `['universe']`, `['tver_sp','tver_ctv']` |
 | `media_id` | ARRAY&lt;STRING&gt; | YES | 配信媒体ID（複数可） | `['MEDIA-001']`, `['MEDIA-001','MEDIA-002']` |
 | `poi_category` | STRING | YES | 地点カテゴリ（TG地点/来店計測地点） | `tg`, `visit_measurement` |
+| `poi_type` | STRING | YES | 地点タイプ（当該セグメントに登録されたpoisのpoi_type、POI登録時に自動設定） | `manual`, `prefecture`, `polygon` |
 | `attribute` | STRING | YES | 属性 | `detector`, `resident`, `worker` |
 | `extraction_period` | STRING | YES | 抽出期間 | `1month`, `2month`, `3month` |
 | `extraction_period_type` | STRING | YES | 抽出期間タイプ | `preset`, `custom`, `specific_dates` |
@@ -189,6 +192,7 @@ OPTIONS(
 - `segment_id`は自動採番（形式: `SEG-{連番}`）
 - `project_id`は必須（`projects`テーブルに存在する必要がある）
 - `poi_category`は自動設定（UIのタブ情報から判定、デフォルトは`'tg'`）
+- `poi_type`はPOI登録時に自動設定（当該セグメントに属する地点のタイプ。同一セグメント内は1種類に限定）
 - `extraction_end_date`は`extraction_start_date`より後である必要がある
 
 ---
@@ -874,6 +878,7 @@ SET OPTIONS(
    - `users.role`: `admin`, `sales`のみ
    - `pois.poi_type`: `manual`, `prefecture`, `polygon`のみ
    - `pois.poi_category`: `tg`, `visit_measurement`のみ
+   - `segments.poi_type`: `manual`, `prefecture`, `polygon`のみ（POI登録時に自動設定、未登録時はNULL）
 - `edit_requests.status`: `pending`, `approved`, `rejected`, `withdrawn`のみ
 - `feature_requests.status`: `pending`, `under_review`, `approved`, `rejected`, `implemented`のみ
 - `sheet_exports.export_status`: `pending`, `completed`, `failed`のみ
@@ -890,9 +895,9 @@ SET OPTIONS(
 
 ---
 
-## 定義書診断（2026-01-28）
+## 定義書診断（2026-01-28・poi_type 追加後）
 
-- **segments**: CREATE文・フィールド定義はバックエンド実装と一致（`delivery_media`・`media_id` を ARRAY&lt;STRING&gt;、`poi_category`、`registerd_provider_segment`、`extraction_dates` ARRAY&lt;STRING&gt; を反映済み）。
+- **segments**: CREATE文・フィールド定義はバックエンド実装と一致（`delivery_media`・`media_id` を ARRAY&lt;STRING&gt;、`poi_category`、**`poi_type`**（POI登録時に自動記録）、`registerd_provider_segment`、`extraction_dates` ARRAY&lt;STRING&gt; を反映済み）。
 - **pois**: `prefectures`/`cities` ARRAY&lt;STRING&gt;、`polygon` STRING（JSON）は実装と一致。`location_id`の例をビジネスルール（TG-{segment_id}-{連番}）に合わせて `TG-SEG-001-001` に修正済み。
 - **projects**: ドキュメントのCREATE文には `universe_service_id`、`universe_service_name`、`sub_person_in_charge` が含まれるが、バックエンドは「スキーマに存在しない」としてこれらを除外している。実際のBQテーブルにこれらの列がある場合は、バックエンドの `allowedFields` への追加を検討すること。
 - **表記**: `registerd_provider_segment` は BQ 列名上の typo（正しくは registered）のため、既存テーブル・コードと合わせて表記を統一している。
@@ -909,6 +914,13 @@ SET OPTIONS(
 - **2026-01-22**: `segments`テーブルに`registerd_provider_segment`カラム（BOOL）を追加。プロバイダセグメント取り込み済み状態の判定を可能に（デフォルトは`FALSE`）
 - **2026-01-28**: `segments.delivery_media`をSTRINGからARRAY&lt;STRING&gt;に変更（配信媒体の複数指定に対応）。定義書診断セクションを追加。`pois.location_id`の例をビジネスルールに合わせて修正。バージョン2.2・最終更新日を更新
 - **2026-01-28**: `segments.media_id`をSTRINGからARRAY&lt;STRING&gt;に変更（配信媒体IDの複数指定に対応）。バックエンドは配列として正規化・保存するよう変更
+- **2026-01-28**: `segments`テーブルに`poi_type`カラム（STRING）を追加。POI登録・更新・削除時に当該セグメントの`poi_type`を自動記録またはクリア（`manual`/`prefecture`/`polygon`）。定義書を追加後のテーブル定義に更新（バージョン2.3）
+
+**既存の segments テーブルに poi_type を追加する場合**:
+```sql
+ALTER TABLE `universegeo_dataset.segments`
+ADD COLUMN IF NOT EXISTS poi_type STRING;
+```
 
 ---
 

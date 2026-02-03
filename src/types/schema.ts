@@ -25,6 +25,7 @@ export interface Segment {
   delivery_media?: string | string[]; // 配信媒体（ARRAY: universe, tver_sp, tver_ctv の複数可）
   media_id: string | string[]; // 配信媒体ID（複数選択可。ただしTVer(CTV)は他と併用不可）
   poi_category?: 'tg' | 'visit_measurement'; // 地点カテゴリ（TG地点/来店計測地点、UIのタブ情報から自動判定）
+  poi_type?: 'manual' | 'prefecture' | 'polygon'; // 地点タイプ（当該セグメントに登録されたpoisのpoi_type、同一セグメントは1種類に限定）
   location_request_status: string; // 地点依頼ステータス（未依頼、格納対応中、格納完了）営業の依頼確定によって変更
   request_confirmed?: boolean; // 連携依頼フラグ（営業が入力を確定した際にtrue）
   data_link_status: string; // データ連携依頼ステータス（連携依頼前、連携依頼済、連携済）連携依頼後は管理部の手動切り替え

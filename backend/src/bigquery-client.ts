@@ -990,6 +990,7 @@ export class BigQueryService {
         'delivery_media',
         'media_id',
         'poi_category',
+        'poi_type',
         'attribute',
         'extraction_period',
         'extraction_period_type',
@@ -1295,6 +1296,14 @@ export class BigQueryService {
       });
 
       await getDataset().table('pois').insert([cleanedPoi], { ignoreUnknownValues: true });
+
+      // セグメントにpoiが登録された際、segments.poi_type を記録（同一セグメントは1種類のためこのpoiのタイプで更新）
+      if (cleanedPoi.segment_id && String(cleanedPoi.segment_id).trim()) {
+        const segmentId = String(cleanedPoi.segment_id).trim();
+        const poiType = this.normalizePoiType(cleanedPoi);
+        await this.updateSegment(segmentId, { poi_type: poiType });
+        console.log(`[BQ] segments.poi_type を更新: segment_id=${segmentId}, poi_type=${poiType}`);
+      }
     } catch (err: any) {
       console.error('[BQ insert pois] message:', err?.message);
       console.error('[BQ insert pois] errors:', JSON.stringify(err?.errors, null, 2));
@@ -1425,6 +1434,13 @@ export class BigQueryService {
       console.log(`📋 Cleaned ${cleanedPois.length} POIs for BigQuery bulk insert`);
 
       await getDataset().table('pois').insert(cleanedPois, { ignoreUnknownValues: true });
+
+      // セグメントにpoiが登録された際、segments.poi_type を記録（同一セグメントは1種類のため、各セグメントの代表poi_typeで更新）
+      for (const [segId, types] of segmentToTypes) {
+        const poiType = [...types][0];
+        await this.updateSegment(segId, { poi_type: poiType });
+        console.log(`[BQ] segments.poi_type を更新（一括）: segment_id=${segId}, poi_type=${poiType}`);
+      }
     } catch (err: any) {
       console.error('[BQ insert pois bulk] message:', err?.message);
       console.error('[BQ insert pois bulk] errors:', JSON.stringify(err?.errors, null, 2));
@@ -1520,11 +1536,36 @@ export class BigQueryService {
       params: { poi_id, ...processedUpdates },
       location: BQ_LOCATION,
     });
+
+    // segment_id または poi_type / polygon が変わった場合、該当セグメントの segments.poi_type を更新
+    if ('segment_id' in updates || 'poi_type' in updates || 'polygon' in updates) {
+      const [rows] = await initializeBigQueryClient().query({
+        query: `SELECT segment_id, poi_type, polygon FROM \`${currentProjectId}.${cleanDatasetId}.pois\` WHERE poi_id = @poi_id`,
+        params: { poi_id },
+        location: BQ_LOCATION,
+      });
+      const updated = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+      if (updated?.segment_id && String(updated.segment_id).trim()) {
+        const segId = String(updated.segment_id).trim();
+        const poiType = this.normalizePoiType(updated);
+        await this.updateSegment(segId, { poi_type: poiType });
+        console.log(`[BQ] segments.poi_type を更新（updatePoi後）: segment_id=${segId}, poi_type=${poiType}`);
+      }
+    }
   }
 
   async deletePoi(poi_id: string): Promise<void> {
     const currentProjectId = validateProjectId();
     const cleanDatasetId = getCleanDatasetId();
+
+    // 削除前に segment_id を取得（削除後はセグメントの poi_type をクリアするため）
+    const [beforeRows] = await initializeBigQueryClient().query({
+      query: `SELECT segment_id FROM \`${currentProjectId}.${cleanDatasetId}.pois\` WHERE poi_id = @poi_id`,
+      params: { poi_id },
+      location: BQ_LOCATION,
+    });
+    const segmentIdBefore = Array.isArray(beforeRows) && beforeRows.length > 0 ? (beforeRows[0] as any)?.segment_id : null;
+
     const query = `
       DELETE FROM \`${currentProjectId}.${cleanDatasetId}.pois\`
       WHERE poi_id = @poi_id
@@ -1534,6 +1575,16 @@ export class BigQueryService {
       params: { poi_id },
       location: BQ_LOCATION,
     });
+
+    // 当該セグメントにPOIが残っていなければ segments.poi_type をクリア
+    if (segmentIdBefore && String(segmentIdBefore).trim()) {
+      const segId = String(segmentIdBefore).trim();
+      const remaining = await this.getPoisBySegment(segId);
+      if (remaining.length === 0) {
+        await this.updateSegment(segId, { poi_type: null });
+        console.log(`[BQ] segments.poi_type をクリア（当該セグメントのPOIが0件）: segment_id=${segId}`);
+      }
+    }
   }
 
   // ==================== ユーザー ====================
