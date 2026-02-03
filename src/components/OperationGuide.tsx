@@ -223,7 +223,7 @@ export const operationGuides: OperationGuide[] = [
       },
       {
         target: '[data-guide="poi-form"]',
-        title: '地点情報の入力',
+        title: '地点の入力',
         content: '選択したタイプに応じて、住所や都道府県・市区町村、ポリゴン情報などを入力します。セグメント共通条件が設定されている場合は自動適用されます。',
         position: 'right',
         navigateToPage: 'project-detail', // 案件詳細ページに遷移
@@ -231,7 +231,7 @@ export const operationGuides: OperationGuide[] = [
       {
         target: '[data-guide="poi-submit"]',
         title: '地点の登録',
-        content: '入力内容を確認して「登録」ボタンをクリックします。営業ユーザーの場合、TG地点は自動的にGoogleスプレッドシートに出力されます。',
+        content: '入力内容を確認して「登録」ボタンをクリックします。',
         position: 'top',
         navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
