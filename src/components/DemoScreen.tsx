@@ -551,45 +551,74 @@ export function DemoScreen({
                                 </Button>
                               </div>
                               {isPoiFormOpen && (
-                                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-                                  <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                                    <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                                      <h2 className="text-xl">新規地点登録</h2>
-                                      <button type="button" onClick={() => setIsPoiFormOpen(false)} className="text-gray-400 hover:text-gray-600">
-                                        <X className="w-5 h-5" />
-                                      </button>
+                                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                                  <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden flex flex-col">
+                                    {/* ヘッダー（実物のPoiFormと同じグラデーション・タイトル・セグメントID・ステップ） */}
+                                    <div className="bg-gradient-to-r from-[#5b5fff] to-[#7b7bff] p-6 text-white">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <h2 className="text-2xl mb-2">新規地点登録</h2>
+                                          <div className="flex items-center gap-2 text-white/90 text-sm">
+                                            <span>セグメントID: SEG-001</span>
+                                            <span>(サンプルセグメント)</span>
+                                          </div>
+                                        </div>
+                                        <Button variant="ghost" size="sm" type="button" onClick={() => setIsPoiFormOpen(false)} className="text-white hover:bg-white/20 -mt-2 -mr-2">
+                                          <X className="w-5 h-5" />
+                                        </Button>
+                                      </div>
+                                      {/* ステップインジケーター（実物と同じ） */}
+                                      <div className="flex items-center gap-4 mt-6">
+                                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-[#5b5fff]">
+                                          <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-[#5b5fff] text-white">1</span>
+                                          <span>地点情報</span>
+                                        </span>
+                                        <div className="h-0.5 flex-1 bg-white/30" />
+                                        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/20 text-white">
+                                          <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-white/30">2</span>
+                                          <span>抽出条件</span>
+                                        </span>
+                                      </div>
                                     </div>
-                                    <div className="p-6 space-y-4">
-                                      <div data-guide="poi-type-select" className={`space-y-2 ${highlightedElement === 'poi-type-select' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded-lg' : ''}`}>
-                                        <Label className="text-sm font-medium">地点タイプ</Label>
-                                        <div className="flex gap-4">
-                                          <label className="flex items-center gap-2 cursor-pointer">
-                                            <input type="radio" name="demo-poi-type" defaultChecked className="w-4 h-4 text-[#5b5fff]" readOnly />
-                                            <span className="text-sm">TG地点</span>
-                                          </label>
-                                          <label className="flex items-center gap-2 cursor-pointer">
-                                            <input type="radio" name="demo-poi-type" className="w-4 h-4 text-[#5b5fff]" readOnly />
-                                            <span className="text-sm">来店計測地点</span>
-                                          </label>
+                                    {/* コンテンツ（実物と同じ：登録モード切替＋フォーム） */}
+                                    <div className="flex-1 overflow-y-auto">
+                                      <div className="p-6 space-y-6">
+                                        {/* 登録モード切替（実物と同じ3ボタン） */}
+                                        <div data-guide="poi-type-select" className={`grid grid-cols-2 md:grid-cols-3 gap-2 mb-2 ${highlightedElement === 'poi-type-select' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded-lg' : ''}`}>
+                                          <button type="button" className="flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md bg-white text-[#5b5fff] shadow-sm border border-[#5b5fff]">
+                                            <FileText className="w-4 h-4" />
+                                            <span className="hidden sm:inline">表形式コピペ</span>
+                                            <span className="sm:hidden">コピペ</span>
+                                          </button>
+                                          <button type="button" className="flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md bg-gray-50 text-gray-600 border border-gray-200">
+                                            <Building2 className="w-4 h-4" />
+                                            <span className="hidden sm:inline">都道府県指定</span>
+                                            <span className="sm:hidden">都道府県</span>
+                                          </button>
+                                          <button type="button" className="flex items-center justify-center gap-2 py-2 px-3 text-sm font-medium rounded-md bg-gray-50 text-gray-600 border border-gray-200">
+                                            <MapPin className="w-4 h-4" />
+                                            <span className="hidden sm:inline">ポリゴン選択</span>
+                                            <span className="sm:hidden">ポリゴン</span>
+                                          </button>
                                         </div>
-                                      </div>
-                                      <div data-guide="poi-form" className={`space-y-4 ${highlightedElement === 'poi-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded-lg' : ''}`}>
-                                        <div className="space-y-2">
-                                          <Label className="text-sm">地点名</Label>
-                                          <Input placeholder="例: 〇〇店" className="bg-white" readOnly />
+                                        <div data-guide="poi-form" className={`space-y-4 ${highlightedElement === 'poi-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded-lg' : ''}`}>
+                                          <div className="space-y-2">
+                                            <Label className="text-sm">地点名</Label>
+                                            <Input placeholder="例: 〇〇店" className="bg-white" readOnly />
+                                          </div>
+                                          <div className="space-y-2">
+                                            <Label className="text-sm">住所</Label>
+                                            <Input placeholder="住所を入力" className="bg-white" readOnly />
+                                          </div>
+                                          <div className="space-y-2">
+                                            <Label className="text-sm">指定半径（m）</Label>
+                                            <Input placeholder="例: 1000" className="bg-white" readOnly />
+                                          </div>
                                         </div>
-                                        <div className="space-y-2">
-                                          <Label className="text-sm">住所</Label>
-                                          <Input placeholder="住所を入力" className="bg-white" readOnly />
+                                        <div className="flex gap-3 pt-4">
+                                          <Button type="button" variant="outline" onClick={() => setIsPoiFormOpen(false)} className="flex-1 border-gray-200">キャンセル</Button>
+                                          <Button data-guide="poi-submit" type="button" className={`flex-1 bg-[#5b5fff] text-white hover:bg-[#4949dd] ${highlightedElement === 'poi-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`} onClick={() => { setIsPoiFormOpen(false); onElementClick?.('poi-submit'); }}>登録する</Button>
                                         </div>
-                                        <div className="space-y-2">
-                                          <Label className="text-sm">指定半径（m）</Label>
-                                          <Input placeholder="例: 1000" className="bg-white" readOnly />
-                                        </div>
-                                      </div>
-                                      <div className="flex gap-3 pt-4">
-                                        <Button type="button" variant="outline" onClick={() => setIsPoiFormOpen(false)} className="flex-1 border-gray-200">キャンセル</Button>
-                                        <Button data-guide="poi-submit" type="button" className={`flex-1 bg-[#5b5fff] text-white hover:bg-[#4949dd] ${highlightedElement === 'poi-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`} onClick={() => { setIsPoiFormOpen(false); onElementClick?.('poi-submit'); }}>登録する</Button>
                                       </div>
                                     </div>
                                   </div>
