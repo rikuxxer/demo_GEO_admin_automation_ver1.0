@@ -10,6 +10,8 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { DemoScreen } from './DemoScreen';
+import { Sidebar } from './Sidebar';
+import { Header } from './Header';
 
 // ハイライトマスクコンポーネント
 function HighlightMask({ targetElement }: { targetElement: HTMLElement }) {
@@ -877,21 +879,36 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
     }
 
     return (
-      <div className="fixed inset-0 z-[9999] bg-white">
-        {/* デモ画面 */}
-        <div className="h-full overflow-auto">
-          <DemoScreen 
-            type={demoScreenType}
-            highlightedElement={demoHighlightedElement}
-            onElementClick={(elementId) => {
-              console.log('[OperationGuide] Demo element clicked:', elementId);
-              if (currentStep < selectedGuide.steps.length - 1) {
-                handleDemoNext();
-              } else {
-                handleComplete();
-              }
-            }}
+      <div className="fixed inset-0 z-[9999] bg-white flex">
+        {/* デモ用サイドバー（実画面と同じ構成でわかりやすく） */}
+        <Sidebar
+          isCollapsed={false}
+          onToggle={() => {}}
+          currentPage="projects"
+          onPageChange={() => {}}
+          unreadCount={0}
+        />
+        {/* デモ画面メイン（実画面と同じ：ヘッダー + コンテンツ余白） */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <Header
+            currentPage="projects"
+            editRequests={[]}
+            onOpenHelp={undefined}
           />
+          <div className="flex-1 overflow-auto">
+            <DemoScreen 
+              type={demoScreenType}
+              highlightedElement={demoHighlightedElement}
+              onElementClick={(elementId) => {
+                console.log('[OperationGuide] Demo element clicked:', elementId);
+                if (currentStep < selectedGuide.steps.length - 1) {
+                  handleDemoNext();
+                } else {
+                  handleComplete();
+                }
+              }}
+            />
+          </div>
         </div>
 
         {/* ツールチップ（デモ画面モード） */}

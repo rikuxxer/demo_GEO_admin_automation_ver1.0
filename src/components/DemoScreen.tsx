@@ -13,8 +13,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Checkbox } from './ui/checkbox';
+import { MEDIA_OPTIONS } from '../types/schema';
 
 /**
  * デモ画面コンポーネント
@@ -186,10 +188,25 @@ export function DemoScreen({
     return (
       <div className="w-full h-full bg-[#f5f5ff] p-6 overflow-auto">
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-2 mb-4">
-            <button type="button" className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900">
-              <ArrowLeft className="w-4 h-4" /> 案件一覧へ
-            </button>
+          {/* ヘッダー（実物のProjectDetailと同じ：戻るボタン＋案件名・ID・ステータス・登録日） */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <Button
+              variant="outline"
+              size="default"
+              type="button"
+              className="mb-4 border-[#5b5fff]/60 text-[#5b5fff] hover:bg-[#5b5fff]/90 hover:text-white hover:border-[#5b5fff]/90 font-semibold shadow-sm"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              案件一覧に戻る
+            </Button>
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-gray-900">サンプル株式会社</h1>
+                <Badge variant="secondary" className="bg-primary/10 text-primary">PRJ-0001</Badge>
+                <Badge className="inline-flex items-center gap-1 text-xs border bg-blue-50 text-blue-700 border-blue-200">連携依頼待ち</Badge>
+              </div>
+              <p className="text-muted-foreground">登録日: 2024/10/08 12:00:00</p>
+            </div>
           </div>
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'overview' | 'segments' | 'pois' | 'messages')} className="w-full">
             <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -344,14 +361,116 @@ export function DemoScreen({
                   </div>
                 </div>
                 <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-                  {isSegmentFormOpen ? (
-                    <Card className="p-6 space-y-4 border border-gray-200 mb-4" data-guide="segment-form">
-                      <div className={highlightedElement === 'segment-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>
-                        <p className="text-sm text-gray-600 mb-2">セグメント名・配信媒体・抽出期間などを設定</p>
+                  {/* セグメント登録モーダル（実物のSegmentFormと同じUI） */}
+                  {isSegmentFormOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                      <div
+                        className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                        data-guide="segment-form"
+                      >
+                        <div className="flex items-center justify-between p-6 border-b">
+                          <h2 className="text-xl">新規セグメント登録</h2>
+                          <button
+                            type="button"
+                            onClick={() => setIsSegmentFormOpen(false)}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <div className={`p-6 space-y-6 ${highlightedElement === 'segment-form' ? 'ring-2 ring-blue-400 ring-offset-2 rounded-b-lg' : ''}`}>
+                          <div>
+                            <Label htmlFor="demo_segment_name" className="block mb-2">セグメント名</Label>
+                            <Input
+                              id="demo_segment_name"
+                              type="text"
+                              placeholder="例: 東京都内店舗訪問者"
+                              className="w-full bg-white"
+                              readOnly
+                            />
+                            <p className="mt-1 text-xs text-gray-500">※ 任意入力。セグメントを識別しやすい名前を付けてください</p>
+                          </div>
+                          <div>
+                            <Label className="block mb-3">配信媒体 <span className="text-red-500">*</span></Label>
+                            <div className="space-y-3">
+                              {MEDIA_OPTIONS.map((option) => (
+                                <div key={option.value} className="flex items-start">
+                                  <div className="flex items-center h-5">
+                                    <Checkbox id={`demo_media_${option.value}`} className="pointer-events-none" />
+                                  </div>
+                                  <div className="ml-3">
+                                    <label htmlFor={`demo_media_${option.value}`} className="text-sm text-gray-700">
+                                      {option.label}
+                                    </label>
+                                    {option.value === 'tver_ctv' && (
+                                      <p className="text-xs text-gray-500 mt-0.5">※ CTV専用セグメントを作成してください</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="mt-2 text-sm text-gray-500">少なくとも1つの配信媒体を選択してください</p>
+                          </div>
+                          <div>
+                            <Label htmlFor="demo_ads_account_id" className="block mb-2">AdsアカウントID</Label>
+                            <Input
+                              id="demo_ads_account_id"
+                              type="text"
+                              placeholder="例: 17890"
+                              className="w-full bg-white"
+                              readOnly
+                            />
+                            <p className="mt-1 text-xs text-gray-500">※ 後から入力することも可能です</p>
+                          </div>
+                          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                            <div className="flex items-start gap-3">
+                              <Checkbox id="demo_request_confirmed" className="pointer-events-none mt-0.5" />
+                              <div className="flex-1">
+                                <label htmlFor="demo_request_confirmed" className="cursor-pointer block">
+                                  <span className="text-sm">連携依頼を確定する</span>
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    チェックすると、管理部に連携依頼が送信されます。地点情報の入力が完了したら、このチェックを入れてください。
+                                  </p>
+                                </label>
+                              </div>
+                            </div>
+                            <div className="mt-3 space-y-2 border-t border-gray-200 pt-3">
+                              <div className="flex items-center gap-2 text-xs">
+                                <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                <span className="text-red-600">地点が登録されていません</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                <span className="text-red-600">AdsアカウントIDが未入力です</span>
+                              </div>
+                              <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                                連携依頼を確定するには、上記の条件を満たす必要があります
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-3 pt-4">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setIsSegmentFormOpen(false)}
+                              className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            >
+                              キャンセル
+                            </Button>
+                            <Button
+                              id="demo-segment-submit"
+                              data-guide="segment-submit"
+                              type="button"
+                              className={`flex-1 bg-blue-600 text-white hover:bg-blue-700 ${highlightedElement === 'segment-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`}
+                              onClick={() => { setIsSegmentFormOpen(false); onElementClick?.('segment-submit'); }}
+                            >
+                              登録する
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      <Button data-guide="segment-submit" className={highlightedElement === 'segment-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''} onClick={() => setIsSegmentFormOpen(false)}>登録</Button>
-                    </Card>
-                  ) : null}
+                    </div>
+                  )}
                   <div className="text-center py-16 bg-gray-50 rounded-lg border border-dashed border-gray-300">
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <AlertCircle className="w-6 h-6 text-gray-400" />
@@ -432,11 +551,49 @@ export function DemoScreen({
                                 </Button>
                               </div>
                               {isPoiFormOpen && (
-                                <Card className="p-4 space-y-4 border border-gray-200 mt-4">
-                                  <div data-guide="poi-type-select" className={highlightedElement === 'poi-type-select' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>地点タイプ（TG地点 / 来店計測地点）を選択</div>
-                                  <div data-guide="poi-form" className={highlightedElement === 'poi-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>地点名・住所・指定半径などを入力</div>
-                                  <Button data-guide="poi-submit" className={highlightedElement === 'poi-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''} onClick={() => setIsPoiFormOpen(false)}>登録</Button>
-                                </Card>
+                                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                                  <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                                    <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                                      <h2 className="text-xl">新規地点登録</h2>
+                                      <button type="button" onClick={() => setIsPoiFormOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                        <X className="w-5 h-5" />
+                                      </button>
+                                    </div>
+                                    <div className="p-6 space-y-4">
+                                      <div data-guide="poi-type-select" className={`space-y-2 ${highlightedElement === 'poi-type-select' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded-lg' : ''}`}>
+                                        <Label className="text-sm font-medium">地点タイプ</Label>
+                                        <div className="flex gap-4">
+                                          <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="demo-poi-type" defaultChecked className="w-4 h-4 text-[#5b5fff]" readOnly />
+                                            <span className="text-sm">TG地点</span>
+                                          </label>
+                                          <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="demo-poi-type" className="w-4 h-4 text-[#5b5fff]" readOnly />
+                                            <span className="text-sm">来店計測地点</span>
+                                          </label>
+                                        </div>
+                                      </div>
+                                      <div data-guide="poi-form" className={`space-y-4 ${highlightedElement === 'poi-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded-lg' : ''}`}>
+                                        <div className="space-y-2">
+                                          <Label className="text-sm">地点名</Label>
+                                          <Input placeholder="例: 〇〇店" className="bg-white" readOnly />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-sm">住所</Label>
+                                          <Input placeholder="住所を入力" className="bg-white" readOnly />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-sm">指定半径（m）</Label>
+                                          <Input placeholder="例: 1000" className="bg-white" readOnly />
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-3 pt-4">
+                                        <Button type="button" variant="outline" onClick={() => setIsPoiFormOpen(false)} className="flex-1 border-gray-200">キャンセル</Button>
+                                        <Button data-guide="poi-submit" type="button" className={`flex-1 bg-[#5b5fff] text-white hover:bg-[#4949dd] ${highlightedElement === 'poi-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`} onClick={() => { setIsPoiFormOpen(false); onElementClick?.('poi-submit'); }}>登録する</Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
                               )}
                             </AccordionContent>
                           </AccordionItem>
@@ -546,7 +703,7 @@ export function DemoScreen({
                       </div>
                       <div className="space-y-2">
                         <Label>訴求内容 <span className="text-red-500">*</span></Label>
-                        <Input placeholder="広告で訴求する内容を入力してください" className="bg-white" readOnly />
+                        <Textarea placeholder="広告で訴求する内容を入力してください" rows={3} className="bg-white resize-none" readOnly />
                       </div>
                     </div>
                     <div className="space-y-4">
@@ -583,7 +740,7 @@ export function DemoScreen({
                       </div>
                       <div className="space-y-2">
                         <Label>備考</Label>
-                        <Input placeholder="特記事項、注意点、連絡事項などを記載してください" className="bg-white" readOnly />
+                        <Textarea placeholder="特記事項、注意点、連絡事項などを記載してください" rows={4} className="bg-white resize-none" readOnly />
                       </div>
                     </div>
                   </div>
@@ -662,7 +819,7 @@ export function DemoScreen({
             }`}
           >
             {[
-              { status: 'total' as const, icon: FileText, title: '担当案件数', value: '6', subtitle: '全案件', bg: 'bg-[#5b5fff]/10', iconColor: 'text-[#5b5fff]', tooltip: null as string | null },
+              { status: 'total' as const, icon: FileText, title: '担当案件数', value: '6', subtitle: '担当', bg: 'bg-[#5b5fff]/10', iconColor: 'text-[#5b5fff]', tooltip: null as string | null },
               { status: 'draft' as const, icon: FileEdit, title: '下書き', value: '1', subtitle: 'セグメント未登録', bg: 'bg-gray-100', iconColor: 'text-gray-600', tooltip: '【下書き】\n・配下のセグメントが未登録（0件）' },
               { status: 'waiting_input' as const, icon: AlertTriangle, title: '入力不備あり', value: '2', subtitle: '地点・ID・S-ID未入力', bg: 'bg-orange-50', iconColor: 'text-orange-600', tooltip: '【入力不備あり】\n・地点未登録\n・アカウントID未入力\n・サービスID未入力\nのいずれかに該当する案件です' },
               { status: 'in_progress' as const, icon: CheckCircle2, title: '連携依頼待ち', value: '2', subtitle: '入力完了・依頼待ち', bg: 'bg-blue-50', iconColor: 'text-blue-600', tooltip: '【進行中（連携依頼待ち）】\n・すべての必須項目が入力されています\n・データ連携の依頼が可能です' },
