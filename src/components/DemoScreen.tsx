@@ -70,11 +70,11 @@ export function DemoScreen({
     }
   }, [type]);
 
-  // 一括登録デモ（実物のBulkImportに合わせたレイアウト）
+  // 一括登録デモ（実物のBulkImportに合わせたレイアウト・拡大崩れ防止）
   if (type === 'bulk-import') {
     return (
-      <div className="w-full h-full bg-[#f5f5ff] p-6 overflow-y-auto">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="w-full min-w-0 h-full bg-[#f5f5ff] p-4 sm:p-6 overflow-x-hidden overflow-y-auto">
+        <div className="max-w-4xl mx-auto min-w-0 space-y-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-1 h-5 bg-primary rounded-full" />
             <h2 className="text-sm text-gray-700">案件・セグメント・地点の一括登録</h2>
@@ -788,17 +788,17 @@ export function DemoScreen({
               </div>
             )}
 
-            {/* デモ用の一括登録（実物のBulkImportモーダルに合わせたレイアウト） */}
+            {/* デモ用の一括登録（実物のBulkImportモーダルに合わせたレイアウト・拡大崩れ防止） */}
             {isBulkImportOpen && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200">
-                  <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                    <h2 className="text-xl">案件・セグメント・地点の一括登録</h2>
-                    <button type="button" onClick={() => setIsBulkImportOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 box-border">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] min-h-0 overflow-hidden flex flex-col border border-gray-200">
+                  <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+                    <h2 className="text-lg sm:text-xl truncate pr-2">案件・セグメント・地点の一括登録</h2>
+                    <button type="button" onClick={() => setIsBulkImportOpen(false)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
                       <X className="w-6 h-6" />
                     </button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-6">
                     <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
                       <div className="flex items-start gap-3">
                         <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />

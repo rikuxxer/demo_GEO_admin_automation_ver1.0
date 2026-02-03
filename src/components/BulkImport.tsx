@@ -289,7 +289,7 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
   const canImport = result && !hasErrors && result.project && result.locations.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
 
       {/* 説明カード */}
       <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
