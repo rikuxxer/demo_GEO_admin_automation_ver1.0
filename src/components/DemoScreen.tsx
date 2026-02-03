@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, ChevronDown, FileText, Upload, Package, MapPin, ArrowLeft, Download, Info, FileEdit, AlertTriangle, CheckCircle2, Send, Search, User, X } from 'lucide-react';
+import { Plus, ChevronDown, ChevronLeft, ChevronRight, FileText, Upload, Package, MapPin, ArrowLeft, Download, Info, FileEdit, AlertTriangle, AlertCircle, CheckCircle2, Send, Search, User, X, Building2, Calendar, Edit, List, Map, Database, Clock, MessageSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -13,6 +13,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { Checkbox } from './ui/checkbox';
 
 /**
  * デモ画面コンポーネント
@@ -22,15 +24,18 @@ import { Input } from './ui/input';
 export function DemoScreen({ 
   type, 
   highlightedElement, 
-  onElementClick 
+  onElementClick,
+  selectedStatus 
 }: { 
   type: 'projects' | 'project-detail' | 'project-form' | 'bulk-import';
   highlightedElement?: string;
   onElementClick?: (elementId: string) => void;
+  /** 案件サマリのカード選択状態（実物のSummaryCardsと同様の見た目用） */
+  selectedStatus?: string | null;
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'segments' | 'pois'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'segments' | 'pois' | 'messages'>('overview');
   const [isSegmentFormOpen, setIsSegmentFormOpen] = useState(false);
   const [isPoiFormOpen, setIsPoiFormOpen] = useState(false);
 
@@ -80,12 +85,15 @@ export function DemoScreen({
                 <p className="font-medium text-blue-900">Excelファイルの構成</p>
                 <ul className="list-disc list-inside space-y-1 text-blue-800">
                   <li><strong>①入力ガイド</strong>: 使い方の説明</li>
-                  <li><strong>②案件情報</strong>: 案件の基本情報（1案件のみ登録可能）</li>
+                  <li><strong>②案件情報</strong>: 案件の基本情報（<span className="text-red-600 font-bold">1案件のみ登録可能</span>）</li>
                   <li><strong>③セグメント・TG地点設定</strong>: セグメント＋TG地点（複数件可）</li>
                   <li><strong>④来店計測地点リスト</strong>: 来店計測地点（複数件可）</li>
                 </ul>
                 <p className="text-red-600 font-semibold mt-3 border-t border-red-200 pt-2">
-                  複数案件を登録する場合は、案件ごとにExcelファイルを分けてください
+                  ⚠️ 複数案件を登録する場合は、案件ごとにExcelファイルを分けてください
+                </p>
+                <p className="text-blue-700 mt-2">
+                  ※ プルダウンで簡単入力。広告主や代理店の方も入力しやすい形式です
                 </p>
               </div>
             </div>
@@ -170,21 +178,20 @@ export function DemoScreen({
     );
   }
 
-  // 案件詳細デモ（セグメント・地点のガイド用）- 実物のProjectDetailに合わせたタブ・レイアウト
+  // 案件詳細デモ（実物のProjectDetailと同一レイアウト）
   if (type === 'project-detail') {
+    // 地点情報タブでは実物同様にTG/来店計測タブ＋セグメントアコーディオンを表示（1件ある想定）
+    const showPoiAccordion = activeTab === 'pois';
+
     return (
-      <div className="w-full h-full bg-[#f5f5ff] p-6">
+      <div className="w-full h-full bg-[#f5f5ff] p-6 overflow-auto">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center gap-2 mb-4">
             <button type="button" className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900">
               <ArrowLeft className="w-4 h-4" /> 案件一覧へ
             </button>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">サンプル案件</h2>
-            <p className="text-sm text-gray-500 mt-1">基本情報と配信設定を確認できます</p>
-          </div>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'overview' | 'segments' | 'pois')} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'overview' | 'segments' | 'pois' | 'messages')} className="w-full">
             <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
               <TabsList className="w-full h-auto p-1.5 bg-[#f5f5ff] border-b border-gray-200 flex gap-1.5 rounded-none">
                 <TabsTrigger value="overview" className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all">
@@ -219,67 +226,233 @@ export function DemoScreen({
                     <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">0</Badge>
                   </div>
                 </TabsTrigger>
+                <TabsTrigger
+                  value="messages"
+                  className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="text-sm">連絡事項</span>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">0</Badge>
+                  </div>
+                </TabsTrigger>
               </TabsList>
+
+              {/* 案件概要タブ（実物と同じセクション構成） */}
               <TabsContent value="overview" className="p-6 bg-gradient-to-br from-[#eeeeff] via-[#f5f5ff] to-[#fafaff]">
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">
-                  <h3 className="text-gray-900 mb-2">案件概要</h3>
-                  <p className="text-sm text-gray-500">広告主・訴求内容・配信期間などの基本情報（デモ）</p>
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-4 p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#5b5fff] to-[#4949dd] rounded-xl flex items-center justify-center shadow-md">
+                        <FileText className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-gray-900 mb-1">案件概要</h3>
+                        <p className="text-sm text-gray-500">基本情報と配信設定を確認できます</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+                  <div className="space-y-5">
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200 p-5">
+                      <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-[#5b5fff]/20">
+                        <div className="w-9 h-9 bg-gradient-to-br from-[#5b5fff]/15 to-[#5b5fff]/5 rounded-lg flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-[#5b5fff]" />
+                        </div>
+                        <h4 className="text-gray-900">基本情報</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><p className="text-muted-foreground mb-1 text-sm">広告主法人名</p><p className="text-gray-900">サンプル株式会社</p></div>
+                        <div><p className="text-muted-foreground mb-1 text-sm">代理店名</p><p className="text-gray-900">-</p></div>
+                        <div><p className="text-muted-foreground mb-1 text-sm">主担当者</p><p className="text-gray-900">-</p></div>
+                        <div><p className="text-muted-foreground mb-1 text-sm">副担当者</p><p className="text-gray-900">-</p></div>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200 p-5">
+                      <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-[#5b5fff]/20">
+                        <div className="w-9 h-9 bg-gradient-to-br from-[#5b5fff]/15 to-[#5b5fff]/5 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-[#5b5fff]" />
+                        </div>
+                        <h4 className="text-gray-900">訴求内容</h4>
+                      </div>
+                      <div><p className="text-muted-foreground mb-1 text-sm">訴求ポイント</p><p className="text-gray-900">-</p></div>
+                    </div>
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200 p-5">
+                      <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-[#5b5fff]/20">
+                        <div className="w-9 h-9 bg-gradient-to-br from-[#5b5fff]/15 to-[#5b5fff]/5 rounded-lg flex items-center justify-center">
+                          <Package className="w-5 h-5 text-[#5b5fff]" />
+                        </div>
+                        <h4 className="text-gray-900">UNIVERSEサービス情報</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><p className="text-muted-foreground mb-1 text-sm">サービスID</p><p className="text-gray-900">-</p></div>
+                        <div><p className="text-muted-foreground mb-1 text-sm">サービス名</p><p className="text-gray-900">-</p></div>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200 p-5">
+                      <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-[#5b5fff]/20">
+                        <div className="w-9 h-9 bg-gradient-to-br from-[#5b5fff]/15 to-[#5b5fff]/5 rounded-lg flex items-center justify-center">
+                          <Calendar className="w-5 h-5 text-[#5b5fff]" />
+                        </div>
+                        <h4 className="text-gray-900">配信情報</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><p className="text-muted-foreground mb-1 text-sm">配信開始日</p><p className="text-gray-900">-</p></div>
+                        <div><p className="text-muted-foreground mb-1 text-sm">配信終了日</p><p className="text-gray-900">-</p></div>
+                      </div>
+                    </div>
+                    {/* 備考セクション（実物と同じ） */}
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200 p-5">
+                      <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-[#5b5fff]/20">
+                        <div className="w-9 h-9 bg-gradient-to-br from-[#5b5fff]/15 to-[#5b5fff]/5 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-[#5b5fff]" />
+                        </div>
+                        <h4 className="text-gray-900">備考</h4>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground mb-1 text-sm">備考・メモ</p>
+                        <p className="text-gray-900 whitespace-pre-wrap">-</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
-              <TabsContent value="segments" className="p-6">
-                <div className="space-y-4">
-                  <h3 className="text-gray-900 mb-1">セグメント一覧</h3>
-                  <p className="text-sm text-gray-500 mb-4">この案件に登録されているセグメントを管理します</p>
-                  <Button
-                    id="demo-new-segment-button"
-                    data-guide="new-segment-button"
-                    className={`bg-[#5b5fff] hover:bg-[#4949dd] ${highlightedElement === 'new-segment-button' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`}
-                    onClick={() => { setIsSegmentFormOpen(true); onElementClick?.('new-segment-button'); }}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    新規セグメント追加
-                  </Button>
-                  {isSegmentFormOpen && (
-                    <Card className="p-4 space-y-4 border border-gray-200">
-                      <div data-guide="segment-form" className={highlightedElement === 'segment-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>
-                        <p className="text-sm text-gray-600">セグメント名・配信媒体・抽出期間などを設定</p>
+
+              {/* セグメントタブ（実物と同じヘッダー＋SegmentTable空状態／テーブル風） */}
+              <TabsContent value="segments" className="p-6 bg-gradient-to-br from-[#eeeeff] via-[#f5f5ff] to-[#fafaff]">
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-4 p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#5b5fff] to-[#4949dd] rounded-xl flex items-center justify-center shadow-md">
+                        <Package className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-gray-900 mb-1">セグメント一覧</h3>
+                        <p className="text-sm text-gray-500">この案件に登録されているセグメントを管理します</p>
+                      </div>
+                    </div>
+                    <Button
+                      id="demo-new-segment-button"
+                      data-guide="new-segment-button"
+                      onClick={() => { setIsSegmentFormOpen(true); onElementClick?.('new-segment-button'); }}
+                      className={`bg-[#5b5fff] text-white hover:bg-[#4949dd] h-10 px-6 gap-2 shadow-sm hover:shadow-md transition-all ${highlightedElement === 'new-segment-button' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      新規セグメント追加
+                    </Button>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+                  {isSegmentFormOpen ? (
+                    <Card className="p-6 space-y-4 border border-gray-200 mb-4" data-guide="segment-form">
+                      <div className={highlightedElement === 'segment-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>
+                        <p className="text-sm text-gray-600 mb-2">セグメント名・配信媒体・抽出期間などを設定</p>
                       </div>
                       <Button data-guide="segment-submit" className={highlightedElement === 'segment-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''} onClick={() => setIsSegmentFormOpen(false)}>登録</Button>
                     </Card>
-                  )}
-                  <div data-guide="segment-common-conditions" className={`p-3 rounded-lg border border-gray-200 bg-gray-50 ${highlightedElement === 'segment-common-conditions' ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}>
-                    セグメント共通条件を設定する
+                  ) : null}
+                  <div className="text-center py-16 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <AlertCircle className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <p className="text-gray-900 mb-1">セグメントが登録されていません</p>
+                    <p className="text-muted-foreground">「新規セグメント追加」ボタンから登録してください</p>
                   </div>
-                  <div data-guide="common-conditions-form" className={`p-3 rounded-lg border border-gray-200 bg-gray-50 ${highlightedElement === 'common-conditions-form' ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}>
-                    指定半径・抽出期間・属性など
-                  </div>
-                  <Button data-guide="common-conditions-save" variant="outline">条件を保存</Button>
                 </div>
               </TabsContent>
-              <TabsContent value="pois" className="p-6">
-                <div className="space-y-4">
-                  <h3 className="text-gray-900 mb-1">地点情報一覧</h3>
-                  <p className="text-sm text-gray-500 mb-4">登録されている地点を確認・編集できます</p>
-                  <Button
-                    id="demo-new-poi-button"
-                    data-guide="new-poi-button"
-                    className={`bg-[#5b5fff] hover:bg-[#4949dd] ${highlightedElement === 'new-poi-button' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`}
-                    onClick={() => { setIsPoiFormOpen(true); onElementClick?.('new-poi-button'); }}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    地点を追加
-                  </Button>
-                  {isPoiFormOpen && (
-                    <Card className="p-4 space-y-4 border border-gray-200">
-                      <div data-guide="poi-type-select" className={highlightedElement === 'poi-type-select' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>
-                        地点タイプ（TG地点 / 来店計測地点）を選択
+
+              {/* 地点情報タブ（実物と同じヘッダー＋空状態 or TG/来店計測＋アコーディオン） */}
+              <TabsContent value="pois" className="p-6 bg-gradient-to-br from-[#eeeeff] via-[#f5f5ff] to-[#fafaff]">
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-4 p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#5b5fff] to-[#4949dd] rounded-xl flex items-center justify-center shadow-md">
+                        <MapPin className="w-6 h-6 text-white" />
                       </div>
-                      <div data-guide="poi-form" className={highlightedElement === 'poi-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>
-                        地点名・住所・指定半径などを入力
+                      <div>
+                        <h3 className="text-gray-900 mb-1">地点情報一覧</h3>
+                        <p className="text-sm text-gray-500">登録されている地点を確認・編集できます</p>
                       </div>
-                      <Button data-guide="poi-submit" className={highlightedElement === 'poi-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''} onClick={() => setIsPoiFormOpen(false)}>登録</Button>
-                    </Card>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+                  {!showPoiAccordion ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-900 font-medium mb-2">セグメントが作成されていません</p>
+                      <p className="text-sm text-muted-foreground mb-6">地点を登録するには、まずセグメントを作成する必要があります。</p>
+                      <Button onClick={() => setActiveTab('segments')}>セグメントを作成する</Button>
+                    </div>
+                  ) : (
+                    <Tabs defaultValue="tg" className="w-full">
+                      <div className="flex items-center justify-between mb-4">
+                        <TabsList className="justify-start rounded-lg border border-gray-200 bg-white shadow-sm h-auto p-1 gap-1">
+                          <TabsTrigger value="tg" className="px-6 py-3 rounded-md border-2 border-transparent data-[state=active]:border-[#5b5fff] data-[state=active]:bg-[#5b5fff]/10 data-[state=active]:text-[#5b5fff] font-medium">TG地点 (0)</TabsTrigger>
+                          <TabsTrigger value="visit_measurement" className="px-6 py-3 rounded-md border-2 border-transparent data-[state=active]:border-[#5b5fff] data-[state=active]:bg-[#5b5fff]/10 data-[state=active]:text-[#5b5fff] font-medium">来店計測地点 (0)</TabsTrigger>
+                        </TabsList>
+                        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                          <button className="px-4 py-2 rounded-md text-sm bg-white text-[#5b5fff] shadow-sm flex items-center gap-2"><List className="w-4 h-4" />リスト</button>
+                          <button className="px-4 py-2 rounded-md text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 flex items-center gap-2"><Map className="w-4 h-4" />地図</button>
+                        </div>
+                      </div>
+                      <TabsContent value="tg" className="mt-0">
+                        <Accordion type="single" collapsible className="space-y-4" defaultValue="demo-seg-1">
+                          <AccordionItem value="demo-seg-1" className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                            <AccordionTrigger className="px-6 py-4 hover:bg-gray-50 hover:no-underline">
+                              <div className="flex items-center justify-between w-full pr-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#5b5fff]/10">
+                                    <Package className="w-5 h-5 text-[#5b5fff]" />
+                                  </div>
+                                  <div className="text-left">
+                                    <h4 className="text-base font-medium text-gray-900">サンプルセグメント</h4>
+                                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                                      <Badge variant="outline" className="text-[10px] font-mono">SEG-001</Badge>
+                                      <Badge className="text-[10px] bg-gray-100 text-gray-600">地点未登録</Badge>
+                                      <span className="text-[10px] text-muted-foreground">媒体: UNIVERSE</span>
+                                      <span className="text-[10px] text-muted-foreground">TG地点: <span className="font-medium text-gray-900">0件</span></span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-6 py-6 bg-gray-50/50">
+                              <div className="flex items-center justify-end gap-3">
+                                <Button
+                                  id="demo-new-poi-button"
+                                  data-guide="new-poi-button"
+                                  size="sm"
+                                  onClick={() => { setIsPoiFormOpen(true); onElementClick?.('new-poi-button'); }}
+                                  className={`bg-[#5b5fff] text-white hover:bg-[#4949dd] ${highlightedElement === 'new-poi-button' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`}
+                                >
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  地点を追加
+                                </Button>
+                              </div>
+                              {isPoiFormOpen && (
+                                <Card className="p-4 space-y-4 border border-gray-200 mt-4">
+                                  <div data-guide="poi-type-select" className={highlightedElement === 'poi-type-select' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>地点タイプ（TG地点 / 来店計測地点）を選択</div>
+                                  <div data-guide="poi-form" className={highlightedElement === 'poi-form' ? 'ring-2 ring-blue-400 ring-offset-2 p-2 rounded' : ''}>地点名・住所・指定半径などを入力</div>
+                                  <Button data-guide="poi-submit" className={highlightedElement === 'poi-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''} onClick={() => setIsPoiFormOpen(false)}>登録</Button>
+                                </Card>
+                              )}
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </TabsContent>
+                    </Tabs>
                   )}
+                </div>
+              </TabsContent>
+
+              {/* 連絡事項タブ（実物と同じタブを追加） */}
+              <TabsContent value="messages" className="p-6 bg-gradient-to-br from-[#eeeeff] via-[#f5f5ff] to-[#fafaff]">
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+                  <div className="text-center py-12 text-muted-foreground text-sm">
+                    案件に関する連絡事項はここに表示されます
+                  </div>
                 </div>
               </TabsContent>
             </div>
@@ -410,7 +583,7 @@ export function DemoScreen({
                       </div>
                       <div className="space-y-2">
                         <Label>備考</Label>
-                        <Input placeholder="特記事項、注意点など" className="bg-white" readOnly />
+                        <Input placeholder="特記事項、注意点、連絡事項などを記載してください" className="bg-white" readOnly />
                       </div>
                     </div>
                   </div>
@@ -422,7 +595,7 @@ export function DemoScreen({
                       className={`bg-primary hover:bg-primary/90 min-w-[120px] ${highlightedElement === 'project-submit' ? 'ring-4 ring-blue-400 ring-offset-2' : ''}`}
                       onClick={() => { onElementClick?.('project-submit'); setIsFormOpen(false); }}
                     >
-                      登録
+                      登録する
                     </Button>
                   </div>
                 </div>
@@ -443,9 +616,16 @@ export function DemoScreen({
                     <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
                       <div className="flex items-start gap-3">
                         <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div className="text-sm">
+                        <div className="space-y-2 text-sm">
                           <p className="font-medium text-blue-900">Excelファイルの構成</p>
-                          <p className="text-blue-800 mt-1">①入力ガイド ②案件情報 ③セグメント・TG地点 ④来店計測地点</p>
+                          <ul className="list-disc list-inside space-y-1 text-blue-800">
+                            <li><strong>①入力ガイド</strong>: 使い方の説明</li>
+                            <li><strong>②案件情報</strong>: 案件の基本情報（<span className="text-red-600 font-bold">1案件のみ登録可能</span>）</li>
+                            <li><strong>③セグメント・TG地点設定</strong>: セグメント＋TG地点（複数件可）</li>
+                            <li><strong>④来店計測地点リスト</strong>: 来店計測地点（複数件可）</li>
+                          </ul>
+                          <p className="text-red-600 font-semibold mt-3 border-t border-red-200 pt-2">⚠️ 複数案件を登録する場合は、案件ごとにExcelファイルを分けてください</p>
+                          <p className="text-blue-700 mt-2">※ プルダウンで簡単入力。広告主や代理店の方も入力しやすい形式です</p>
                         </div>
                       </div>
                     </Card>
@@ -473,7 +653,7 @@ export function DemoScreen({
             )}
           </div>
 
-          {/* サマリーカード（実物と同じ7枚・文言・スタイル） */}
+          {/* サマリーカード（実物と同じ7枚・文言・スタイル・選択状態・ツールチップ） */}
           <div 
             id="demo-summary-cards"
             data-tour="summary-cards"
@@ -482,56 +662,119 @@ export function DemoScreen({
             }`}
           >
             {[
-              { icon: FileText, title: '担当案件数', value: '6', subtitle: '全案件', bg: 'bg-[#5b5fff]/10', iconColor: 'text-[#5b5fff]' },
-              { icon: FileEdit, title: '下書き', value: '1', subtitle: 'セグメント未登録', bg: 'bg-gray-100', iconColor: 'text-gray-600' },
-              { icon: AlertTriangle, title: '入力不備あり', value: '2', subtitle: '地点・ID・S-ID未入力', bg: 'bg-orange-50', iconColor: 'text-orange-600' },
-              { icon: CheckCircle2, title: '連携依頼待ち', value: '2', subtitle: '入力完了・依頼待ち', bg: 'bg-blue-50', iconColor: 'text-blue-600' },
-              { icon: Send, title: '連携依頼済', value: '0', subtitle: 'データ連携依頼中', bg: 'bg-purple-50', iconColor: 'text-purple-600' },
-              { icon: CheckCircle2, title: '連携完了', value: '1', subtitle: 'データ連携完了', bg: 'bg-sky-50', iconColor: 'text-sky-600' },
-              { icon: AlertTriangle, title: '期限切れ間近', value: '0', subtitle: '有効期限まで1ヶ月以内', bg: 'bg-red-50', iconColor: 'text-red-600' },
-            ].map((card, index) => (
-              <div
-                key={index}
-                className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col justify-between min-h-[140px]"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-10 h-10 ${card.bg} rounded-lg flex items-center justify-center`}>
-                      <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+              { status: 'total' as const, icon: FileText, title: '担当案件数', value: '6', subtitle: '全案件', bg: 'bg-[#5b5fff]/10', iconColor: 'text-[#5b5fff]', tooltip: null as string | null },
+              { status: 'draft' as const, icon: FileEdit, title: '下書き', value: '1', subtitle: 'セグメント未登録', bg: 'bg-gray-100', iconColor: 'text-gray-600', tooltip: '【下書き】\n・配下のセグメントが未登録（0件）' },
+              { status: 'waiting_input' as const, icon: AlertTriangle, title: '入力不備あり', value: '2', subtitle: '地点・ID・S-ID未入力', bg: 'bg-orange-50', iconColor: 'text-orange-600', tooltip: '【入力不備あり】\n・地点未登録\n・アカウントID未入力\n・サービスID未入力\nのいずれかに該当する案件です' },
+              { status: 'in_progress' as const, icon: CheckCircle2, title: '連携依頼待ち', value: '2', subtitle: '入力完了・依頼待ち', bg: 'bg-blue-50', iconColor: 'text-blue-600', tooltip: '【進行中（連携依頼待ち）】\n・すべての必須項目が入力されています\n・データ連携の依頼が可能です' },
+              { status: 'link_requested' as const, icon: Send, title: '連携依頼済', value: '0', subtitle: 'データ連携依頼中', bg: 'bg-purple-50', iconColor: 'text-purple-600', tooltip: '【データ連携依頼済】\n・データ連携を依頼済み\n・管理部の対応待ちです' },
+              { status: 'linked' as const, icon: CheckCircle2, title: '連携完了', value: '1', subtitle: 'データ連携完了', bg: 'bg-sky-50', iconColor: 'text-sky-600', tooltip: '【連携完了】\n・すべてのセグメントのデータ連携が完了しています' },
+              { status: 'expiring_soon' as const, icon: AlertTriangle, title: '期限切れ間近', value: '0', subtitle: '有効期限まで1ヶ月以内', bg: 'bg-red-50', iconColor: 'text-red-600', tooltip: '【期限切れ間近】\n・データ連携済みですが、有効期限（連携から6ヶ月）が30日以内に迫っています' },
+            ].map((card, index) => {
+              const isSelected = selectedStatus === card.status;
+              const isAnySelected = selectedStatus && selectedStatus !== 'total';
+              const isDimmed = isAnySelected && !isSelected;
+              return (
+                <div
+                  key={index}
+                  className={`
+                    bg-white p-4 rounded-lg border shadow-sm group relative flex flex-col justify-between min-h-[140px] transition-all duration-200 border-gray-200
+                    ${isSelected ? 'ring-2 ring-[#5b5fff] ring-offset-2 border-[#5b5fff] shadow-md transform -translate-y-1' : ''}
+                    ${isDimmed ? 'opacity-60' : ''}
+                  `}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`w-10 h-10 ${card.bg} rounded-lg flex items-center justify-center transition-colors`}>
+                        <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+                      </div>
+                      {isSelected && (
+                        <div className="absolute top-3 right-3 bg-[#5b5fff] text-white rounded-full p-0.5">
+                          <CheckCircle2 className="w-3 h-3" />
+                        </div>
+                      )}
+                      {card.tooltip && !isSelected && (
+                        <div className="relative group/tooltip">
+                          <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help" onClick={(e) => e.stopPropagation()} />
+                          <div className="absolute right-0 top-6 hidden group-hover/tooltip:block z-10 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-pre-line">
+                            {card.tooltip}
+                            <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 transform rotate-45" />
+                          </div>
+                        </div>
+                      )}
                     </div>
+                    <p className={`text-xs mb-1 transition-colors ${isSelected ? 'text-[#5b5fff] font-medium' : 'text-gray-600'}`}>{card.title}</p>
+                    <p className={`text-3xl transition-colors ${isSelected ? 'text-[#5b5fff] font-bold' : 'text-gray-900 font-semibold'}`}>{card.value}</p>
                   </div>
-                  <p className="text-xs text-gray-600 mb-1">{card.title}</p>
-                  <p className="text-3xl text-gray-900 font-semibold">{card.value}</p>
+                  <p className={`text-xs truncate transition-colors ${isSelected ? 'text-[#5b5fff]/80' : 'text-gray-500'}`}>{card.subtitle}</p>
                 </div>
-                <p className="text-xs text-gray-500 truncate mt-1">{card.subtitle}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* 案件テーブル（実物に近いテーブルレイアウト） */}
+          {/* 案件テーブル（実物と同じ：Checkbox列・ソート風ヘッダー・自分の案件のみボタン） */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm" data-tour="project-table">
             <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-4 bg-primary rounded-full" />
-                <h3 className="text-sm text-gray-700">案件一覧</h3>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 bg-primary rounded-full" />
+                  <h3 className="text-sm text-gray-700">案件一覧</h3>
+                </div>
                 <span className="text-xs text-gray-500">（6件）</span>
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input placeholder="案件ID、広告主名で検索" className="pl-9 pr-3 w-56 h-8 bg-white border-gray-200 text-sm rounded-md" readOnly />
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input placeholder="案件ID、広告主名で検索" className="pl-9 pr-3 w-56 h-8 bg-white border-gray-200 text-sm rounded-md" readOnly />
+                </div>
+                <Button variant="default" size="sm" className="h-8 text-xs px-3 bg-[#5b5fff] hover:bg-[#5b5fff]/90">
+                  <User className="w-3 h-3 mr-1" />
+                  自分の案件のみ
+                </Button>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr className="text-left">
-                    <th className="px-4 py-2 w-12" />
-                    <th className="px-4 py-2 text-xs text-gray-600">案件ID</th>
-                    <th className="px-4 py-2 text-xs text-gray-600">登録日</th>
-                    <th className="px-4 py-2 text-xs text-gray-600">広告主の法人名</th>
-                    <th className="px-4 py-2 text-xs text-gray-600">訴求内容</th>
-                    <th className="px-4 py-2 text-xs text-gray-600">担当者</th>
-                    <th className="px-4 py-2 text-xs text-gray-600">Status</th>
+                    <th className="px-4 py-2 w-12">
+                      <Checkbox className="w-4 h-4" />
+                    </th>
+                    <th className="px-4 py-2 text-xs text-gray-600">
+                      <button type="button" className="flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        案件ID
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-2 text-xs text-gray-600">
+                      <button type="button" className="flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        登録日
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-2 text-xs text-gray-600">
+                      <button type="button" className="flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        広告主の法人名
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-2 text-xs text-gray-600">
+                      <button type="button" className="flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        訴求内容
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-2 text-xs text-gray-600">
+                      <button type="button" className="flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        担当者
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-2 text-xs text-gray-600">
+                      <button type="button" className="flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        Status
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -541,7 +784,9 @@ export function DemoScreen({
                     { id: '0003', date: '2024/10/06', name: '広告主3株式会社', appeal: 'サンプル訴求内容 3...', person: '営業A', status: '連携完了' },
                   ].map((row, i) => (
                     <tr key={i} className="hover:bg-gray-50 cursor-pointer">
-                      <td className="px-4 py-3 w-12" />
+                      <td className="px-4 py-3 w-12" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox className="w-4 h-4" />
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-700">{row.id}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{row.date}</td>
                       <td className="px-4 py-3 text-sm text-gray-700">{row.name}</td>
@@ -562,9 +807,23 @@ export function DemoScreen({
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-600">
-              <span>10件表示</span>
-              <span>1-6 of 6 items</span>
+            <div className="px-4 py-3 border-t border-gray-200 bg-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <select className="px-2 py-1 border border-gray-200 rounded-md text-xs text-gray-600 bg-white" readOnly>
+                    <option>10</option>
+                    <option>20</option>
+                    <option>50</option>
+                  </select>
+                  <span className="text-xs text-gray-600">Items per page</span>
+                </div>
+                <div className="text-xs text-gray-600">1-6 of 6 items</div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-600 mr-2">1 of 1 pages</span>
+                  <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-gray-200" disabled><ChevronLeft className="w-4 h-4" /></Button>
+                  <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-gray-200" disabled><ChevronRight className="w-4 h-4" /></Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
