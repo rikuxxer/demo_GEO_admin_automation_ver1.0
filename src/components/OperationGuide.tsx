@@ -786,9 +786,11 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
     console.log('[OperationGuide] Guide set, selectedGuide:', guide.id, 'currentStep:', 0);
   };
 
-  /** デモ用ポップアップをドラッグ */
+  /** デモ用ポップアップをドラッグ（ボタン上では開始しない） */
   const handleDemoPopupMouseDown = (e: React.MouseEvent) => {
     if (!tooltipRef.current || e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return; // ボタンクリックはドラッグにしない
     e.preventDefault();
     const rect = tooltipRef.current.getBoundingClientRect();
     const startX = e.clientX;
@@ -941,71 +943,72 @@ export function OperationGuide({ isOpen, onClose, guideId, onNavigate, onOpenFor
           </div>
         </div>
 
-        {/* ツールチップ（デモ画面モード・ドラッグ可能） */}
-        <Card
+        {/* ツールチップ（デモ画面モード・ポップアップ全体でドラッグ可能） */}
+        <div
           ref={tooltipRef}
-          className="fixed z-[10000] w-80 p-4 shadow-2xl border border-primary select-none"
+          className="fixed z-[10000] w-80 select-none cursor-move"
           style={
             demoPopupPosition !== null
               ? { left: demoPopupPosition.x, top: demoPopupPosition.y, margin: 0 }
               : { top: '50%', left: '50%', transform: 'translate(-50%, -50%)', margin: 0 }
           }
+          onMouseDown={handleDemoPopupMouseDown}
+          role="application"
+          aria-label="ドラッグして位置を移動"
         >
-          <div className="flex items-start justify-between mb-2">
-            <div
-              className="flex-1 cursor-move pr-2"
-              onMouseDown={handleDemoPopupMouseDown}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); }}
-              aria-label="ドラッグして位置を移動"
-            >
-              <h3 className="font-semibold text-sm mb-1">{step.title}</h3>
-              <p className="text-sm text-gray-600">{step.content}</p>
+          <Card className="p-4 shadow-2xl border border-primary">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1 pr-2">
+                <h3 className="font-semibold text-sm mb-1">{step.title}</h3>
+                <p className="text-sm text-gray-600">{step.content}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleComplete}
+                className="h-6 w-6 p-0 flex-shrink-0 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleComplete}
-              className="h-6 w-6 p-0 flex-shrink-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-xs text-gray-500">
-              {currentStep + 1} / {selectedGuide.steps.length}
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-xs text-gray-500">
+                {currentStep + 1} / {selectedGuide.steps.length}
+              </div>
+              <div className="flex gap-2">
+                {currentStep > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDemoPrev}
+                    className="cursor-pointer"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    前へ
+                  </Button>
+                )}
+                {currentStep < selectedGuide.steps.length - 1 ? (
+                  <Button
+                    size="sm"
+                    onClick={handleDemoNext}
+                    className="cursor-pointer"
+                  >
+                    次へ
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={handleComplete}
+                    className="cursor-pointer"
+                  >
+                    完了
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {currentStep > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDemoPrev}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  前へ
-                </Button>
-              )}
-              {currentStep < selectedGuide.steps.length - 1 ? (
-                <Button
-                  size="sm"
-                  onClick={handleDemoNext}
-                >
-                  次へ
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={handleComplete}
-                >
-                  完了
-                </Button>
-              )}
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
     );
   }
