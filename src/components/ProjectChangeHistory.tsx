@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Clock, User, Package, MapPin, FileText, ArrowRight, X } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Card } from './ui/card';
@@ -11,8 +12,25 @@ interface ProjectChangeHistoryProps {
 }
 
 export function ProjectChangeHistory({ project, segments }: ProjectChangeHistoryProps) {
-  const histories = bigQueryService.getChangeHistories();
-  
+  const [histories, setHistories] = useState<ChangeHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    bigQueryService.getChangeHistories(project.project_id).then((data) => {
+      if (!cancelled) {
+        setHistories(data);
+        setLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setHistories([]);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [project.project_id]);
+
   // この案件に関連する変更履歴をフィルタリング
   const projectHistories = histories.filter((h: ChangeHistory) => 
     h.project_id === project.project_id
@@ -90,6 +108,17 @@ export function ProjectChangeHistory({ project, segments }: ProjectChangeHistory
         return <FileText className="w-4 h-4" />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-gray-900 mb-2">変更履歴</h2>
+          <p className="text-muted-foreground">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

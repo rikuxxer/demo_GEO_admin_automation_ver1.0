@@ -8,7 +8,7 @@ import {
   getRegistrationTimeTrend,
   getRegistrationTimeInMinutes
 } from '../utils/registrationTime';
-import { analyzeWorkTime, formatWorkTime } from '../utils/workTimeAnalysis';
+import { analyzeWorkTime, formatWorkTime, type OperationTimeStats } from '../utils/workTimeAnalysis';
 import { SheetExportHistory } from './SheetExportHistory';
 
 interface AdminDashboardProps {
@@ -155,22 +155,25 @@ export function AdminDashboard({
     return result;
   }, [averageRegistrationTime, projects.length]);
 
-  // 変更履歴から工数分析（メモ化）
-  const workTimeStats = useMemo(() => {
-    try {
-      return analyzeWorkTime(projects);
-    } catch (error) {
+  // 変更履歴から工数分析（非同期取得）
+  const emptyWorkTimeStats: OperationTimeStats = {
+    projectCreation: null,
+    segmentCreation: null,
+    poiCreation: null,
+    projectUpdate: null,
+    segmentUpdate: null,
+    poiUpdate: null,
+  };
+  const [workTimeStats, setWorkTimeStats] = useState<OperationTimeStats>(emptyWorkTimeStats);
+  useEffect(() => {
+    let cancelled = false;
+    analyzeWorkTime(projects).then((stats) => {
+      if (!cancelled) setWorkTimeStats(stats);
+    }).catch((error) => {
       console.error('Error analyzing work time:', error);
-      // エラー時は空の統計を返す
-      return {
-        projectCreation: null,
-        segmentCreation: null,
-        poiCreation: null,
-        projectUpdate: null,
-        segmentUpdate: null,
-        poiUpdate: null,
-      };
-    }
+      if (!cancelled) setWorkTimeStats(emptyWorkTimeStats);
+    });
+    return () => { cancelled = true; };
   }, [projects]);
 
   // デバッグ: データの確認（開発環境のみ、useEffectで副作用として実行）

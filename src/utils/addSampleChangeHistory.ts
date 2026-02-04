@@ -7,7 +7,7 @@ import type { ChangeHistory } from '../types/schema';
  */
 export async function addSampleChangeHistory(): Promise<void> {
   try {
-    const histories = bigQueryService.getChangeHistories();
+    const histories = await bigQueryService.getChangeHistories();
     const projects = await bigQueryService.getProjects();
     const segments = await bigQueryService.getSegments();
     const pois = await bigQueryService.getPoiInfos();

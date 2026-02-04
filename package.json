@@ -79,6 +79,9 @@
             "deploy:prod": "node -e \"console.log('本番環境デプロイ: scripts/deploy-prod.sh を実行してください')\"",
             "docker:build": "docker build -t universegeo:latest .",
             "docker:run": "docker run -p 8080:8080 universegeo:latest",
-            "clear-data": "node scripts/clear-dummy-data.js"
+            "clear-data": "node scripts/clear-dummy-data.js",
+            "test": "npx --yes tsx src/utils/dataCoordinationDate.test.ts",
+            "test:api": "node scripts/test-api-endpoints.js",
+            "test:api:columns": "node scripts/validate-api-columns.js"
       }
 }

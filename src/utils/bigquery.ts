@@ -514,6 +514,24 @@ class BigQueryService {
   }
 
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'プロジェクトの更新に失敗しました');
+        }
+        const updated = await this.getProject(projectId);
+        return updated;
+      } catch (error) {
+        console.error('Error updating project:', error);
+        throw error;
+      }
+    }
     try {
       const projects = await this.getProjects();
       const index = projects.findIndex(p => p.project_id === projectId);
@@ -529,6 +547,21 @@ class BigQueryService {
   }
 
   async deleteProject(projectId: string): Promise<boolean> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'プロジェクトの削除に失敗しました');
+        }
+        return true;
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        throw error;
+      }
+    }
     try {
       const projects = await this.getProjects();
       const filtered = projects.filter(p => p.project_id !== projectId);
@@ -548,10 +581,28 @@ class BigQueryService {
   // ===== セグメントDB (Segments) =====
   
   async getSegments(): Promise<Segment[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/segments`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('セグメントの取得に失敗しました');
+        const data = await response.json();
+        const segments: Segment[] = Array.isArray(data) ? data : [];
+        return segments.map((s: Segment) => ({
+          ...s,
+          poi_category: s.poi_category || 'tg',
+          registerd_provider_segment: s.registerd_provider_segment ?? false,
+        }));
+      } catch (error) {
+        console.error('Error fetching segments:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.segmentStorageKey);
       const segments: Segment[] = data ? JSON.parse(data) : [];
-      // 既存データの整合性チェック: poi_categoryが未設定の場合は'tg'を設定、registerd_provider_segmentが未設定の場合はfalseを設定
       return segments.map(segment => ({
         ...segment,
         poi_category: segment.poi_category || 'tg',
@@ -568,6 +619,25 @@ class BigQueryService {
   }
 
   async getSegmentsByProject(projectId: string): Promise<Segment[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/segments/project/${encodeURIComponent(projectId)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('セグメントの取得に失敗しました');
+        const data = await response.json();
+        const segments: Segment[] = Array.isArray(data) ? data : [];
+        return segments.map((s: Segment) => ({
+          ...s,
+          poi_category: s.poi_category || 'tg',
+          registerd_provider_segment: s.registerd_provider_segment ?? false,
+        }));
+      } catch (error) {
+        console.error('Error fetching segments by project:', error);
+        return [];
+      }
+    }
     try {
       const segments = await this.getSegments();
       return segments.filter(s => s.project_id === projectId);
@@ -578,59 +648,57 @@ class BigQueryService {
   }
 
   async createSegment(segment: Omit<Segment, 'segment_id' | 'segment_registered_at'>): Promise<Segment> {
-    try {
-      const segments = await this.getSegments();
-      
-      // 配信媒体に応じたプレフィックスを決定
-      let prefix = 'seg-uni'; // デフォルトはuniverse
-      
-      if (segment.media_id) {
-        if (Array.isArray(segment.media_id)) {
-          // 複数の媒体がある場合、優先順位で決定（CTV > universe）
-          if (segment.media_id.includes('tver_ctv')) {
-            prefix = 'seg-ctv';
-          } else if (segment.media_id.includes('universe')) {
-            prefix = 'seg-uni';
-          }
-        } else {
-          // 単一の媒体の場合
-          if (segment.media_id === 'tver_ctv') {
-            prefix = 'seg-ctv';
-          } else if (segment.media_id === 'universe') {
-            prefix = 'seg-uni';
-          }
-        }
+    const segments = await this.getSegments();
+    let prefix = 'seg-uni';
+    if (segment.media_id) {
+      if (Array.isArray(segment.media_id)) {
+        if (segment.media_id.includes('tver_ctv')) prefix = 'seg-ctv';
+        else if (segment.media_id.includes('universe')) prefix = 'seg-uni';
+      } else {
+        if (segment.media_id === 'tver_ctv') prefix = 'seg-ctv';
+        else if (segment.media_id === 'universe') prefix = 'seg-uni';
       }
-      
-      // 該当プレフィックスの最大番号を取得（案件横断）
-      let maxNumber = 0;
-      segments.forEach(s => {
-        // 例: seg-ctv-001 から 001 を抽出
-        const match = s.segment_id.match(new RegExp(`^${prefix}-(\\d+)$`));
-        if (match) {
-          const num = parseInt(match[1], 10);
-          if (!isNaN(num) && num > maxNumber) {
-            maxNumber = num;
-          }
+    }
+    let maxNumber = 0;
+    segments.forEach(s => {
+      const match = s.segment_id?.match?.(new RegExp(`^${prefix}-(\\d+)$`));
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNumber) maxNumber = num;
+      }
+    });
+    const nextNumber = maxNumber + 1;
+    const segmentId = `${prefix}-${String(nextNumber).padStart(3, '0')}`;
+    const newSegment: Segment = {
+      ...segment,
+      segment_id: segmentId,
+      segment_registered_at: new Date().toISOString(),
+      poi_category: segment.poi_category || 'tg',
+      registerd_provider_segment: segment.registerd_provider_segment ?? false,
+    };
+
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/segments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newSegment),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'セグメントの作成に失敗しました');
         }
-      });
-      
-      // 次の番号を3桁ゼロ埋めで生成
-      const nextNumber = maxNumber + 1;
-      const segmentId = `${prefix}-${String(nextNumber).padStart(3, '0')}`;
-      
-      const newSegment: Segment = {
-        ...segment,
-        segment_id: segmentId,
-        segment_registered_at: new Date().toISOString(),
-        poi_category: segment.poi_category || 'tg', // デフォルトは'tg'
-        registerd_provider_segment: segment.registerd_provider_segment ?? false, // デフォルトはfalse
-      };
+        console.log(`✅ セグメント作成(API): ${segmentId}`);
+        return newSegment;
+      } catch (error) {
+        console.error('Error creating segment:', error);
+        throw error;
+      }
+    }
+    try {
       segments.unshift(newSegment);
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));
-      
-      console.log(`✅ セグメント作成: ${segmentId} (media: ${segment.media_id})`);
-      
+      console.log(`✅ セグメント作成: ${segmentId}`);
       return newSegment;
     } catch (error) {
       console.error('Error creating segment:', error);
@@ -639,11 +707,28 @@ class BigQueryService {
   }
 
   async updateSegment(segmentId: string, updates: Partial<Segment>): Promise<Segment | null> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/segments/${encodeURIComponent(segmentId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'セグメントの更新に失敗しました');
+        }
+        const all = await this.getSegments();
+        return all.find(s => s.segment_id === segmentId) || null;
+      } catch (error) {
+        console.error('Error updating segment:', error);
+        throw error;
+      }
+    }
     try {
       const segments = await this.getSegments();
       const index = segments.findIndex(s => s.segment_id === segmentId);
       if (index === -1) return null;
-      
       segments[index] = { ...segments[index], ...updates };
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));
       return segments[index];
@@ -654,14 +739,26 @@ class BigQueryService {
   }
 
   async deleteSegment(segmentId: string): Promise<boolean> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/segments/${encodeURIComponent(segmentId)}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'セグメントの削除に失敗しました');
+        }
+        return true;
+      } catch (error) {
+        console.error('Error deleting segment:', error);
+        throw error;
+      }
+    }
     try {
       const segments = await this.getSegments();
       const filtered = segments.filter(s => s.segment_id !== segmentId);
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(filtered));
-      
-      // 関連する地点情報も削除
       await this.deletePoiBySegment(segmentId);
-      
       return true;
     } catch (error) {
       console.error('Error deleting segment:', error);
@@ -674,21 +771,21 @@ class BigQueryService {
    * データ連携依頼日を更新し、ステータスを「依頼済」に変更
    */
   async requestSegmentEdit(segmentId: string): Promise<Segment | null> {
+    const updates = {
+      data_link_status: 'requested',
+      data_link_request_date: new Date().toISOString().split('T')[0],
+      data_link_scheduled_date: this.calculateScheduledDate(),
+    };
+    if (USE_API) {
+      return this.updateSegment(segmentId, updates);
+    }
     try {
       const segments = await this.getSegments();
       const index = segments.findIndex(s => s.segment_id === segmentId);
       if (index === -1) return null;
-      
-      const updatedSegment: Segment = {
-        ...segments[index],
-        data_link_status: 'requested',
-        data_link_request_date: new Date().toISOString().split('T')[0],
-        data_link_scheduled_date: this.calculateScheduledDate(),
-      };
-      
+      const updatedSegment: Segment = { ...segments[index], ...updates };
       segments[index] = updatedSegment;
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));
-      
       console.log('📊 [BigQuery Mock] Segment edit request submitted:', segmentId);
       return updatedSegment;
     } catch (error) {
@@ -727,6 +824,20 @@ class BigQueryService {
   }
 
   async deleteSegmentsByProject(projectId: string): Promise<boolean> {
+    if (USE_API) {
+      try {
+        const segments = await this.getSegmentsByProject(projectId);
+        for (const s of segments) {
+          if (s.segment_id) {
+            await fetch(`${API_BASE_URL}/api/segments/${encodeURIComponent(s.segment_id)}`, { method: 'DELETE' });
+          }
+        }
+        return true;
+      } catch (error) {
+        console.error('Error deleting segments by project:', error);
+        return false;
+      }
+    }
     try {
       const segments = await this.getSegments();
       const filtered = segments.filter(s => s.project_id !== projectId);
@@ -739,38 +850,48 @@ class BigQueryService {
   }
 
   // ===== 地点情報DB (POI) =====
+
+  /** API/local 共通: POI の polygon パースと poi_type 自動設定 */
+  private normalizePoiForDisplay(poi: PoiInfo): PoiInfo {
+    let updatedPoi = { ...poi };
+    if (poi.polygon) {
+      if (typeof poi.polygon === 'string') {
+        try {
+          const parsed = JSON.parse(poi.polygon);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            updatedPoi.polygon = parsed;
+            if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') updatedPoi.poi_type = 'polygon';
+          }
+        } catch (e) {
+          console.warn('Failed to parse polygon JSON:', e);
+        }
+      } else if (Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+        if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') updatedPoi.poi_type = 'polygon';
+      }
+    }
+    return updatedPoi;
+  }
   
   async getPoiInfos(): Promise<PoiInfo[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pois`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('地点の取得に失敗しました');
+        const data = await response.json();
+        const pois: PoiInfo[] = Array.isArray(data) ? data : [];
+        return pois.map(p => this.normalizePoiForDisplay(p));
+      } catch (error) {
+        console.error('Error fetching POI info:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.poiStorageKey);
-      const pois = data ? JSON.parse(data) : [];
-      
-      // polygonフィールドをパースし、poi_typeを自動設定
-      return pois.map((poi: PoiInfo) => {
-        let updatedPoi = { ...poi };
-        if (poi.polygon) {
-          if (typeof poi.polygon === 'string') {
-            try {
-              const parsed = JSON.parse(poi.polygon);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                updatedPoi.polygon = parsed;
-                // polygonフィールドが存在するがpoi_typeが設定されていない場合、自動的に'polygon'に設定
-                if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
-                  updatedPoi.poi_type = 'polygon';
-                }
-              }
-            } catch (e) {
-              console.warn('Failed to parse polygon JSON:', e);
-            }
-          } else if (Array.isArray(poi.polygon) && poi.polygon.length > 0) {
-            // 既に配列の場合も、poi_typeが設定されていない場合は自動設定
-            if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
-              updatedPoi.poi_type = 'polygon';
-            }
-          }
-        }
-        return updatedPoi;
-      });
+      const pois: PoiInfo[] = data ? JSON.parse(data) : [];
+      return pois.map((poi: PoiInfo) => this.normalizePoiForDisplay(poi));
     } catch (error) {
       console.error('Error fetching POI info:', error);
       return [];
@@ -782,35 +903,24 @@ class BigQueryService {
   }
 
   async getPoisByProject(projectId: string): Promise<PoiInfo[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pois/project/${encodeURIComponent(projectId)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('地点の取得に失敗しました');
+        const data = await response.json();
+        const pois: PoiInfo[] = Array.isArray(data) ? data : [];
+        return pois.map(p => this.normalizePoiForDisplay(p));
+      } catch (error) {
+        console.error('Error fetching POIs by project:', error);
+        return [];
+      }
+    }
     try {
       const pois = await this.getPoiInfos();
-      // polygonフィールドをパース
-      const parsedPois = pois.map(poi => {
-        let updatedPoi = { ...poi };
-        if (poi.polygon) {
-          if (typeof poi.polygon === 'string') {
-            try {
-              const parsed = JSON.parse(poi.polygon);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                updatedPoi.polygon = parsed;
-                // polygonフィールドが存在するがpoi_typeが設定されていない場合、自動的に'polygon'に設定
-                if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
-                  updatedPoi.poi_type = 'polygon';
-                }
-              }
-            } catch (e) {
-              console.warn('Failed to parse polygon JSON:', e);
-            }
-          } else if (Array.isArray(poi.polygon) && poi.polygon.length > 0) {
-            // 既に配列の場合も、poi_typeが設定されていない場合は自動設定
-            if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
-              updatedPoi.poi_type = 'polygon';
-            }
-          }
-        }
-        return updatedPoi;
-      });
-      return parsedPois.filter(p => p.project_id === projectId);
+      return pois.filter(p => p.project_id === projectId);
     } catch (error) {
       console.error('Error fetching POIs by project:', error);
       return [];
@@ -820,33 +930,7 @@ class BigQueryService {
   async getPoisBySegment(segmentId: string): Promise<PoiInfo[]> {
     try {
       const pois = await this.getPoiInfos();
-      // polygonフィールドをパース
-      const parsedPois = pois.map(poi => {
-        let updatedPoi = { ...poi };
-        if (poi.polygon) {
-          if (typeof poi.polygon === 'string') {
-            try {
-              const parsed = JSON.parse(poi.polygon);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                updatedPoi.polygon = parsed;
-                // polygonフィールドが存在するがpoi_typeが設定されていない場合、自動的に'polygon'に設定
-                if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
-                  updatedPoi.poi_type = 'polygon';
-                }
-              }
-            } catch (e) {
-              console.warn('Failed to parse polygon JSON:', e);
-            }
-          } else if (Array.isArray(poi.polygon) && poi.polygon.length > 0) {
-            // 既に配列の場合も、poi_typeが設定されていない場合は自動設定
-            if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') {
-              updatedPoi.poi_type = 'polygon';
-            }
-          }
-        }
-        return updatedPoi;
-      });
-      return parsedPois.filter(p => p.segment_id === segmentId);
+      return pois.filter(p => p.segment_id === segmentId);
     } catch (error) {
       console.error('Error fetching POI by segment:', error);
       return [];
@@ -858,89 +942,69 @@ class BigQueryService {
   }
 
   async createPoi(poi: Omit<PoiInfo, 'poi_id' | 'created'>): Promise<PoiInfo> {
+    const pois = await this.getPoiInfos();
+    let locationId: string;
+    if (poi.poi_category === 'visit_measurement') {
+      const projectVisitMeasurementPois = pois.filter(p =>
+        p.project_id === poi.project_id && p.poi_category === 'visit_measurement'
+      );
+      const maxNumber = projectVisitMeasurementPois.reduce((max, p) => {
+        if (p.location_id && p.location_id.startsWith('VM-')) {
+          const match = p.location_id.match(/^VM-(\d+)$/);
+          if (match) return Math.max(max, parseInt(match[1], 10));
+        }
+        return max;
+      }, 0);
+      locationId = `VM-${String(maxNumber + 1).padStart(3, '0')}`;
+    } else {
+      if (!poi.segment_id || poi.segment_id.trim() === '') {
+        throw new Error('TG地点の場合、segment_idは必須です');
+      }
+      const segmentPois = pois.filter(p =>
+        p.segment_id === poi.segment_id && (p.poi_category === 'tg' || !p.poi_category)
+      );
+      const maxNumber = segmentPois.reduce((max, p) => {
+        if (p.location_id && p.location_id.startsWith('TG-')) {
+          const match = p.location_id.match(/^TG-[^-]+-(\d+)$/);
+          if (match) return Math.max(max, parseInt(match[1], 10));
+        }
+        return max;
+      }, 0);
+      locationId = `TG-${poi.segment_id}-${String(maxNumber + 1).padStart(3, '0')}`;
+    }
+    let poiWithType = { ...poi };
+    if (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+      if (!poiWithType.poi_type || poiWithType.poi_type !== 'polygon') poiWithType.poi_type = 'polygon';
+    }
+    const newPoi: PoiInfo = {
+      ...poiWithType,
+      poi_id: `POI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      location_id: locationId,
+      created: new Date().toISOString(),
+    };
+
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pois`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newPoi),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '地点の作成に失敗しました');
+        }
+        console.log('📍 POI created (API):', newPoi.poi_id);
+        return newPoi;
+      } catch (error) {
+        console.error('Error creating POI:', error);
+        throw error;
+      }
+    }
     try {
-      const pois = await this.getPoiInfos();
-      
-      // 地点IDの生成（カテゴリ別のロジック）
-      // TG地点: TG-{segment_id}-{連番} (セグメント単位で連番)
-      // 来店計測地点: VM-{連番} (プロジェクト全体で連番、セグメントIDに依存しない)
-      let locationId: string;
-      
-      if (poi.poi_category === 'visit_measurement') {
-        // 来店計測地点: プロジェクト全体で連番を管理
-        const projectVisitMeasurementPois = pois.filter(p => 
-          p.project_id === poi.project_id && 
-          p.poi_category === 'visit_measurement'
-        );
-        const maxNumber = projectVisitMeasurementPois.reduce((max, p) => {
-          // 既存のlocation_idから番号を抽出（形式: VM-001など）
-          if (p.location_id && p.location_id.startsWith('VM-')) {
-            const match = p.location_id.match(/^VM-(\d+)$/);
-            if (match) {
-              const num = parseInt(match[1], 10);
-              return Math.max(max, num);
-            }
-          }
-          return max;
-        }, 0);
-        
-        const nextNumber = maxNumber + 1;
-        locationId = `VM-${String(nextNumber).padStart(3, '0')}`;
-      } else {
-        // TG地点: セグメント単位で連番を管理
-        // TG地点の場合、segment_idは必須
-        if (!poi.segment_id || poi.segment_id.trim() === '') {
-          throw new Error('TG地点の場合、segment_idは必須です');
-        }
-        
-        const segmentPois = pois.filter(p => 
-          p.segment_id === poi.segment_id && 
-          (p.poi_category === 'tg' || !p.poi_category)
-        );
-        const maxNumber = segmentPois.reduce((max, p) => {
-          // 既存のlocation_idから番号を抽出（形式: TG-S1-001など）
-          if (p.location_id && p.location_id.startsWith('TG-')) {
-            const match = p.location_id.match(/^TG-[^-]+-(\d+)$/);
-            if (match) {
-              const num = parseInt(match[1], 10);
-              return Math.max(max, num);
-            }
-          }
-          return max;
-        }, 0);
-        
-        const nextNumber = maxNumber + 1;
-        locationId = `TG-${poi.segment_id}-${String(nextNumber).padStart(3, '0')}`;
-      }
-      
-      // polygonフィールドが存在する場合、poi_typeを自動設定
-      let poiWithType = { ...poi };
-      if (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0) {
-        if (!poiWithType.poi_type || poiWithType.poi_type !== 'polygon') {
-          poiWithType.poi_type = 'polygon';
-        }
-      }
-      
-      const newPoi: PoiInfo = {
-        ...poiWithType,
-        poi_id: `POI-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        location_id: locationId,
-        created: new Date().toISOString(),
-      };
       pois.unshift(newPoi);
       localStorage.setItem(this.poiStorageKey, JSON.stringify(pois));
-      console.log('📍 POI created:', newPoi);
-      
-      // デバッグ: ポリゴン指定の場合、詳細をログ出力
-      if (newPoi.poi_type === 'polygon' || (newPoi.polygon && Array.isArray(newPoi.polygon) && newPoi.polygon.length > 0)) {
-        console.log('🔵 ポリゴン指定地点が作成されました:', {
-          poi_id: newPoi.poi_id,
-          poi_name: newPoi.poi_name,
-          poi_type: newPoi.poi_type,
-          polygon_length: Array.isArray(newPoi.polygon) ? newPoi.polygon.length : 'N/A',
-          polygon: newPoi.polygon
-        });
-      }
+      console.log('📍 POI created:', newPoi.poi_id);
       return newPoi;
     } catch (error) {
       console.error('Error creating POI:', error);
@@ -1055,7 +1119,24 @@ class BigQueryService {
         }
       }
       
-      // 新しいPOIを既存のPOIの先頭に追加
+      if (USE_API) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/pois/bulk`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pois: newPois }),
+          });
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || response.statusText || '地点の一括登録に失敗しました');
+          }
+          console.log(`📍 ${newPois.length}件のPOIを一括登録(API)しました`);
+          return newPois;
+        } catch (error) {
+          console.error('Error creating POIs in bulk:', error);
+          throw error;
+        }
+      }
       const updatedPois = [...newPois, ...existingPois];
       localStorage.setItem(this.poiStorageKey, JSON.stringify(updatedPois));
       console.log(`📍 ${newPois.length}件のPOIを一括登録しました`);
@@ -1067,12 +1148,29 @@ class BigQueryService {
   }
 
   async createPoiInfo(poi: Omit<PoiInfo, 'created'>): Promise<PoiInfo> {
+    const newPoi: PoiInfo = {
+      ...poi,
+      created: new Date().toISOString(),
+    };
+    if (USE_API && newPoi.poi_id) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pois`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newPoi),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '地点の作成に失敗しました');
+        }
+        return newPoi;
+      } catch (error) {
+        console.error('Error creating POI info:', error);
+        throw error;
+      }
+    }
     try {
       const pois = await this.getPoiInfos();
-      const newPoi: PoiInfo = {
-        ...poi,
-        created: new Date().toISOString().split('T')[0],
-      };
       pois.unshift(newPoi);
       localStorage.setItem(this.poiStorageKey, JSON.stringify(pois));
       return newPoi;
@@ -1083,14 +1181,30 @@ class BigQueryService {
   }
 
   async updatePoi(poiId: string, updates: Partial<PoiInfo>): Promise<PoiInfo | null> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pois/${encodeURIComponent(poiId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '地点の更新に失敗しました');
+        }
+        const pois = await this.getPoiInfos();
+        return pois.find(p => p.poi_id === poiId) || null;
+      } catch (error) {
+        console.error('Error updating POI:', error);
+        throw error;
+      }
+    }
     try {
       const pois = await this.getPoiInfos();
       const index = pois.findIndex(p => p.poi_id === poiId);
       if (index === -1) return null;
-      
       pois[index] = { ...pois[index], ...updates };
       localStorage.setItem(this.poiStorageKey, JSON.stringify(pois));
-      console.log('📍 POI updated:', pois[index]);
       return pois[index];
     } catch (error) {
       console.error('Error updating POI:', error);
@@ -1099,11 +1213,25 @@ class BigQueryService {
   }
 
   async deletePoi(poiId: string): Promise<boolean> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/pois/${encodeURIComponent(poiId)}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '地点の削除に失敗しました');
+        }
+        return true;
+      } catch (error) {
+        console.error('Error deleting POI:', error);
+        throw error;
+      }
+    }
     try {
       const pois = await this.getPoiInfos();
       const filteredPois = pois.filter(p => p.poi_id !== poiId);
       localStorage.setItem(this.poiStorageKey, JSON.stringify(filteredPois));
-      console.log('📍 POI deleted:', poiId);
       return true;
     } catch (error) {
       console.error('Error deleting POI:', error);
@@ -1112,6 +1240,20 @@ class BigQueryService {
   }
 
   async deletePoiBySegment(segmentId: string): Promise<boolean> {
+    if (USE_API) {
+      try {
+        const pois = await this.getPoisBySegment(segmentId);
+        for (const p of pois) {
+          if (p.poi_id) {
+            await fetch(`${API_BASE_URL}/api/pois/${encodeURIComponent(p.poi_id)}`, { method: 'DELETE' });
+          }
+        }
+        return true;
+      } catch (error) {
+        console.error('Error deleting POI by segment:', error);
+        return false;
+      }
+    }
     try {
       const pois = await this.getPoiInfos();
       const filtered = pois.filter(p => p.segment_id !== segmentId);
@@ -1124,6 +1266,20 @@ class BigQueryService {
   }
 
   async deletePoiByProject(projectId: string): Promise<boolean> {
+    if (USE_API) {
+      try {
+        const pois = await this.getPoisByProject(projectId);
+        for (const p of pois) {
+          if (p.poi_id) {
+            await fetch(`${API_BASE_URL}/api/pois/${encodeURIComponent(p.poi_id)}`, { method: 'DELETE' });
+          }
+        }
+        return true;
+      } catch (error) {
+        console.error('Error deleting POI by project:', error);
+        return false;
+      }
+    }
     try {
       const pois = await this.getPoiInfos();
       const filtered = pois.filter(p => p.project_id !== projectId);
@@ -1138,6 +1294,20 @@ class BigQueryService {
   // ===== 修正依頼 (Edit Requests) =====
 
   async getEditRequests(): Promise<EditRequest[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/edit-requests`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('編集依頼の取得に失敗しました');
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Error fetching edit requests:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.editRequestStorageKey);
       return data ? JSON.parse(data) : [];
@@ -1148,11 +1318,29 @@ class BigQueryService {
   }
 
   async createEditRequest(request: EditRequest): Promise<EditRequest> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/edit-requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '編集依頼の作成に失敗しました');
+        }
+        console.log('📝 Edit request created (API):', request.request_id);
+        return request;
+      } catch (error) {
+        console.error('Error creating edit request:', error);
+        throw error;
+      }
+    }
     try {
       const requests = await this.getEditRequests();
       requests.unshift(request);
       localStorage.setItem(this.editRequestStorageKey, JSON.stringify(requests));
-      console.log('📝 Edit request created:', request);
+      console.log('📝 Edit request created:', request.request_id);
       return request;
     } catch (error) {
       console.error('Error creating edit request:', error);
@@ -1161,16 +1349,30 @@ class BigQueryService {
   }
 
   async updateEditRequest(requestId: string, updates: Partial<EditRequest>): Promise<EditRequest | null> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/edit-requests/${encodeURIComponent(requestId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '編集依頼の更新に失敗しました');
+        }
+        const list = await this.getEditRequests();
+        return list.find(r => r.request_id === requestId) || null;
+      } catch (error) {
+        console.error('Error updating edit request:', error);
+        throw error;
+      }
+    }
     try {
       const requests = await this.getEditRequests();
       const index = requests.findIndex(r => r.request_id === requestId);
-      if (index === -1) {
-        console.error('Edit request not found:', requestId);
-        return null;
-      }
+      if (index === -1) return null;
       requests[index] = { ...requests[index], ...updates };
       localStorage.setItem(this.editRequestStorageKey, JSON.stringify(requests));
-      console.log('📝 Edit request updated:', requests[index]);
       return requests[index];
     } catch (error) {
       console.error('Error updating edit request:', error);
@@ -1179,11 +1381,25 @@ class BigQueryService {
   }
 
   async deleteEditRequest(requestId: string): Promise<boolean> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/edit-requests/${encodeURIComponent(requestId)}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '編集依頼の削除に失敗しました');
+        }
+        return true;
+      } catch (error) {
+        console.error('Error deleting edit request:', error);
+        throw error;
+      }
+    }
     try {
       const requests = await this.getEditRequests();
       const filtered = requests.filter(r => r.request_id !== requestId);
       localStorage.setItem(this.editRequestStorageKey, JSON.stringify(filtered));
-      console.log('🗑️ Edit request deleted:', requestId);
       return true;
     } catch (error) {
       console.error('Error deleting edit request:', error);
@@ -1193,21 +1409,42 @@ class BigQueryService {
 
   // ===== プロジェクトメッセージ (Project Messages) =====
 
+  private normalizeMessage(m: any): ProjectMessage {
+    const created = m.created_at || m.timestamp;
+    return {
+      ...m,
+      created_at: typeof created === 'string' ? created : (created ? new Date(created).toISOString() : new Date().toISOString()),
+    };
+  }
+
   async getProjectMessages(projectId: string): Promise<ProjectMessage[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/messages/${encodeURIComponent(projectId)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('メッセージの取得に失敗しました');
+        const data = await response.json();
+        const messages: ProjectMessage[] = (Array.isArray(data) ? data : []).map((m: any) => this.normalizeMessage(m));
+        return messages.sort((a, b) => {
+          const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return timeA - timeB;
+        });
+      } catch (error) {
+        console.error('Error fetching project messages:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.messageStorageKey);
       const messages: ProjectMessage[] = data ? JSON.parse(data) : [];
       return messages
         .filter(m => m.project_id === projectId)
         .sort((a, b) => {
-          const timeA = a.created_at ? (() => {
-            const date = new Date(a.created_at);
-            return isNaN(date.getTime()) ? 0 : date.getTime();
-          })() : 0;
-          const timeB = b.created_at ? (() => {
-            const date = new Date(b.created_at);
-            return isNaN(date.getTime()) ? 0 : date.getTime();
-          })() : 0;
+          const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
           return timeA - timeB;
         });
     } catch (error) {
@@ -1217,6 +1454,20 @@ class BigQueryService {
   }
   
   async getAllMessages(): Promise<ProjectMessage[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/messages`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('メッセージの取得に失敗しました');
+        const data = await response.json();
+        return (Array.isArray(data) ? data : []).map((m: any) => this.normalizeMessage(m));
+      } catch (error) {
+        console.error('Error fetching all messages:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.messageStorageKey);
       return data ? JSON.parse(data) : [];
@@ -1227,20 +1478,40 @@ class BigQueryService {
   }
 
   async sendProjectMessage(messageData: Omit<ProjectMessage, 'message_id' | 'created_at' | 'is_read'>): Promise<ProjectMessage> {
+    const newMessage: ProjectMessage = {
+      ...messageData,
+      message_id: `MSG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      created_at: new Date().toISOString(),
+      is_read: false,
+    };
+    if (USE_API) {
+      try {
+        const body = {
+          ...newMessage,
+          timestamp: newMessage.created_at,
+        };
+        const response = await fetch(`${API_BASE_URL}/api/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'メッセージの送信に失敗しました');
+        }
+        console.log('💬 Message sent (API):', newMessage.message_id);
+        return newMessage;
+      } catch (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
+    }
     try {
       const data = localStorage.getItem(this.messageStorageKey);
       const messages: ProjectMessage[] = data ? JSON.parse(data) : [];
-      
-      const newMessage: ProjectMessage = {
-        ...messageData,
-        message_id: `MSG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        created_at: new Date().toISOString(),
-        is_read: false,
-      };
-      
       messages.push(newMessage);
       localStorage.setItem(this.messageStorageKey, JSON.stringify(messages));
-      console.log('💬 Message sent:', newMessage);
+      console.log('💬 Message sent:', newMessage.message_id);
       return newMessage;
     } catch (error) {
       console.error('Error sending message:', error);
@@ -1249,6 +1520,22 @@ class BigQueryService {
   }
 
   async markMessagesAsRead(projectId: string, readerRole: 'admin' | 'sales'): Promise<void> {
+    if (USE_API) {
+      try {
+        const messages = await this.getProjectMessages(projectId);
+        const toMark = messages.filter(m => m.sender_role !== readerRole && !m.is_read).map(m => m.message_id).filter(Boolean);
+        if (toMark.length === 0) return;
+        const response = await fetch(`${API_BASE_URL}/api/messages/mark-read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message_ids: toMark }),
+        });
+        if (!response.ok) throw new Error('既読の更新に失敗しました');
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
+      }
+      return;
+    }
     try {
       const data = localStorage.getItem(this.messageStorageKey);
       if (!data) return;
@@ -1284,32 +1571,61 @@ class BigQueryService {
     projectId: string,
     changes?: ChangeHistory['changes']
   ): Promise<void> {
+    const newHistory: ChangeHistory = {
+      history_id: `HIS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      entity_type: entityType,
+      entity_id: entityId,
+      project_id: projectId,
+      segment_id: entityType === 'segment' ? entityId : undefined,
+      action,
+      changed_by: changedBy,
+      changed_at: new Date().toISOString(),
+      changes,
+    };
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/change-history`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newHistory),
+        });
+        if (!response.ok) {
+          console.error('Error recording change history (API):', await response.text());
+        }
+      } catch (error) {
+        console.error('Error recording change history:', error);
+      }
+      return;
+    }
     try {
-      const histories = this.getChangeHistories();
-      const newHistory: ChangeHistory = {
-        history_id: `HIS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        entity_type: entityType,
-        entity_id: entityId,
-        project_id: projectId,
-        // セグメントの場合のみsegment_idをセット（poiもentity_idをそのまま持つ）
-        segment_id: entityType === 'segment' ? entityId : undefined,
-        action,
-        changed_by: changedBy,
-        changed_at: new Date().toISOString(),
-        changes,
-      };
-
+      const histories = await this.getChangeHistories();
       histories.unshift(newHistory);
       this.cleanupOldHistory();
       localStorage.setItem(this.changeHistoryStorageKey, JSON.stringify(histories));
     } catch (error) {
       console.error('Error recording change history:', error);
-      // 履歴の記録失敗で処理を止めない
     }
   }
 
-  // 変更履歴を取得
-  getChangeHistories(): ChangeHistory[] {
+  // 変更履歴を取得（非同期）
+  async getChangeHistories(projectId?: string): Promise<ChangeHistory[]> {
+    if (USE_API) {
+      try {
+        const url = projectId
+          ? `${API_BASE_URL}/api/change-history?project_id=${encodeURIComponent(projectId)}`
+          : `${API_BASE_URL}/api/change-history`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('変更履歴の取得に失敗しました');
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Error getting change histories:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.changeHistoryStorageKey);
       if (!data) return [];
@@ -1320,18 +1636,14 @@ class BigQueryService {
     }
   }
 
-  // 6か月以上古い履歴を削除
-  private cleanupOldHistory(): void {
+  // 6か月以上古い履歴を削除（localStorage のみ）
+  private async cleanupOldHistory(): Promise<void> {
+    if (USE_API) return;
     try {
-      const histories = this.getChangeHistories();
+      const histories = await this.getChangeHistories();
       const now = new Date();
-      const sixMonthsAgo = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000); // 約6か月前
-      
-      const filtered = histories.filter(history => {
-        const changedAt = new Date(history.changed_at);
-        return changedAt >= sixMonthsAgo;
-      });
-      
+      const sixMonthsAgo = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000);
+      const filtered = histories.filter(history => new Date(history.changed_at) >= sixMonthsAgo);
       if (filtered.length !== histories.length) {
         localStorage.setItem(this.changeHistoryStorageKey, JSON.stringify(filtered));
         console.log(`🗑️ 古い変更履歴を削除しました: ${histories.length - filtered.length}件`);
@@ -1343,6 +1655,20 @@ class BigQueryService {
 
   // 計測地点グループ管理
   async getVisitMeasurementGroups(projectId: string): Promise<VisitMeasurementGroup[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/visit-measurement-groups/project/${encodeURIComponent(projectId)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('来店計測グループの取得に失敗しました');
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Error fetching visit measurement groups:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.visitMeasurementGroupStorageKey);
       const groups: VisitMeasurementGroup[] = data ? JSON.parse(data) : [];
@@ -1354,16 +1680,34 @@ class BigQueryService {
   }
 
   async createVisitMeasurementGroup(group: Omit<VisitMeasurementGroup, 'group_id' | 'created'>): Promise<VisitMeasurementGroup> {
+    const newGroup: VisitMeasurementGroup = {
+      ...group,
+      group_id: `VMG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      created: new Date().toISOString(),
+    };
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/visit-measurement-groups`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newGroup),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '来店計測グループの作成に失敗しました');
+        }
+        console.log('📍 Visit Measurement Group created (API):', newGroup.group_id);
+        return newGroup;
+      } catch (error) {
+        console.error('Error creating visit measurement group:', error);
+        throw error;
+      }
+    }
     try {
       const groups = await this.getAllVisitMeasurementGroups();
-      const newGroup: VisitMeasurementGroup = {
-        ...group,
-        group_id: `VMG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        created: new Date().toISOString(),
-      };
       groups.unshift(newGroup);
       localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(groups));
-      console.log('📍 Visit Measurement Group created:', newGroup);
+      console.log('📍 Visit Measurement Group created:', newGroup.group_id);
       return newGroup;
     } catch (error) {
       console.error('Error creating visit measurement group:', error);
@@ -1372,15 +1716,30 @@ class BigQueryService {
   }
 
   async updateVisitMeasurementGroup(groupId: string, updates: Partial<VisitMeasurementGroup>): Promise<VisitMeasurementGroup> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/visit-measurement-groups/${encodeURIComponent(groupId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '来店計測グループの更新に失敗しました');
+        }
+        const groups = await this.getVisitMeasurementGroups((updates as any).project_id || '');
+        return groups.find(g => g.group_id === groupId) || { ...updates, group_id: groupId } as VisitMeasurementGroup;
+      } catch (error) {
+        console.error('Error updating visit measurement group:', error);
+        throw error;
+      }
+    }
     try {
       const groups = await this.getAllVisitMeasurementGroups();
       const index = groups.findIndex(g => g.group_id === groupId);
-      if (index === -1) {
-        throw new Error(`Visit measurement group not found: ${groupId}`);
-      }
+      if (index === -1) throw new Error(`Visit measurement group not found: ${groupId}`);
       groups[index] = { ...groups[index], ...updates };
       localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(groups));
-      console.log('📍 Visit Measurement Group updated:', groups[index]);
       return groups[index];
     } catch (error) {
       console.error('Error updating visit measurement group:', error);
@@ -1389,11 +1748,26 @@ class BigQueryService {
   }
 
   async deleteVisitMeasurementGroup(groupId: string): Promise<void> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/visit-measurement-groups/${encodeURIComponent(groupId)}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '来店計測グループの削除に失敗しました');
+        }
+        console.log('📍 Visit Measurement Group deleted (API):', groupId);
+        return;
+      } catch (error) {
+        console.error('Error deleting visit measurement group:', error);
+        throw error;
+      }
+    }
     try {
       const groups = await this.getAllVisitMeasurementGroups();
       const filtered = groups.filter(g => g.group_id !== groupId);
       localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(filtered));
-      console.log('📍 Visit Measurement Group deleted:', groupId);
     } catch (error) {
       console.error('Error deleting visit measurement group:', error);
       throw error;
@@ -1401,6 +1775,22 @@ class BigQueryService {
   }
 
   private async getAllVisitMeasurementGroups(): Promise<VisitMeasurementGroup[]> {
+    if (USE_API) {
+      try {
+        const projects = await this.getProjects();
+        const all: VisitMeasurementGroup[] = [];
+        for (const p of projects) {
+          if (p.project_id) {
+            const groups = await this.getVisitMeasurementGroups(p.project_id);
+            all.push(...groups);
+          }
+        }
+        return all;
+      } catch (error) {
+        console.error('Error fetching all visit measurement groups:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.visitMeasurementGroupStorageKey);
       return data ? JSON.parse(data) : [];
@@ -1412,6 +1802,20 @@ class BigQueryService {
 
   // 機能リクエスト管理
   async getFeatureRequests(): Promise<FeatureRequest[]> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/feature-requests`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('機能リクエストの取得に失敗しました');
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Error fetching feature requests:', error);
+        return [];
+      }
+    }
     try {
       const data = localStorage.getItem(this.featureRequestStorageKey);
       return data ? JSON.parse(data) : [];
@@ -1422,17 +1826,35 @@ class BigQueryService {
   }
 
   async createFeatureRequest(request: Omit<FeatureRequest, 'request_id' | 'requested_at' | 'status'>): Promise<FeatureRequest> {
+    const newRequest: FeatureRequest = {
+      ...request,
+      request_id: `FRQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      requested_at: new Date().toISOString(),
+      status: 'pending',
+    };
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/feature-requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRequest),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '機能リクエストの作成に失敗しました');
+        }
+        console.log('💡 Feature request created (API):', newRequest.request_id);
+        return newRequest;
+      } catch (error) {
+        console.error('Error creating feature request:', error);
+        throw error;
+      }
+    }
     try {
       const requests = await this.getFeatureRequests();
-      const newRequest: FeatureRequest = {
-        ...request,
-        request_id: `FRQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        requested_at: new Date().toISOString(),
-        status: 'pending',
-      };
       requests.unshift(newRequest);
       localStorage.setItem(this.featureRequestStorageKey, JSON.stringify(requests));
-      console.log('💡 Feature request created:', newRequest);
+      console.log('💡 Feature request created:', newRequest.request_id);
       return newRequest;
     } catch (error) {
       console.error('Error creating feature request:', error);
@@ -1441,15 +1863,32 @@ class BigQueryService {
   }
 
   async updateFeatureRequest(requestId: string, updates: Partial<FeatureRequest>): Promise<FeatureRequest> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/feature-requests/${encodeURIComponent(requestId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || '機能リクエストの更新に失敗しました');
+        }
+        const list = await this.getFeatureRequests();
+        const updated = list.find(r => r.request_id === requestId);
+        if (updated) return updated;
+        throw new Error(`Feature request not found: ${requestId}`);
+      } catch (error) {
+        console.error('Error updating feature request:', error);
+        throw error;
+      }
+    }
     try {
       const requests = await this.getFeatureRequests();
       const index = requests.findIndex(r => r.request_id === requestId);
-      if (index === -1) {
-        throw new Error(`Feature request not found: ${requestId}`);
-      }
+      if (index === -1) throw new Error(`Feature request not found: ${requestId}`);
       requests[index] = { ...requests[index], ...updates };
       localStorage.setItem(this.featureRequestStorageKey, JSON.stringify(requests));
-      console.log('💡 Feature request updated:', requests[index]);
       return requests[index];
     } catch (error) {
       console.error('Error updating feature request:', error);
@@ -1503,19 +1942,15 @@ class BigQueryService {
     department?: string;
   }): Promise<any> {
     const users = await this.getUsers();
-    
-    // メールアドレスの重複チェック
     const existing = users.find(u => u.email === userData.email);
     if (existing) {
       throw new Error('このメールアドレスは既に登録されています');
     }
-
     const newUser = {
       user_id: `USER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: userData.name,
       email: userData.email,
-      // 注意: 実際の本番環境では、パスワードをハッシュ化して保存する必要があります
-      password_hash: btoa(userData.password), // 簡易的なエンコード（本番では使用しないでください）
+      password_hash: btoa(userData.password),
       role: userData.role,
       department: userData.department,
       is_active: true,
@@ -1523,44 +1958,85 @@ class BigQueryService {
       last_login: null
     };
 
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newUser),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'ユーザーの作成に失敗しました');
+        }
+        console.log('✅ ユーザー作成(API):', newUser.user_id);
+        const { password_hash: _, ...userWithoutPassword } = newUser;
+        return userWithoutPassword;
+      } catch (error) {
+        console.error('Error creating user:', error);
+        throw error;
+      }
+    }
     users.push(newUser);
     localStorage.setItem(this.userStorageKey, JSON.stringify(users));
     console.log('✅ ユーザー作成:', newUser.user_id);
-    
-    // パスワードハッシュは返さない
-    const { password_hash, ...userWithoutPassword } = newUser;
+    const { password_hash: _, ...userWithoutPassword } = newUser;
     return userWithoutPassword;
   }
 
   async updateUser(userId: string, updates: any): Promise<any> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users/${encodeURIComponent(userId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'ユーザーの更新に失敗しました');
+        }
+        const users = await this.getUsers();
+        const u = users.find((x: any) => x.user_id === userId);
+        if (u) {
+          const { password_hash: _, ...out } = u;
+          return out;
+        }
+        return updates;
+      } catch (error) {
+        console.error('Error updating user:', error);
+        throw error;
+      }
+    }
     const users = await this.getUsers();
     const index = users.findIndex(u => u.user_id === userId);
-    
-    if (index === -1) {
-      throw new Error('ユーザーが見つかりません');
-    }
-
-    users[index] = {
-      ...users[index],
-      ...updates,
-      updated_at: new Date().toISOString()
-    };
-
+    if (index === -1) throw new Error('ユーザーが見つかりません');
+    users[index] = { ...users[index], ...updates, updated_at: new Date().toISOString() };
     localStorage.setItem(this.userStorageKey, JSON.stringify(users));
-    console.log('✅ ユーザー更新:', userId);
-    
-    const { password_hash, ...userWithoutPassword } = users[index];
+    const { password_hash: _, ...userWithoutPassword } = users[index];
     return userWithoutPassword;
   }
 
   async deleteUser(userId: string): Promise<void> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users/${encodeURIComponent(userId)}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'ユーザーの削除に失敗しました');
+        }
+        console.log('✅ ユーザー削除(API):', userId);
+        return;
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        throw error;
+      }
+    }
     const users = await this.getUsers();
     const filtered = users.filter(u => u.user_id !== userId);
-    
-    if (filtered.length === users.length) {
-      throw new Error('ユーザーが見つかりません');
-    }
-
+    if (filtered.length === users.length) throw new Error('ユーザーが見つかりません');
     localStorage.setItem(this.userStorageKey, JSON.stringify(filtered));
     console.log('✅ ユーザー削除:', userId);
   }

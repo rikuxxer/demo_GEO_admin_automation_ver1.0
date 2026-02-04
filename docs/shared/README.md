@@ -11,6 +11,10 @@
 - [`GOOGLE_SHEETS_SETUP.md`](./GOOGLE_SHEETS_SETUP.md) - Google Sheets API設定
 - [`BIGQUERY_SETUP.md`](./BIGQUERY_SETUP.md) - BigQuery接続設定
 
+### 技術スタック・設計
+
+- [`TECH_STACK_AND_DESIGN.md`](./TECH_STACK_AND_DESIGN.md) - **使用言語・技術スタック・アーキテクチャ・設計方針の一覧**
+
 ### 設計・戦略ドキュメント
 
 - [`COST_ESTIMATION.md`](./COST_ESTIMATION.md) - コスト見積もり

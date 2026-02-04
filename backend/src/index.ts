@@ -429,6 +429,16 @@ app.put('/api/segments/:segment_id', async (req, res) => {
   }
 });
 
+app.delete('/api/segments/:segment_id', async (req, res) => {
+  try {
+    await getBqService().deleteSegment(req.params.segment_id);
+    res.json({ message: 'Segment deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting segment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== POI ====================
 
 app.get('/api/pois', async (req, res) => {
@@ -532,6 +542,16 @@ app.put('/api/users/:user_id', async (req, res) => {
     res.json({ message: 'User updated successfully' });
   } catch (error: any) {
     console.error('Error updating user:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/users/:user_id', async (req, res) => {
+  try {
+    await getBqService().deleteUser(req.params.user_id);
+    res.json({ message: 'User deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -655,6 +675,132 @@ app.post('/api/messages/mark-read', async (req, res) => {
     res.json({ message: 'Messages marked as read' });
   } catch (error: any) {
     console.error('Error marking messages as read:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== 編集依頼 ====================
+app.get('/api/edit-requests', async (req, res) => {
+  try {
+    const rows = await getBqService().getEditRequests();
+    res.json(rows);
+  } catch (error: any) {
+    console.error('Error fetching edit requests:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post('/api/edit-requests', async (req, res) => {
+  try {
+    await getBqService().createEditRequest(req.body);
+    res.status(201).json({ message: 'Edit request created successfully' });
+  } catch (error: any) {
+    console.error('Error creating edit request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.put('/api/edit-requests/:request_id', async (req, res) => {
+  try {
+    await getBqService().updateEditRequest(req.params.request_id, req.body);
+    res.json({ message: 'Edit request updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating edit request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.delete('/api/edit-requests/:request_id', async (req, res) => {
+  try {
+    await getBqService().deleteEditRequest(req.params.request_id);
+    res.json({ message: 'Edit request deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting edit request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== 来店計測地点グループ ====================
+app.get('/api/visit-measurement-groups/project/:project_id', async (req, res) => {
+  try {
+    const rows = await getBqService().getVisitMeasurementGroups(req.params.project_id);
+    res.json(rows);
+  } catch (error: any) {
+    console.error('Error fetching visit measurement groups:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post('/api/visit-measurement-groups', async (req, res) => {
+  try {
+    await getBqService().createVisitMeasurementGroup(req.body);
+    res.status(201).json({ message: 'Visit measurement group created successfully' });
+  } catch (error: any) {
+    console.error('Error creating visit measurement group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.put('/api/visit-measurement-groups/:group_id', async (req, res) => {
+  try {
+    await getBqService().updateVisitMeasurementGroup(req.params.group_id, req.body);
+    res.json({ message: 'Visit measurement group updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating visit measurement group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.delete('/api/visit-measurement-groups/:group_id', async (req, res) => {
+  try {
+    await getBqService().deleteVisitMeasurementGroup(req.params.group_id);
+    res.json({ message: 'Visit measurement group deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting visit measurement group:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== 機能リクエスト ====================
+app.get('/api/feature-requests', async (req, res) => {
+  try {
+    const rows = await getBqService().getFeatureRequests();
+    res.json(rows);
+  } catch (error: any) {
+    console.error('Error fetching feature requests:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post('/api/feature-requests', async (req, res) => {
+  try {
+    await getBqService().createFeatureRequest(req.body);
+    res.status(201).json({ message: 'Feature request created successfully' });
+  } catch (error: any) {
+    console.error('Error creating feature request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.put('/api/feature-requests/:request_id', async (req, res) => {
+  try {
+    await getBqService().updateFeatureRequest(req.params.request_id, req.body);
+    res.json({ message: 'Feature request updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating feature request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== 変更履歴 ====================
+app.get('/api/change-history', async (req, res) => {
+  try {
+    const project_id = req.query.project_id as string | undefined;
+    const rows = await getBqService().getChangeHistories(project_id);
+    res.json(rows);
+  } catch (error: any) {
+    console.error('Error fetching change history:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post('/api/change-history', async (req, res) => {
+  try {
+    await getBqService().insertChangeHistory(req.body);
+    res.status(201).json({ message: 'Change history recorded successfully' });
+  } catch (error: any) {
+    console.error('Error recording change history:', error);
     res.status(500).json({ error: error.message });
   }
 });

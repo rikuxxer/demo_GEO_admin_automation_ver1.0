@@ -235,9 +235,9 @@ function calculatePoiRegistrationTime(histories: ChangeHistory[]): number[] {
 /**
  * 変更履歴から工数統計を計算
  */
-export function analyzeWorkTime(projects: any[]): OperationTimeStats {
+export async function analyzeWorkTime(projects: any[]): Promise<OperationTimeStats> {
   try {
-    const histories = bigQueryService.getChangeHistories();
+    const histories = await bigQueryService.getChangeHistories();
     
     // 案件登録時間（project_registration_started_atを使用）
     const projectCreationTimes = calculateProjectRegistrationTime(histories, projects);

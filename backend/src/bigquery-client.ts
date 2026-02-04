@@ -1127,6 +1127,26 @@ export class BigQueryService {
     });
   }
 
+  async deleteSegment(segment_id: string): Promise<void> {
+    if (!segment_id || typeof segment_id !== 'string' || segment_id.trim() === '') {
+      throw new Error('segment_id is required');
+    }
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const segId = segment_id.trim();
+    // 先に当該セグメントに紐づくPOIを削除
+    await initializeBigQueryClient().query({
+      query: `DELETE FROM \`${currentProjectId}.${cleanDatasetId}.pois\` WHERE segment_id = @segment_id`,
+      params: { segment_id: segId },
+      location: BQ_LOCATION,
+    });
+    await initializeBigQueryClient().query({
+      query: `DELETE FROM \`${currentProjectId}.${cleanDatasetId}.segments\` WHERE segment_id = @segment_id`,
+      params: { segment_id: segId },
+      location: BQ_LOCATION,
+    });
+  }
+
   // ==================== POI（地点） ====================
   
   async getPois(): Promise<any[]> {
@@ -1735,6 +1755,19 @@ export class BigQueryService {
     await initializeBigQueryClient().query({
       query,
       params: { user_id, ...updates },
+      location: BQ_LOCATION,
+    });
+  }
+
+  async deleteUser(user_id: string): Promise<void> {
+    if (!user_id || typeof user_id !== 'string' || user_id.trim() === '') {
+      throw new Error('user_id is required');
+    }
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    await initializeBigQueryClient().query({
+      query: `DELETE FROM \`${currentProjectId}.${cleanDatasetId}.users\` WHERE user_id = @user_id`,
+      params: { user_id: user_id.trim() },
       location: BQ_LOCATION,
     });
   }
@@ -2508,6 +2541,241 @@ UNIVERSEGEO案件管理システム
       params,
       location: BQ_LOCATION,
     });
+  }
+
+  // ==================== 編集依頼 (edit_requests) ====================
+
+  async getEditRequests(): Promise<any[]> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getCleanDatasetId();
+      const [rows] = await initializeBigQueryClient().query({
+        query: `SELECT * FROM \`${currentProjectId}.${cleanDatasetId}.edit_requests\` ORDER BY requested_at DESC`,
+        location: BQ_LOCATION,
+      });
+      return (rows || []).map((r: any) => ({
+        ...r,
+        changes: r.changes ? (typeof r.changes === 'string' ? JSON.parse(r.changes) : r.changes) : {},
+      }));
+    } catch (err: any) {
+      if (err?.message?.includes('Not found') || err?.code === 404) return [];
+      console.error('[BQ getEditRequests]', err?.message);
+      throw err;
+    }
+  }
+
+  async createEditRequest(row: any): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const changesStr = row.changes ? (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes)) : null;
+    const cleaned: any = {
+      request_id: String(row.request_id).trim(),
+      request_type: String(row.request_type).trim(),
+      target_id: String(row.target_id).trim(),
+      project_id: String(row.project_id).trim(),
+      requested_by: String(row.requested_by).trim(),
+      requested_at: formatTimestampForBigQuery(row.requested_at || new Date()),
+      request_reason: String(row.request_reason ?? '').trim(),
+      status: String(row.status ?? 'pending').trim(),
+      changes: changesStr,
+      segment_id: row.segment_id != null ? String(row.segment_id).trim() : null,
+      reviewed_by: row.reviewed_by != null ? String(row.reviewed_by).trim() : null,
+      reviewed_at: row.reviewed_at ? formatTimestampForBigQuery(row.reviewed_at) : null,
+      review_comment: row.review_comment != null ? String(row.review_comment).trim() : null,
+    };
+    await getDataset().table('edit_requests').insert([cleaned], { ignoreUnknownValues: true });
+  }
+
+  async updateEditRequest(request_id: string, updates: any): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const setParts: string[] = [];
+    const params: any = { request_id: request_id.trim() };
+    if (updates.status != null) { setParts.push('status = @status'); params.status = String(updates.status).trim(); }
+    if (updates.reviewed_by != null) { setParts.push('reviewed_by = @reviewed_by'); params.reviewed_by = String(updates.reviewed_by).trim(); }
+    if (updates.reviewed_at != null) { setParts.push('reviewed_at = @reviewed_at'); params.reviewed_at = formatTimestampForBigQuery(updates.reviewed_at); }
+    if (updates.review_comment != null) { setParts.push('review_comment = @review_comment'); params.review_comment = String(updates.review_comment).trim(); }
+    if (updates.changes != null) { setParts.push('changes = @changes'); params.changes = typeof updates.changes === 'string' ? updates.changes : JSON.stringify(updates.changes); }
+    if (setParts.length === 0) return;
+    const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.edit_requests\` SET ${setParts.join(', ')} WHERE request_id = @request_id`;
+    await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
+  }
+
+  async deleteEditRequest(request_id: string): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    await initializeBigQueryClient().query({
+      query: `DELETE FROM \`${currentProjectId}.${cleanDatasetId}.edit_requests\` WHERE request_id = @request_id`,
+      params: { request_id: request_id.trim() },
+      location: BQ_LOCATION,
+    });
+  }
+
+  // ==================== 来店計測地点グループ (visit_measurement_groups) ====================
+
+  async getVisitMeasurementGroups(project_id: string): Promise<any[]> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getCleanDatasetId();
+      const [rows] = await initializeBigQueryClient().query({
+        query: `SELECT * FROM \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\` WHERE project_id = @project_id ORDER BY created DESC`,
+        params: { project_id: project_id.trim() },
+        location: BQ_LOCATION,
+      });
+      return rows || [];
+    } catch (err: any) {
+      if (err?.message?.includes('Not found') || err?.code === 404) return [];
+      console.error('[BQ getVisitMeasurementGroups]', err?.message);
+      throw err;
+    }
+  }
+
+  async createVisitMeasurementGroup(row: any): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const now = new Date();
+    const cleaned: any = {
+      project_id: String(row.project_id).trim(),
+      group_id: String(row.group_id).trim(),
+      group_name: String(row.group_name ?? '').trim(),
+      attribute: row.attribute != null ? String(row.attribute).trim() : null,
+      extraction_period: row.extraction_period != null ? String(row.extraction_period).trim() : null,
+      extraction_period_type: row.extraction_period_type != null ? String(row.extraction_period_type).trim() : null,
+      extraction_start_date: row.extraction_start_date ? formatDateForBigQuery(row.extraction_start_date) : null,
+      extraction_end_date: row.extraction_end_date ? formatDateForBigQuery(row.extraction_end_date) : null,
+      extraction_dates: Array.isArray(row.extraction_dates) ? row.extraction_dates : null,
+      detection_count: row.detection_count != null ? (typeof row.detection_count === 'number' ? row.detection_count : parseInt(String(row.detection_count), 10)) : null,
+      detection_time_start: row.detection_time_start ? formatTimeForBigQuery(row.detection_time_start) : null,
+      detection_time_end: row.detection_time_end ? formatTimeForBigQuery(row.detection_time_end) : null,
+      stay_time: row.stay_time != null ? String(row.stay_time).trim() : null,
+      designated_radius: row.designated_radius != null ? String(row.designated_radius).trim() : null,
+      created: formatTimestampForBigQuery(row.created || now),
+      updated_at: formatTimestampForBigQuery(row.updated_at || now),
+    };
+    await getDataset().table('visit_measurement_groups').insert([cleaned], { ignoreUnknownValues: true });
+  }
+
+  async updateVisitMeasurementGroup(group_id: string, updates: any): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const allowed = ['group_name', 'attribute', 'extraction_period', 'extraction_period_type', 'extraction_start_date', 'extraction_end_date', 'extraction_dates', 'detection_count', 'detection_time_start', 'detection_time_end', 'stay_time', 'designated_radius'];
+    const setClause = allowed.filter(f => updates[f] !== undefined).map(f => `${f} = @${f}`).join(', ');
+    if (!setClause) return;
+    const params: any = { group_id: group_id.trim() };
+    allowed.forEach(f => { if (updates[f] !== undefined) params[f] = f === 'extraction_start_date' || f === 'extraction_end_date' ? formatDateForBigQuery(updates[f]) : f === 'detection_time_start' || f === 'detection_time_end' ? formatTimeForBigQuery(updates[f]) : f === 'extraction_dates' ? updates[f] : updates[f]; });
+    params.updated_at = formatTimestampForBigQuery(new Date());
+    const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\` SET ${setClause}, updated_at = @updated_at WHERE group_id = @group_id`;
+    await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
+  }
+
+  async deleteVisitMeasurementGroup(group_id: string): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    await initializeBigQueryClient().query({
+      query: `DELETE FROM \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\` WHERE group_id = @group_id`,
+      params: { group_id: group_id.trim() },
+      location: BQ_LOCATION,
+    });
+  }
+
+  // ==================== 機能リクエスト (feature_requests) ====================
+
+  async getFeatureRequests(): Promise<any[]> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getCleanDatasetId();
+      const [rows] = await initializeBigQueryClient().query({
+        query: `SELECT * FROM \`${currentProjectId}.${cleanDatasetId}.feature_requests\` ORDER BY requested_at DESC`,
+        location: BQ_LOCATION,
+      });
+      return rows || [];
+    } catch (err: any) {
+      if (err?.message?.includes('Not found') || err?.code === 404) return [];
+      console.error('[BQ getFeatureRequests]', err?.message);
+      throw err;
+    }
+  }
+
+  async createFeatureRequest(row: any): Promise<void> {
+    const now = new Date();
+    const cleaned: any = {
+      request_id: String(row.request_id).trim(),
+      requested_by: String(row.requested_by).trim(),
+      requested_by_name: String(row.requested_by_name ?? '').trim(),
+      requested_at: formatTimestampForBigQuery(row.requested_at || now),
+      title: String(row.title ?? '').trim(),
+      description: String(row.description ?? '').trim(),
+      category: String(row.category ?? 'other').trim(),
+      priority: String(row.priority ?? 'medium').trim(),
+      status: String(row.status ?? 'pending').trim(),
+      reviewed_by: row.reviewed_by != null ? String(row.reviewed_by).trim() : null,
+      reviewed_at: row.reviewed_at ? formatTimestampForBigQuery(row.reviewed_at) : null,
+      review_comment: row.review_comment != null ? String(row.review_comment).trim() : null,
+      implemented_at: row.implemented_at ? formatTimestampForBigQuery(row.implemented_at) : null,
+    };
+    await getDataset().table('feature_requests').insert([cleaned], { ignoreUnknownValues: true });
+  }
+
+  async updateFeatureRequest(request_id: string, updates: any): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const allowed = ['title', 'description', 'category', 'priority', 'status', 'reviewed_by', 'reviewed_at', 'review_comment', 'implemented_at'];
+    const setParts: string[] = [];
+    const params: any = { request_id: request_id.trim() };
+    allowed.forEach(f => {
+      if (updates[f] !== undefined) {
+        setParts.push(`${f} = @${f}`);
+        params[f] = f === 'reviewed_at' || f === 'implemented_at' ? formatTimestampForBigQuery(updates[f]) : updates[f];
+      }
+    });
+    if (setParts.length === 0) return;
+    const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.feature_requests\` SET ${setParts.join(', ')} WHERE request_id = @request_id`;
+    await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
+  }
+
+  // ==================== 変更履歴 (change_history) ====================
+
+  async getChangeHistories(project_id?: string): Promise<any[]> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getCleanDatasetId();
+      let query = `SELECT * FROM \`${currentProjectId}.${cleanDatasetId}.change_history\` ORDER BY changed_at DESC`;
+      const params: any = {};
+      if (project_id && project_id.trim()) {
+        query = `SELECT * FROM \`${currentProjectId}.${cleanDatasetId}.change_history\` WHERE project_id = @project_id ORDER BY changed_at DESC`;
+        params.project_id = project_id.trim();
+      }
+      const [rows] = await initializeBigQueryClient().query({
+        query,
+        params: Object.keys(params).length ? params : undefined,
+        location: BQ_LOCATION,
+      });
+      return (rows || []).map((r: any) => ({
+        ...r,
+        changes: r.changes ? (typeof r.changes === 'string' ? JSON.parse(r.changes) : r.changes) : undefined,
+        deleted_data: r.deleted_data ? (typeof r.deleted_data === 'string' ? JSON.parse(r.deleted_data) : r.deleted_data) : undefined,
+      }));
+    } catch (err: any) {
+      if (err?.message?.includes('Not found') || err?.code === 404) return [];
+      console.error('[BQ getChangeHistories]', err?.message);
+      throw err;
+    }
+  }
+
+  async insertChangeHistory(row: any): Promise<void> {
+    const cleaned: any = {
+      history_id: String(row.history_id).trim(),
+      entity_type: String(row.entity_type).trim(),
+      entity_id: String(row.entity_id).trim(),
+      project_id: String(row.project_id).trim(),
+      segment_id: row.segment_id != null ? String(row.segment_id).trim() : null,
+      action: String(row.action).trim(),
+      changed_by: String(row.changed_by).trim(),
+      changed_at: formatTimestampForBigQuery(row.changed_at || new Date()),
+      changes: row.changes ? (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes)) : null,
+      deleted_data: row.deleted_data ? (typeof row.deleted_data === 'string' ? row.deleted_data : JSON.stringify(row.deleted_data)) : null,
+    };
+    await getDataset().table('change_history').insert([cleaned], { ignoreUnknownValues: true });
   }
 
   // ==================== Google Sheets ====================

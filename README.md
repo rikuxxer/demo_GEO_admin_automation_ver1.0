@@ -121,6 +121,7 @@ chmod +x deploy.sh
 
 | ドキュメント | 説明 |
 |------------|------|
+| [TECH_STACK_AND_DESIGN.md](./docs/shared/TECH_STACK_AND_DESIGN.md) | **使用言語・技術スタック・アーキテクチャ・設計方針** |
 | [QUICKSTART.md](./docs/shared/QUICKSTART.md) | 5ステップでデプロイ |
 | [DEPLOYMENT_GUIDE.md](./docs/shared/DEPLOYMENT_GUIDE.md) | 詳細なデプロイ手順 |
 | [GOOGLE_SHEETS_SETUP.md](./docs/shared/GOOGLE_SHEETS_SETUP.md) | Google Sheets API設定 |

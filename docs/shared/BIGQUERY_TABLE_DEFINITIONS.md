@@ -1,22 +1,23 @@
 # BigQuery テーブル定義書
 
-**バージョン:** 2.3  
+**バージョン:** 2.4  
 **最終更新日:** 2026年1月28日  
 **データベース:** Google BigQuery  
 **データセット:** `universegeo_dataset`  
-**備考:** 本定義書は `segments.poi_type` 追加後のテーブル定義を反映しています。
+**備考:** 本定義書は `segments.poi_type` 追加後のテーブル定義を反映しています。本番環境におけるフロントエンドのAPI接続状況は [PRODUCTION_API_CONNECTION_STATUS.md](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) を参照してください。
 
 ---
 
 ## 目次
 
 1. [概要](#概要)
-2. [テーブル一覧](#テーブル一覧)
-3. [テーブル詳細定義](#テーブル詳細定義)
-4. [リレーションシップ](#リレーションシップ)
-5. [パーティション設定](#パーティション設定)
-6. [データ型マッピング](#データ型マッピング)
-7. [制約とビジネスルール](#制約とビジネスルール)
+2. [本番環境におけるフロントエンドAPI接続状況](#本番環境におけるフロントエンドapi接続状況)
+3. [テーブル一覧](#テーブル一覧)
+4. [テーブル詳細定義](#テーブル詳細定義)
+5. [リレーションシップ](#リレーションシップ)
+6. [パーティション設定](#パーティション設定)
+7. [データ型マッピング](#データ型マッピング)
+8. [制約とビジネスルール](#制約とビジネスルール)
 
 ---
 
@@ -31,6 +32,15 @@ UNIVERSEGEOシステムで使用するBigQueryテーブルの包括的な定義�
 - **リージョン**: `asia-northeast1` (東京)
 - **文字コード**: UTF-8
 - **タイムゾーン**: UTC（アプリケーション層でJSTに変換）
+
+### 本番環境におけるフロントエンドAPI接続状況
+
+本番環境（`VITE_API_BASE_URL` 設定時）において、フロントエンドからバックエンドAPI（BigQuery）へ接続されているリソースと、接続されずブラウザの localStorage のみを使用しているリソースがあります。
+
+- **接続済み（本番で BigQuery を使用）**: プロジェクトの取得・作成、ユーザー一覧、ユーザー登録申請（取得・作成・承認・却下）、パスワードリセット、スプレッドシートエクスポート。
+- **未接続（本番でも localStorage のみ）**: プロジェクトの更新・削除、セグメント全操作、地点（POI）全操作、メッセージ全操作、編集依頼、来店計測地点グループ、機能リクエスト、変更履歴、ユーザーの作成・更新・削除（管理画面）など。
+
+詳細な一覧・メソッド単位の対応表は [PRODUCTION_API_CONNECTION_STATUS.md](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) を参照してください。未接続のリソースは本番では端末ごとの localStorage にのみ保存され、BigQuery には保存・反映されません。
 
 ### 命名規則
 
@@ -162,7 +172,7 @@ OPTIONS(
 
 | フィールド名 | データ型 | NULL | 説明 | 例 |
 |------------|---------|------|------|-----|
-| `segment_id` | STRING | NO | セグメントID（主キー） | `SEG-1` |
+| `segment_id` | STRING | NO | セグメントID（主キー）。バックエンドで採番する場合は `SEG-{連番}`。フロントエンドで採番する場合は配信媒体に応じ `seg-uni-{3桁}`（Universe）または `seg-ctv-{3桁}`（TVer CTV） | `SEG-1`, `seg-uni-001`, `seg-ctv-001` |
 | `project_id` | STRING | NO | 案件ID（外部キー） | `PRJ-1` |
 | `segment_name` | STRING | YES | セグメント名 | `セグメント1` |
 | `segment_registered_at` | TIMESTAMP | YES | セグメント登録日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
@@ -189,7 +199,7 @@ OPTIONS(
 | `updated_at` | TIMESTAMP | YES | 更新日時 | `2025-01-13 10:00:00 UTC` |
 
 **ビジネスルール**:
-- `segment_id`は自動採番（形式: `SEG-{連番}`）
+- `segment_id`は自動採番。バックエンドで採番する場合の形式は `SEG-{連番}`。現状のフロントエンド（本番含む）では配信媒体に応じ `seg-uni-{3桁}` または `seg-ctv-{3桁}` を採番する実装があり、本番ではセグメントがAPI未接続のため BigQuery には保存されない（[本番API接続状況](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) 参照）。
 - `project_id`は必須（`projects`テーブルに存在する必要がある）
 - `poi_category`は自動設定（UIのタブ情報から判定、デフォルトは`'tg'`）
 - `poi_type`はPOI登録時に自動設定（当該セグメントに属する地点のタイプ。同一セグメント内は1種類に限定）
@@ -915,6 +925,7 @@ SET OPTIONS(
 - **2026-01-28**: `segments.delivery_media`をSTRINGからARRAY&lt;STRING&gt;に変更（配信媒体の複数指定に対応）。定義書診断セクションを追加。`pois.location_id`の例をビジネスルールに合わせて修正。バージョン2.2・最終更新日を更新
 - **2026-01-28**: `segments.media_id`をSTRINGからARRAY&lt;STRING&gt;に変更（配信媒体IDの複数指定に対応）。バックエンドは配列として正規化・保存するよう変更
 - **2026-01-28**: `segments`テーブルに`poi_type`カラム（STRING）を追加。POI登録・更新・削除時に当該セグメントの`poi_type`を自動記録またはクリア（`manual`/`prefecture`/`polygon`）。定義書を追加後のテーブル定義に更新（バージョン2.3）
+- **2026-01-28**: 本番環境におけるフロントエンドAPI接続状況を概要に追加。`segment_id`の説明を拡張（`SEG-{連番}`に加え、フロント採番の`seg-uni-{3桁}`/`seg-ctv-{3桁}`を記載）。仕様書を本番環境の挙動に合わせて更新（バージョン2.4）。詳細は [PRODUCTION_API_CONNECTION_STATUS.md](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) を参照。
 
 **既存の segments テーブルに poi_type を追加する場合**:
 ```sql
