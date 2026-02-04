@@ -83,6 +83,7 @@
             "test": "npx --yes tsx src/utils/dataCoordinationDate.test.ts",
             "test:api": "node scripts/test-api-endpoints.js",
             "test:api:columns": "node scripts/validate-api-columns.js",
-            "test:api:write": "node scripts/test-api-write-endpoints.js"
+            "test:api:write": "node scripts/test-api-write-endpoints.js",
+            "test:api:duplicate": "node scripts/test-api-duplicate-registration.js"
       }
 }

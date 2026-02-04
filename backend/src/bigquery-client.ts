@@ -971,6 +971,27 @@ export class BigQueryService {
     return rows;
   }
 
+  /** segment_id で1件取得（重複登録チェック用） */
+  async getSegmentById(segment_id: string): Promise<any | null> {
+    if (!segment_id || typeof segment_id !== 'string' || segment_id.trim() === '') {
+      return null;
+    }
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const query = `
+      SELECT segment_id
+      FROM \`${currentProjectId}.${cleanDatasetId}.segments\`
+      WHERE segment_id = @segment_id
+      LIMIT 1
+    `;
+    const [rows] = await initializeBigQueryClient().query({
+      query,
+      params: { segment_id: segment_id.trim() },
+      location: BQ_LOCATION,
+    });
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  }
+
   async createSegment(segment: any): Promise<void> {
     try {
       // 必須フィールドの検証
@@ -1212,6 +1233,27 @@ export class BigQueryService {
       location: BQ_LOCATION,
     });
     return rows || [];
+  }
+
+  /** poi_id で1件取得（重複登録チェック用） */
+  async getPoiById(poi_id: string): Promise<any | null> {
+    if (!poi_id || typeof poi_id !== 'string' || poi_id.trim() === '') {
+      return null;
+    }
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const query = `
+      SELECT poi_id
+      FROM \`${currentProjectId}.${cleanDatasetId}.pois\`
+      WHERE poi_id = @poi_id
+      LIMIT 1
+    `;
+    const [rows] = await initializeBigQueryClient().query({
+      query,
+      params: { poi_id: poi_id.trim() },
+      location: BQ_LOCATION,
+    });
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
   }
 
   /**

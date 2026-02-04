@@ -11,6 +11,7 @@
 - 本番バックエンドURLの取得: Cloud Run のサービスURL、または `gcloud run services describe ... --format='value(status.url)'`
 - **接続テスト（本番・GETのみ）**: `node scripts/test-api-endpoints.js https://本番の実際のURL`
 - **書き込みテスト（本番・POSTの500検知）**: `node scripts/test-api-write-endpoints.js https://本番の実際のURL`
+- **再度登録できないテスト（本番・重複拒否）**: `node scripts/test-api-duplicate-registration.js https://本番の実際のURL`
 - **全カラム確認（本番）**: `node scripts/validate-api-columns.js https://本番の実際のURL`
 
 詳細は [PRODUCTION_API_CONNECTION_STATUS.md](./PRODUCTION_API_CONNECTION_STATUS.md) の「本番環境での確認」を参照してください。
@@ -79,6 +80,34 @@ node scripts/test-api-endpoints.js http://localhost:8080 --validate
 | **レスポンス形式（任意）** | `--validate` を付けると、JSON が配列であることなどを簡易チェック |
 
 **重要**: 上記は **GET のみ** のテストです。**POST /api/segments の 500 など、書き込み（POST/PUT）のエラーは検知できません。** 書き込みエラーを検知するには下記「API 書き込みテスト」を実行してください。
+
+### 再度登録できないテスト（重複登録の拒否）
+
+同じ ID（project_id / segment_id / poi_id）で2回登録しようとしたとき、2回目がエラーになることを確認するテストです。「再度登録できない」エラーが想定どおり発生する（＝重複が正しく拒否される）ことを検証します。
+
+```bash
+# ローカル（デフォルト http://localhost:8080）
+npm run test:api:duplicate
+
+# 本番・ステージングのバックエンドに対して
+node scripts/test-api-duplicate-registration.js https://your-backend.run.app
+```
+
+**Windows PowerShell で URL を環境変数で指定する場合:**
+
+```powershell
+$env:BASE_URL="https://your-backend.run.app"; node scripts/test-api-duplicate-registration.js
+```
+
+**確認内容:**
+
+| 対象 | 内容 |
+|------|------|
+| 案件（project_id） | 既存の project_id で POST /api/projects すると拒否される（4xx 等） |
+| セグメント（segment_id） | 同じ segment_id で2回 POST /api/segments すると2回目が拒否される |
+| 地点（poi_id） | 同じ poi_id で2回 POST /api/pois すると2回目が拒否される |
+
+成功時は「重複登録はいずれも正しく拒否されました。再度登録できないエラーは想定どおり動作しています。」と表示され、終了コード 0 で終了します。1件でも重複が許可された場合は終了コード 1 になります。案件が0件の場合は該当テストはスキップされます。
 
 ### API 書き込みテスト（POST の 500 等を検知）
 
@@ -186,9 +215,9 @@ npm run build
 |------------|----------------|
 | コード変更のたび | `npm run test`（ユーティリティテスト） |
 | プルリク前・マージ前 | `npm run test` ＋ フロント `npm run build` ＋ バックエンド `cd backend && npm run build` |
-| バックエンドを起動したあと | `npm run test:api`（GET）、`npm run test:api:write`（POST の 500 検知） |
+| バックエンドを起動したあと | `npm run test:api`（GET）、`npm run test:api:write`（POST の 500 検知）、`npm run test:api:duplicate`（重複登録の拒否） |
 | 全カラムの接続確認 | `npm run test:api:columns` または `node scripts/validate-api-columns.js <URL>` |
-| デプロイ後 | `test-api-endpoints.js` ＋ **`test-api-write-endpoints.js`** ＋ ブラウザでの手動確認 |
+| デプロイ後 | `test-api-endpoints.js` ＋ **`test-api-write-endpoints.js`** ＋ **`test-api-duplicate-registration.js`** ＋ ブラウザでの手動確認 |
 
 ---
 

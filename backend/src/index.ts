@@ -411,6 +411,16 @@ app.get('/api/segments/project/:project_id', async (req, res) => {
 
 app.post('/api/segments', async (req, res) => {
   try {
+    const segmentId = req.body?.segment_id;
+    if (segmentId) {
+      const existing = await getBqService().getSegmentById(segmentId);
+      if (existing) {
+        return res.status(409).json({
+          error: 'このセグメントIDは既に存在します。再度登録できません。',
+          code: 'SEGMENT_ALREADY_EXISTS',
+        });
+      }
+    }
     await getBqService().createSegment(req.body);
     res.status(201).json({ message: 'Segment created successfully' });
   } catch (error: any) {
@@ -463,6 +473,16 @@ app.get('/api/pois/project/:project_id', async (req, res) => {
 
 app.post('/api/pois', async (req, res) => {
   try {
+    const poiId = req.body?.poi_id;
+    if (poiId) {
+      const existing = await getBqService().getPoiById(poiId);
+      if (existing) {
+        return res.status(409).json({
+          error: 'この地点IDは既に存在します。再度登録できません。',
+          code: 'POI_ALREADY_EXISTS',
+        });
+      }
+    }
     await getBqService().createPoi(req.body);
     res.status(201).json({ message: 'POI created successfully' });
   } catch (error: any) {
