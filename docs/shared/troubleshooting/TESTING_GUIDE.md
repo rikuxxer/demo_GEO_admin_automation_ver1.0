@@ -9,7 +9,8 @@
 **重要なのは本番環境でAPIが正しく動いているかです。** ローカルは開発・デバッグ用です。
 
 - 本番バックエンドURLの取得: Cloud Run のサービスURL、または `gcloud run services describe ... --format='value(status.url)'`
-- **接続テスト（本番）**: `node scripts/test-api-endpoints.js https://本番の実際のURL`
+- **接続テスト（本番・GETのみ）**: `node scripts/test-api-endpoints.js https://本番の実際のURL`
+- **書き込みテスト（本番・POSTの500検知）**: `node scripts/test-api-write-endpoints.js https://本番の実際のURL`
 - **全カラム確認（本番）**: `node scripts/validate-api-columns.js https://本番の実際のURL`
 
 詳細は [PRODUCTION_API_CONNECTION_STATUS.md](./PRODUCTION_API_CONNECTION_STATUS.md) の「本番環境での確認」を参照してください。
@@ -76,6 +77,20 @@ node scripts/test-api-endpoints.js http://localhost:8080 --validate
 | **接続** | 各エンドポイントへ GET し、200 または 404 が返ること |
 | **対象** | health, projects, segments, pois, users, user-requests, messages, edit-requests, visit-measurement-groups, feature-requests, change-history, sheets/exports の全GET（ID不要 or ダミーIDで呼べるもの） |
 | **レスポンス形式（任意）** | `--validate` を付けると、JSON が配列であることなどを簡易チェック |
+
+**重要**: 上記は **GET のみ** のテストです。**POST /api/segments の 500 など、書き込み（POST/PUT）のエラーは検知できません。** 書き込みエラーを検知するには下記「API 書き込みテスト」を実行してください。
+
+### API 書き込みテスト（POST の 500 等を検知）
+
+`scripts/test-api-write-endpoints.js` で、セグメント作成・変更履歴登録を実際に POST し、201 以外（500/4xx）を検出します。
+
+```bash
+node scripts/test-api-write-endpoints.js https://universegeo-backend-i5xw76aisq-an.a.run.app
+```
+
+- 案件が1件以上ある場合: テスト用セグメントを 1 件作成し、直後に削除してクリーンアップします。
+- `POST /api/segments` が 500 の場合は「✗ 500 エラーメッセージ」と表示され、終了コード 1 で終了します。
+- 本番で実行する場合は、一時的にテスト用セグメントが作成・削除されます。
 
 **「全てのカラム（項目）の接続」を確認する**には、次のいずれかを実行します。
 
@@ -171,9 +186,9 @@ npm run build
 |------------|----------------|
 | コード変更のたび | `npm run test`（ユーティリティテスト） |
 | プルリク前・マージ前 | `npm run test` ＋ フロント `npm run build` ＋ バックエンド `cd backend && npm run build` |
-| バックエンドを起動したあと | `npm run test:api`（ローカルまたはリモートURL指定） |
+| バックエンドを起動したあと | `npm run test:api`（GET）、`npm run test:api:write`（POST の 500 検知） |
 | 全カラムの接続確認 | `npm run test:api:columns` または `node scripts/validate-api-columns.js <URL>` |
-| デプロイ後 | `node scripts/test-api-endpoints.js <本番URL>` ＋ ブラウザでの手動確認 |
+| デプロイ後 | `test-api-endpoints.js` ＋ **`test-api-write-endpoints.js`** ＋ ブラウザでの手動確認 |
 
 ---
 

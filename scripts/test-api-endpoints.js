@@ -1,6 +1,9 @@
 /**
  * バックエンドAPI接続の簡易テスト（全GETエンドポイント＋レスポンス形式の簡易チェック）
  *
+ * 注意: このスクリプトは GET のみです。POST/PUT の 500 等は検知できません。
+ *       POST のエラー検知には test-api-write-endpoints.js を実行してください。
+ *
  * 使い方（URLを引数で指定・Windows PowerShell / Mac / Linux 共通）:
  *   node scripts/test-api-endpoints.js http://localhost:8080
  *   node scripts/test-api-endpoints.js https://your-backend.run.app

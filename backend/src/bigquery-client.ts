@@ -981,7 +981,7 @@ export class BigQueryService {
         throw new Error('project_id is required and must be a non-empty string');
       }
 
-      // スキーマに存在するフィールドのみを含める
+      // スキーマに存在するフィールドのみを含める（data_link_* はフロントから送られる）
       const allowedFields = [
         'segment_id',
         'project_id',
@@ -1003,6 +1003,9 @@ export class BigQueryService {
         'stay_time',
         'designated_radius',
         'location_request_status',
+        'data_link_status',
+        'data_link_request_date',
+        'data_link_scheduled_date',
         'data_coordination_date',
         'delivery_confirmed',
         'registerd_provider_segment',
@@ -1013,10 +1016,21 @@ export class BigQueryService {
         project_id: segment.project_id.trim(),
       };
 
+      // パーティションキー・必須に近い項目は欠けていてもデフォルトを入れる
+      cleanedSegment.segment_registered_at = formatTimestampForBigQuery(segment.segment_registered_at || new Date());
+      if (!(segment.location_request_status != null && segment.location_request_status !== '')) {
+        cleanedSegment.location_request_status = 'not_requested';
+      }
+      if (!(segment.data_link_status != null && segment.data_link_status !== '')) {
+        cleanedSegment.data_link_status = 'before_request';
+      }
+
       // 許可されたフィールドのみをコピー
       for (const field of allowedFields) {
         if (field in segment && segment[field] !== undefined && segment[field] !== null) {
           if (field === 'extraction_start_date' || field === 'extraction_end_date' || field === 'data_coordination_date') {
+            cleanedSegment[field] = formatDateForBigQuery(segment[field]);
+          } else if (field === 'data_link_request_date' || field === 'data_link_scheduled_date') {
             cleanedSegment[field] = formatDateForBigQuery(segment[field]);
           } else if (field === 'detection_time_start' || field === 'detection_time_end') {
             cleanedSegment[field] = formatTimeForBigQuery(segment[field]);
