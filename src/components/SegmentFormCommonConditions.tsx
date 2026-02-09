@@ -73,10 +73,15 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
   const [hasShownRadius30mWarning, setHasShownRadius30mWarning] = useState(false);
   // 6ヶ月以上前の日付選択警告ポップアップ表示状態
   const [showDateRangeWarning, setShowDateRangeWarning] = useState(false);
-  // 指定半径のドラフト状態（入力中の値を保持）
+  // 指定半径: 自由入力は非制御にして入力中の再レンダー・フリーズを防止。ドロップダウン用にドラフトのみ state で保持。
   const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
-  const radiusInputFocusedRef = useRef(false);
+  const radiusFreeInputRef = useRef<HTMLInputElement>(null);
+  const [radiusBlurError, setRadiusBlurError] = useState<string | null>(null);
   const fixedRadiusOptions = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
+
+  const parsedRadiusFromForm = formData.designated_radius
+    ? (() => { const n = parseInt(String(formData.designated_radius).replace('m', ''), 10); return !isNaN(n) ? String(n) : ''; })()
+    : '';
 
   // 6ヶ月前の日付を計算（YYYY-MM-DD形式）
   const getSixMonthsAgoDate = (): string => {
@@ -110,17 +115,11 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
     return selectedDate < sixMonthsAgo;
   };
 
-  // 編集時に既存の指定半径をドラフトに反映。フォーカス中は同期しない（自由入力時のフリーズ防止）
+  // 編集時・ドロップダウン選択時にドラフトを formData に同期（自由入力は非制御のため入力中は関係しない）
   useEffect(() => {
-    if (radiusInputFocusedRef.current) return;
-    const nextDraft = formData.designated_radius
-      ? (() => {
-          const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''), 10);
-          return !isNaN(radiusNum) ? String(radiusNum) : '';
-        })()
-      : '';
+    const nextDraft = parsedRadiusFromForm;
     setDesignatedRadiusDraft(prev => (prev === nextDraft ? prev : nextDraft));
-  }, [formData.designated_radius]);
+  }, [parsedRadiusFromForm]);
 
   return (
     <div className="border border-gray-200 rounded-lg p-6 bg-white space-y-6">
@@ -183,58 +182,54 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
               <span className="text-xs text-gray-500">自由入力（1〜1000m）</span>
               <div className="flex items-center gap-2">
                 <Input
+                  ref={radiusFreeInputRef}
                   id="designated_radius"
                   type="number"
                   min="1"
                   max="1000"
                   step="1"
                   placeholder="1-1000"
-                  value={(() => {
-                    const draftNum = Number(designatedRadiusDraft);
-                    if (designatedRadiusDraft !== '' && !Number.isNaN(draftNum) && draftNum <= 1000) {
-                      return designatedRadiusDraft;
-                    }
-                    return '';
-                  })()}
-                  onFocus={() => { radiusInputFocusedRef.current = true; }}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    const valueNum = Number(value);
-                    if (value === '' || (!Number.isNaN(valueNum) && valueNum >= 1 && valueNum <= 1000)) {
-                      setDesignatedRadiusDraft(value);
-                    }
-                  }}
+                  key={`radius-free-${parsedRadiusFromForm || 'empty'}`}
+                  defaultValue={parsedRadiusFromForm}
                   onBlur={() => {
-                    radiusInputFocusedRef.current = false;
-                    const value = designatedRadiusDraft;
-                    if (value === '') {
+                    setRadiusBlurError(null);
+                    const raw = radiusFreeInputRef.current?.value?.trim() ?? '';
+                    if (raw === '') {
                       onChange('designated_radius', '');
+                      setDesignatedRadiusDraft('');
                       return;
                     }
-                    const radiusNum = parseInt(value, 10);
+                    const radiusNum = parseInt(raw, 10);
                     const isFixed = fixedRadiusOptions.includes(radiusNum);
-                    if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
-                      onChange('designated_radius', `${radiusNum}m`);
-                      if (radiusNum > 0) {
-                        // 来店計測グループの場合は警告を表示しない
-                        const isVisitMeasurementGroup = titleLabel === '来訪計測グループ条件';
-                        if (!isVisitMeasurementGroup) {
-                          // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
-                          if (radiusNum <= 30 && !hasShownRadius30mWarning) {
-                            setShowRadius30mWarning(true);
-                            setHasShownRadius30mWarning(true);
-                          } else if (radiusNum > 30 && radiusNum <= 50) {
-                            // 30mを超えて50m以下の場合、30m警告フラグをリセットして50m警告を表示
-                            setHasShownRadius30mWarning(false);
-                            if (!hasShownRadiusWarning) {
-                              setShowRadiusWarning(true);
-                              setHasShownRadiusWarning(true);
-                            }
-                          } else if (radiusNum > 50) {
-                            // 50mを超えた場合、警告表示フラグをリセット
-                            setShowRadiusWarning(false);
-                            setHasShownRadius30mWarning(false);
+                    if (Number.isNaN(radiusNum)) {
+                      setRadiusBlurError('半径は数値で入力してください');
+                      return;
+                    }
+                    if (radiusNum >= 1000 && !isFixed) {
+                      setRadiusBlurError('1000m以上は選択肢から指定してください');
+                      return;
+                    }
+                    if (radiusNum < 1 || radiusNum > 10000) {
+                      setRadiusBlurError('半径は1-1000m、または選択肢で指定してください');
+                      return;
+                    }
+                    onChange('designated_radius', `${radiusNum}m`);
+                    setDesignatedRadiusDraft(String(radiusNum));
+                    if (radiusNum > 0) {
+                      const isVisitMeasurementGroup = titleLabel === '来訪計測グループ条件';
+                      if (!isVisitMeasurementGroup) {
+                        if (radiusNum <= 30 && !hasShownRadius30mWarning) {
+                          setShowRadius30mWarning(true);
+                          setHasShownRadius30mWarning(true);
+                        } else if (radiusNum > 30 && radiusNum <= 50) {
+                          setHasShownRadius30mWarning(false);
+                          if (!hasShownRadiusWarning) {
+                            setShowRadiusWarning(true);
+                            setHasShownRadiusWarning(true);
                           }
+                        } else if (radiusNum > 50) {
+                          setShowRadiusWarning(false);
+                          setHasShownRadius30mWarning(false);
                         }
                       }
                     }
@@ -257,6 +252,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                 })()}
                 onChange={(e) => {
                   const value = e.target.value;
+                  setRadiusBlurError(null);
                   if (!value) {
                     setDesignatedRadiusDraft('');
                     onChange('designated_radius', '');
@@ -274,33 +270,20 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
               </select>
             </div>
           </div>
-          {designatedRadiusDraft && (() => {
-            const radiusNum = parseInt(String(designatedRadiusDraft).replace('m', ''), 10);
-            if (isNaN(radiusNum)) {
-              return (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <span>⚠️</span>
-                  半径は数値で入力してください
-                </p>
-              );
-            }
-            if (radiusNum >= 1000 && !fixedRadiusOptions.includes(radiusNum)) {
-              return (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <span>⚠️</span>
-                  1000m以上は選択肢から指定してください
-                </p>
-              );
-            }
-            if (radiusNum < 1 || radiusNum > 10000) {
-              return (
-                <p className="text-sm text-red-600 flex items-center gap-1">
-                  <span>⚠️</span>
-                  半径は1-1000m、または選択肢で指定してください
-                </p>
-              );
-            }
-            return null;
+          {(() => {
+            const err = radiusBlurError ?? (designatedRadiusDraft ? (() => {
+              const radiusNum = parseInt(String(designatedRadiusDraft).replace('m', ''), 10);
+              if (isNaN(radiusNum)) return '半径は数値で入力してください';
+              if (radiusNum >= 1000 && !fixedRadiusOptions.includes(radiusNum)) return '1000m以上は選択肢から指定してください';
+              if (radiusNum < 1 || radiusNum > 10000) return '半径は1-1000m、または選択肢で指定してください';
+              return null;
+            })() : null);
+            return err ? (
+              <p className="text-sm text-red-600 flex items-center gap-1">
+                <span>⚠️</span>
+                {err}
+              </p>
+            ) : null;
           })()}
         </div>
       </div>
