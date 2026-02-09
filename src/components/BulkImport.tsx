@@ -14,9 +14,11 @@ import { exportPoisToSheet } from '../utils/googleSheets';
 
 interface BulkImportProps {
   onImportComplete: () => void;
+  /** 一括登録の開始/終了時に呼ばれ、画面上部のプログレッシブバー表示に利用 */
+  onImportProgress?: (importing: boolean) => void;
 }
 
-export function BulkImport({ onImportComplete }: BulkImportProps) {
+export function BulkImport({ onImportComplete, onImportProgress }: BulkImportProps) {
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -121,6 +123,7 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
     if (!result || result.errors.length > 0 || !result.project) return;
 
     setImporting(true);
+    onImportProgress?.(true);
 
     try {
       // 1. 案件を登録
@@ -284,6 +287,7 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
       alert('一括登録中にエラーが発生しました。\n詳細はコンソールを確認してください。');
     } finally {
       setImporting(false);
+      onImportProgress?.(false);
     }
   };
 

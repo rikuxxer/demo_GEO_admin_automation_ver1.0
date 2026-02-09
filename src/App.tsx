@@ -57,6 +57,7 @@ function AppContent() {
   const [isOperationGuideOpen, setIsOperationGuideOpen] = useState(false);
   const [operationGuideId, setOperationGuideId] = useState<string | undefined>(undefined);
   const [pendingProjectNavigation, setPendingProjectNavigation] = useState<{ projectId?: string } | null>(null);
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
 
   // Data & Logic from Custom Hook (useEffectより前に定義する必要がある)
   const {
@@ -72,6 +73,7 @@ function AppContent() {
     
     // Loading state & Refreshers
     isLoadingProjects,
+    isRegistrationInProgress,
     refreshProjects,
     refreshSegments,
     refreshAllForProjectsPage,
@@ -288,9 +290,12 @@ function AppContent() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* 案件管理画面の再読み込み時のプログレッシブバー */}
+      {/* 案件管理画面の再読み込み・登録時のプログレッシブバー */}
       <TopProgressBar
-        visible={currentPage === "projects" && isLoadingProjects}
+        visible={
+          currentPage === "projects" &&
+          (isLoadingProjects || isRegistrationInProgress || isBulkImporting)
+        }
       />
 
       {/* Sidebar */}
@@ -397,9 +402,9 @@ function AppContent() {
 
                   {projects.length === 0 ? (
                     <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2">テスト画面</h3>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">案件がまだありません</h3>
                       <p className="text-sm text-gray-600 mb-6">
-                        まだ案件が登録されていません。テスト用に新規登録または一括登録を試せます。
+                        まだ案件が登録されていません。新規登録または一括登録で案件を追加できます。
                       </p>
                       <div className="flex items-center justify-center gap-3">
                         <Button
@@ -662,7 +667,10 @@ function AppContent() {
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
               <h2 className="text-lg sm:text-xl truncate pr-2">案件・セグメント・地点の一括登録</h2>
               <button
-                onClick={() => setIsBulkImportOpen(false)}
+                onClick={() => {
+                  setIsBulkImportOpen(false);
+                  setIsBulkImporting(false);
+                }}
                 className="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -678,6 +686,7 @@ function AppContent() {
                   setIsBulkImportOpen(false);
                   toast.success("一括登録が完了しました");
                 }}
+                onImportProgress={(importing) => setIsBulkImporting(importing)}
               />
             </div>
           </div>

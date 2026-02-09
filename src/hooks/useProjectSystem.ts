@@ -22,6 +22,7 @@ export function useProjectSystem() {
   // UI State that is closely related to data
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isRegistrationInProgress, setIsRegistrationInProgress] = useState(false);
 
   // Data Loading Functions
   const loadProjects = useCallback(async () => {
@@ -134,6 +135,7 @@ export function useProjectSystem() {
   const createProject = async (
     projectData: Omit<Project, "project_id" | "_register_datetime" | "person_in_charge">
   ) => {
+    setIsRegistrationInProgress(true);
     try {
       const newProject = await bigQueryService.createProject(projectData, user?.name);
       setProjects((prev) => [newProject, ...prev]);
@@ -163,6 +165,8 @@ export function useProjectSystem() {
       
       toast.error(errorMessage);
       throw error;
+    } finally {
+      setIsRegistrationInProgress(false);
     }
   };
 
@@ -202,6 +206,7 @@ export function useProjectSystem() {
 
   // セグメント作成
   const createSegment = async (segmentData: Partial<Segment>): Promise<Segment> => {
+    setIsRegistrationInProgress(true);
     try {
       if (!selectedProject) {
         throw new Error('プロジェクトが選択されていません');
@@ -247,6 +252,8 @@ export function useProjectSystem() {
       console.error("Error creating segment:", error);
       toast.error("セグメントの登録に失敗しました");
       throw error;
+    } finally {
+      setIsRegistrationInProgress(false);
     }
   };
 
@@ -411,8 +418,12 @@ export function useProjectSystem() {
 
   // 地点作成
   const createPoi = async (segmentId: string, poiData: Partial<PoiInfo>) => {
+    setIsRegistrationInProgress(true);
     try {
-      if (!selectedProject) return;
+      if (!selectedProject) {
+        setIsRegistrationInProgress(false);
+        return;
+      }
 
       // TG地点の場合、segment_idを確実に設定（poiDataに含まれていても、引数のsegmentIdを優先）
       const finalSegmentId = (poiData.poi_category === 'visit_measurement') 
@@ -498,13 +509,19 @@ export function useProjectSystem() {
       console.error("Error creating POI:", error);
       toast.error("地点の登録に失敗しました");
       throw error;
+    } finally {
+      setIsRegistrationInProgress(false);
     }
   };
 
   // 地点一括登録
   const createPoisBulk = async (segmentId: string, poisData: Partial<PoiInfo>[]) => {
+    setIsRegistrationInProgress(true);
     try {
-      if (!selectedProject) return;
+      if (!selectedProject) {
+        setIsRegistrationInProgress(false);
+        return;
+      }
 
       const poisToCreate = poisData.map(poiData => ({
         project_id: selectedProject.project_id,
@@ -564,6 +581,8 @@ export function useProjectSystem() {
       console.error("Error creating POIs in bulk:", error);
       toast.error("地点の一括登録に失敗しました");
       throw error;
+    } finally {
+      setIsRegistrationInProgress(false);
     }
   };
 
@@ -721,6 +740,7 @@ export function useProjectSystem() {
 
     // Loading state（案件管理画面のプログレッシブバー用）
     isLoadingProjects,
+    isRegistrationInProgress,
 
     // Loaders (exposed for refreshing data if needed)
     refreshProjects: loadProjects,

@@ -1,6 +1,6 @@
 /**
- * 画面上部に表示するプログレッシブバー（再読み込み時の進捗表示）
- * 案件管理画面のデータ読み込み中に表示する想定
+ * 画面中央に表示するプログレッシブバー（読み込み・登録時の進捗表示）
+ * 案件管理画面のデータ読み込み中・登録処理中に表示
  */
 import { cn } from "./ui/utils";
 
@@ -18,11 +18,18 @@ export function TopProgressBar({ visible = true, className }: TopProgressBarProp
       role="progressbar"
       aria-label="読み込み中"
       className={cn(
-        "fixed left-0 right-0 top-0 z-[100] h-1 overflow-hidden bg-primary/10",
+        "fixed inset-0 z-[100] flex items-center justify-center bg-black/10",
         className
       )}
     >
-      <div className="h-full w-1/3 shrink-0 animate-top-progress bg-primary" />
+      <div className="flex flex-col items-center gap-3">
+        {/* 円形のプログレッシブバー（スピナー） */}
+        <div
+          className="h-12 w-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin"
+          aria-hidden
+        />
+        <p className="text-sm font-medium text-gray-700">読み込み中...</p>
+      </div>
     </div>
   );
 }
