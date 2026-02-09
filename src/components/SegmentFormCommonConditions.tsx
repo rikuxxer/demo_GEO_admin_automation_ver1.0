@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -75,6 +75,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
   const [showDateRangeWarning, setShowDateRangeWarning] = useState(false);
   // 指定半径のドラフト状態（入力中の値を保持）
   const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
+  const radiusInputFocusedRef = useRef(false);
   const fixedRadiusOptions = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000];
 
   // 6ヶ月前の日付を計算（YYYY-MM-DD形式）
@@ -109,8 +110,9 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
     return selectedDate < sixMonthsAgo;
   };
 
-  // 編集時に既存の指定半径をドラフトに反映（同じ値のときは更新しないで指定半径設定時のフリーズを防止）
+  // 編集時に既存の指定半径をドラフトに反映。フォーカス中は同期しない（自由入力時のフリーズ防止）
   useEffect(() => {
+    if (radiusInputFocusedRef.current) return;
     const nextDraft = formData.designated_radius
       ? (() => {
           const radiusNum = parseInt(String(formData.designated_radius).replace('m', ''), 10);
@@ -194,6 +196,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                     }
                     return '';
                   })()}
+                  onFocus={() => { radiusInputFocusedRef.current = true; }}
                   onChange={(e) => {
                     const value = e.target.value;
                     const valueNum = Number(value);
@@ -202,6 +205,7 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                     }
                   }}
                   onBlur={() => {
+                    radiusInputFocusedRef.current = false;
                     const value = designatedRadiusDraft;
                     if (value === '') {
                       onChange('designated_radius', '');
