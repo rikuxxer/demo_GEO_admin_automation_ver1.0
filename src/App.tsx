@@ -400,54 +400,36 @@ function AppContent() {
                     </DropdownMenu>
                   </div>
 
-                  {projects.length === 0 ? (
-                    <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2">案件がまだありません</h3>
-                      <p className="text-sm text-gray-600 mb-6">
-                        まだ案件が登録されていません。新規登録または一括登録で案件を追加できます。
-                      </p>
-                      <div className="flex items-center justify-center gap-3">
-                        <Button
-                          onClick={() => setIsProjectFormOpen(true)}
-                          className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                        >
-                          手動で登録
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsBulkImportOpen(true)}
-                          className="border-gray-300"
-                        >
-                          一括登録
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Summary Cards */}
-                      <div data-tour="summary-cards">
-                        <SummaryCards 
-                          projects={projects}
-                          segments={allSegments}
-                          pois={allPois}
-                          selectedStatus={statusFilter}
-                          onCardClick={setStatusFilter}
-                        />
-                      </div>
+                  {/* 案件サマリは常に表示（0件のときも0で表示） */}
+                  <div data-tour="summary-cards">
+                    <SummaryCards 
+                      projects={projects}
+                      segments={allSegments}
+                      pois={allPois}
+                      selectedStatus={statusFilter}
+                      onCardClick={setStatusFilter}
+                    />
+                  </div>
 
-                      {/* Project Table */}
-                      <div data-tour="project-table">
-                        <ProjectTable
-                          projects={projects}
-                          segments={allSegments}
-                          pois={allPois}
-                          onProjectClick={handleProjectClick}
-                          statusFilter={statusFilter}
-                          onClearStatusFilter={() => setStatusFilter('total')}
-                        />
+                  {/* 案件一覧: 読み込み中は空、0件のときは「案件がまだありません」、1件以上はテーブル */}
+                  <div data-tour="project-table">
+                    {isLoadingProjects ? (
+                      <div className="bg-white border border-gray-200 rounded-lg min-h-[200px]" aria-hidden />
+                    ) : projects.length === 0 ? (
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <p className="text-sm text-gray-600">案件がまだありません</p>
                       </div>
-                    </>
-                  )}
+                    ) : (
+                      <ProjectTable
+                        projects={projects}
+                        segments={allSegments}
+                        pois={allPois}
+                        onProjectClick={handleProjectClick}
+                        statusFilter={statusFilter}
+                        onClearStatusFilter={() => setStatusFilter('total')}
+                      />
+                    )}
+                  </div>
                 </>
               )}
             </>

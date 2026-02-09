@@ -15,15 +15,6 @@ interface SummaryCardsProps {
 export function SummaryCards({ projects, segments, pois, selectedStatus, onCardClick }: SummaryCardsProps) {
   const { user } = useAuth();
   
-  // segmentsとpoisが初期化されるまで待つ
-  if (!Array.isArray(segments) || !Array.isArray(pois)) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
-        <div className="bg-white p-4 rounded-lg border shadow-sm">読み込み中...</div>
-      </div>
-    );
-  }
-  
   // 【閲覧権限のある案件のみをフィルタリング】
   // 営業の場合: 
   //   - 自分が主担当または副担当の案件（すべてのステータス）

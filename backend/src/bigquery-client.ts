@@ -334,60 +334,95 @@ async function ensureCountersTable(): Promise<void> {
   await initializeBigQueryClient().query({ query, location: BQ_LOCATION });
 }
 
+/**
+ * トランザクションスクリプトを使わず、projects テーブルの MAX(連番)+1 で次の案件IDを取得する。
+ * getNextIdFromCounter が失敗したときのフォールバック用（同時実行時は重複の可能性あり）。
+ */
+async function getNextProjectIdFromProjectsTable(): Promise<number> {
+  const currentProjectId = validateProjectId();
+  const cleanDatasetId = getCleanDatasetId();
+  const client = initializeBigQueryClient();
+  const query = `
+    SELECT IFNULL(
+      MAX(CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64)),
+      0
+    ) + 1 AS next_id
+    FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
+    WHERE project_id LIKE 'PRJ-%'
+      AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
+  `;
+  const [rows] = await client.query({ query, location: BQ_LOCATION });
+  const nextId = rows?.[0]?.next_id;
+  if (typeof nextId !== 'number') {
+    throw new Error('Failed to get next_id from projects table');
+  }
+  return nextId;
+}
+
 async function getNextIdFromCounter(counterName: string): Promise<number> {
   const currentProjectId = validateProjectId();
   const cleanDatasetId = getCleanDatasetId();
   const client = initializeBigQueryClient();
 
-  await ensureCountersTable();
-
-  const query = `
-    BEGIN TRANSACTION;
-      DECLARE max_id INT64;
-      DECLARE next_val INT64;
-
-      SET max_id = (
-        SELECT IFNULL(
-          MAX(CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64)),
-          0
-        )
-        FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
-        WHERE project_id LIKE 'PRJ-%'
-          AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
-      );
-      SET next_val = max_id + 1;
-
-      IF NOT EXISTS (
-        SELECT 1 FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-        WHERE name = @counter_name
-      ) THEN
-        INSERT INTO \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-          (name, next_id, updated_at)
-        VALUES
-          (@counter_name, next_val, CURRENT_TIMESTAMP());
-      ELSE
-        UPDATE \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-        SET next_id = GREATEST(next_id + 1, next_val),
-            updated_at = CURRENT_TIMESTAMP()
-        WHERE name = @counter_name;
-      END IF;
-
-      SELECT next_id FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-      WHERE name = @counter_name;
-    COMMIT TRANSACTION;
-  `;
-
-  const [rows] = await client.query({
-    query,
-    params: { counter_name: counterName },
-    location: BQ_LOCATION,
-  });
-
-  const nextId = rows?.[0]?.next_id;
-  if (typeof nextId !== 'number') {
-    throw new Error(`Failed to allocate next_id for counter: ${counterName}`);
+  try {
+    await ensureCountersTable();
+  } catch (err: any) {
+    console.warn('⚠️ id_counters テーブル確保に失敗、projects から採番します:', err?.message || err);
+    return getNextProjectIdFromProjectsTable();
   }
-  return nextId;
+
+  try {
+    const query = `
+      BEGIN TRANSACTION;
+        DECLARE max_id INT64;
+        DECLARE next_val INT64;
+
+        SET max_id = (
+          SELECT IFNULL(
+            MAX(CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64)),
+            0
+          )
+          FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
+          WHERE project_id LIKE 'PRJ-%'
+            AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
+        );
+        SET next_val = max_id + 1;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+          WHERE name = @counter_name
+        ) THEN
+          INSERT INTO \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+            (name, next_id, updated_at)
+          VALUES
+            (@counter_name, next_val, CURRENT_TIMESTAMP());
+        ELSE
+          UPDATE \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+          SET next_id = GREATEST(next_id + 1, next_val),
+              updated_at = CURRENT_TIMESTAMP()
+          WHERE name = @counter_name;
+        END IF;
+
+        SELECT next_id FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+        WHERE name = @counter_name;
+      COMMIT TRANSACTION;
+    `;
+
+    const [rows] = await client.query({
+      query,
+      params: { counter_name: counterName },
+      location: BQ_LOCATION,
+    });
+
+    const nextId = rows?.[0]?.next_id;
+    if (typeof nextId !== 'number') {
+      throw new Error(`Failed to allocate next_id for counter: ${counterName}`);
+    }
+    return nextId;
+  } catch (err: any) {
+    console.warn('⚠️ カウンタースクリプトが失敗したため、projects テーブルから採番します:', err?.message || err);
+    return getNextProjectIdFromProjectsTable();
+  }
 }
 
 export class BigQueryService {
@@ -412,12 +447,12 @@ export class BigQueryService {
       console.log('✅ 生成された案件ID:', newProjectId);
       return newProjectId;
     } catch (error: any) {
-      console.error('❌ 案件ID生成エラー:', error);
-      // エラーが発生した場合、タイムスタンプベースのフォールバック
+      console.error('❌ 案件ID生成エラー（連番・projects からの取得も失敗）:', error?.message || error);
+      // 上記が両方失敗した場合のみ、タイムスタンプベースのフォールバック
       const fallbackId = `PRJ-${Date.now()}${Math.floor(Math.random() * 1000)
         .toString()
         .padStart(3, '0')}`;
-      console.warn('⚠️ フォールバックIDを使用:', fallbackId);
+      console.warn('⚠️ フォールバックIDを使用（projects テーブルの確認や BigQuery 権限を確認してください）:', fallbackId);
       return fallbackId;
     }
   }

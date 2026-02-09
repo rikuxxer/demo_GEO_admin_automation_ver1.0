@@ -131,11 +131,15 @@ export function useProjectSystem() {
 
   // Actions
 
+  // プログレッシブバーを最低表示する時間（短い登録でも見えるようにする）
+  const REGISTRATION_PROGRESS_MIN_MS = 400;
+
   // 案件登録
   const createProject = async (
     projectData: Omit<Project, "project_id" | "_register_datetime" | "person_in_charge">
   ) => {
     setIsRegistrationInProgress(true);
+    const startTime = Date.now();
     try {
       const newProject = await bigQueryService.createProject(projectData, user?.name);
       setProjects((prev) => [newProject, ...prev]);
@@ -166,6 +170,10 @@ export function useProjectSystem() {
       toast.error(errorMessage);
       throw error;
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < REGISTRATION_PROGRESS_MIN_MS) {
+        await new Promise((r) => setTimeout(r, REGISTRATION_PROGRESS_MIN_MS - elapsed));
+      }
       setIsRegistrationInProgress(false);
     }
   };
@@ -207,6 +215,7 @@ export function useProjectSystem() {
   // セグメント作成
   const createSegment = async (segmentData: Partial<Segment>): Promise<Segment> => {
     setIsRegistrationInProgress(true);
+    const startTime = Date.now();
     try {
       if (!selectedProject) {
         throw new Error('プロジェクトが選択されていません');
@@ -253,6 +262,10 @@ export function useProjectSystem() {
       toast.error("セグメントの登録に失敗しました");
       throw error;
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < REGISTRATION_PROGRESS_MIN_MS) {
+        await new Promise((r) => setTimeout(r, REGISTRATION_PROGRESS_MIN_MS - elapsed));
+      }
       setIsRegistrationInProgress(false);
     }
   };
@@ -419,6 +432,7 @@ export function useProjectSystem() {
   // 地点作成
   const createPoi = async (segmentId: string, poiData: Partial<PoiInfo>) => {
     setIsRegistrationInProgress(true);
+    const startTime = Date.now();
     try {
       if (!selectedProject) {
         setIsRegistrationInProgress(false);
@@ -510,6 +524,10 @@ export function useProjectSystem() {
       toast.error("地点の登録に失敗しました");
       throw error;
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < REGISTRATION_PROGRESS_MIN_MS) {
+        await new Promise((r) => setTimeout(r, REGISTRATION_PROGRESS_MIN_MS - elapsed));
+      }
       setIsRegistrationInProgress(false);
     }
   };
@@ -517,6 +535,7 @@ export function useProjectSystem() {
   // 地点一括登録
   const createPoisBulk = async (segmentId: string, poisData: Partial<PoiInfo>[]) => {
     setIsRegistrationInProgress(true);
+    const startTime = Date.now();
     try {
       if (!selectedProject) {
         setIsRegistrationInProgress(false);
@@ -582,6 +601,10 @@ export function useProjectSystem() {
       toast.error("地点の一括登録に失敗しました");
       throw error;
     } finally {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < REGISTRATION_PROGRESS_MIN_MS) {
+        await new Promise((r) => setTimeout(r, REGISTRATION_PROGRESS_MIN_MS - elapsed));
+      }
       setIsRegistrationInProgress(false);
     }
   };
