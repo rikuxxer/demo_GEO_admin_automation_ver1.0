@@ -194,3 +194,14 @@
     }
   }
 }
+
+/* 画面上部プログレッシブバー（案件管理画面の再読み込み用） */
+@keyframes top-progress {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(-20%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-top-progress {
+  animation: top-progress 1.2s ease-in-out infinite;
+}

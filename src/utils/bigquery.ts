@@ -7,7 +7,7 @@
  * このファイルはモック実装（ローカルストレージ使用）を提供します。
  */
 
-import type { Project, Segment, PoiInfo, EditRequest, ProjectMessage, ChangeHistory, VisitMeasurementGroup, FeatureRequest } from '../types/schema';
+import type { Project, Segment, PoiInfo, EditRequest, ProjectMessage, ChangeHistory, VisitMeasurementGroup, FeatureRequest, ReportRequest } from '../types/schema';
 
 // API Base URL（環境変数から取得、未設定の場合はlocalStorageモックを使用）
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -30,6 +30,7 @@ class BigQueryService {
   private readonly changeHistoryStorageKey = 'bq_change_history';
   private readonly visitMeasurementGroupStorageKey = 'bq_visit_measurement_groups';
   private readonly featureRequestStorageKey = 'bq_feature_requests';
+  private readonly reportRequestStorageKey = 'bq_report_requests';
   private readonly userStorageKey = 'bq_users';
   private readonly userRequestStorageKey = 'bq_user_requests';
 
@@ -1895,6 +1896,162 @@ class BigQueryService {
       throw error;
     }
   }
+
+  // レポート作成依頼
+  async getReportRequests(projectId?: string, status?: string): Promise<ReportRequest[]> {
+    if (USE_API) {
+      try {
+        const params = new URLSearchParams();
+        if (projectId) params.append('project_id', projectId);
+        if (status) params.append('status', status);
+        const response = await fetch(`${API_BASE_URL}/api/report-requests?${params.toString()}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('レポート作成依頼の取得に失敗しました');
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Error fetching report requests:', error);
+        return [];
+      }
+    }
+    try {
+      const data = localStorage.getItem(this.reportRequestStorageKey);
+      const requests = data ? JSON.parse(data) : [];
+      let filtered = requests;
+      if (projectId) filtered = filtered.filter((r: ReportRequest) => r.project_id === projectId);
+      if (status) filtered = filtered.filter((r: ReportRequest) => r.status === status);
+      return filtered;
+    } catch (error) {
+      console.error('Error fetching report requests:', error);
+      return [];
+    }
+  }
+
+  async createReportRequest(request: Omit<ReportRequest, 'request_id' | 'requested_at' | 'status'>): Promise<ReportRequest> {
+    const newRequest: ReportRequest = {
+      ...request,
+      request_id: `RPT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      requested_at: new Date().toISOString(),
+      status: 'pending',
+    };
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/report-requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRequest),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'レポート作成依頼の作成に失敗しました');
+        }
+        console.log('💡 Report request created (API):', newRequest.request_id);
+        return newRequest;
+      } catch (error) {
+        console.error('Error creating report request:', error);
+        throw error;
+      }
+    }
+    try {
+      const requests = await this.getReportRequests();
+      requests.unshift(newRequest);
+      localStorage.setItem(this.reportRequestStorageKey, JSON.stringify(requests));
+      console.log('💡 Report request created:', newRequest.request_id);
+      return newRequest;
+    } catch (error) {
+      console.error('Error creating report request:', error);
+      throw error;
+    }
+  }
+
+  async updateReportRequest(requestId: string, updates: Partial<ReportRequest>): Promise<ReportRequest> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/report-requests/${encodeURIComponent(requestId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'レポート作成依頼の更新に失敗しました');
+        }
+        const list = await this.getReportRequests();
+        const updated = list.find(r => r.request_id === requestId);
+        if (updated) return updated;
+        throw new Error(`Report request not found: ${requestId}`);
+      } catch (error) {
+        console.error('Error updating report request:', error);
+        throw error;
+      }
+    }
+    try {
+      const requests = await this.getReportRequests();
+      const index = requests.findIndex(r => r.request_id === requestId);
+      if (index === -1) throw new Error(`Report request not found: ${requestId}`);
+      requests[index] = { ...requests[index], ...updates };
+      localStorage.setItem(this.reportRequestStorageKey, JSON.stringify(requests));
+      return requests[index];
+    } catch (error) {
+      console.error('Error updating report request:', error);
+      throw error;
+    }
+  }
+
+  async approveReportRequest(requestId: string, reviewedBy: string, reviewComment?: string): Promise<void> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/report-requests/${encodeURIComponent(requestId)}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviewed_by: reviewedBy, review_comment: reviewComment }),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'レポート作成依頼の承認に失敗しました');
+        }
+      } catch (error) {
+        console.error('Error approving report request:', error);
+        throw error;
+      }
+    } else {
+      await this.updateReportRequest(requestId, {
+        status: 'approved',
+        reviewed_by: reviewedBy,
+        reviewed_at: new Date().toISOString(),
+        review_comment: reviewComment,
+      });
+    }
+  }
+
+  async rejectReportRequest(requestId: string, reviewedBy: string, reviewComment?: string): Promise<void> {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/report-requests/${encodeURIComponent(requestId)}/reject`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviewed_by: reviewedBy, review_comment: reviewComment }),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || response.statusText || 'レポート作成依頼の却下に失敗しました');
+        }
+      } catch (error) {
+        console.error('Error rejecting report request:', error);
+        throw error;
+      }
+    } else {
+      await this.updateReportRequest(requestId, {
+        status: 'rejected',
+        reviewed_by: reviewedBy,
+        reviewed_at: new Date().toISOString(),
+        review_comment: reviewComment,
+      });
+    }
+  }
+
   // ユーザー管理
   async getUsers(): Promise<any[]> {
     // バックエンドAPIを使用する場合

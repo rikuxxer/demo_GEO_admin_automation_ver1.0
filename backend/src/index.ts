@@ -804,6 +804,90 @@ app.put('/api/feature-requests/:request_id', async (req, res) => {
   }
 });
 
+// ==================== レポート作成依頼 ====================
+app.get('/api/report-requests', async (req, res) => {
+  try {
+    const project_id = req.query.project_id as string | undefined;
+    const status = req.query.status as string | undefined;
+    const rows = await getBqService().getReportRequests(project_id, status);
+    res.json(rows);
+  } catch (error: any) {
+    console.error('Error fetching report requests:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/report-requests/:request_id', async (req, res) => {
+  try {
+    const { request_id } = req.params;
+    const reportRequest = await getBqService().getReportRequestById(request_id);
+    if (!reportRequest) {
+      return res.status(404).json({ error: 'Report request not found' });
+    }
+    res.json(reportRequest);
+  } catch (error: any) {
+    console.error('Error fetching report request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/report-requests', async (req, res) => {
+  try {
+    await getBqService().createReportRequest(req.body);
+    res.status(201).json({ message: 'Report request created successfully' });
+  } catch (error: any) {
+    console.error('Error creating report request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/report-requests/:request_id', async (req, res) => {
+  try {
+    const { request_id } = req.params;
+    await getBqService().updateReportRequest(request_id, req.body);
+    res.json({ message: 'Report request updated successfully' });
+  } catch (error: any) {
+    console.error('Error updating report request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// レポート作成依頼の承認
+app.post('/api/report-requests/:request_id/approve', async (req, res) => {
+  try {
+    const { request_id } = req.params;
+    const { reviewed_by, review_comment } = req.body;
+    await getBqService().updateReportRequest(request_id, {
+      status: 'approved',
+      reviewed_by,
+      reviewed_at: new Date().toISOString(),
+      review_comment,
+    });
+    res.json({ message: 'Report request approved successfully' });
+  } catch (error: any) {
+    console.error('Error approving report request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// レポート作成依頼の却下
+app.post('/api/report-requests/:request_id/reject', async (req, res) => {
+  try {
+    const { request_id } = req.params;
+    const { reviewed_by, review_comment } = req.body;
+    await getBqService().updateReportRequest(request_id, {
+      status: 'rejected',
+      reviewed_by,
+      reviewed_at: new Date().toISOString(),
+      review_comment,
+    });
+    res.json({ message: 'Report request rejected successfully' });
+  } catch (error: any) {
+    console.error('Error rejecting report request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==================== 変更履歴 ====================
 app.get('/api/change-history', async (req, res) => {
   try {

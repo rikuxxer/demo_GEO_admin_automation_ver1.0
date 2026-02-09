@@ -42,6 +42,7 @@
 - `CLOUD_SHELL_VERIFICATION_GUIDE.md` - Cloud Shell検証ガイド
 
 ### スプレッドシートエクスポート
+- `TEST_ALL_SPREADSHEET_PATTERNS_PROPOSAL.md` - 全パターンテストの対応方針（承認待ち）
 - `SPREADSHEET_EXPORT_TABLE_ACCUMULATION.md` - スプレッドシートエクスポートテーブル蓄積
 - `SPREADSHEET_EXPORT_RADIUS_LOGIC.md` - スプレッドシートエクスポート半径ロジック
 - `SPREADSHEET_EXPORT_REQUIREMENTS.md` - スプレッドシートエクスポート要件
@@ -55,6 +56,7 @@
 - `VERIFY_SHEETS_EXPORT.md` - シートエクスポートの検証
 
 ### API・エラー
+- `REGISTRATION_ISSUES_OVERVIEW.md` - 「登録できない」と「再度登録できない」の整理
 - `CORS_TROUBLESHOOTING.md` - CORSトラブルシューティング
 - `CHECK_API_ERRORS.md` - APIエラーの確認
 - `FIX_BACKEND_500_ERROR.md` - バックエンド500エラーの修正

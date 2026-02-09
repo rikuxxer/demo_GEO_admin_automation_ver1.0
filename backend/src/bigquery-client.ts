@@ -2789,6 +2789,125 @@ UNIVERSEGEO案件管理システム
     await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
   }
 
+  // ==================== レポート作成依頼 (report_requests) ====================
+
+  async getReportRequests(project_id?: string, status?: string): Promise<any[]> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getCleanDatasetId();
+      let query = `SELECT * FROM \`${currentProjectId}.${cleanDatasetId}.report_requests\` WHERE 1=1`;
+      const params: any = {};
+      
+      if (project_id && project_id.trim()) {
+        query += ` AND project_id = @project_id`;
+        params.project_id = project_id.trim();
+      }
+      
+      if (status && status.trim()) {
+        query += ` AND status = @status`;
+        params.status = status.trim();
+      }
+      
+      query += ` ORDER BY requested_at DESC`;
+      
+      const [rows] = await initializeBigQueryClient().query({
+        query,
+        params: Object.keys(params).length ? params : undefined,
+        location: BQ_LOCATION,
+      });
+      
+      return (rows || []).map((r: any) => ({
+        ...r,
+        segment_ids: r.segment_ids ? (typeof r.segment_ids === 'string' ? JSON.parse(r.segment_ids) : r.segment_ids) : [],
+      }));
+    } catch (err: any) {
+      if (err?.message?.includes('Not found') || err?.code === 404) return [];
+      console.error('[BQ getReportRequests]', err?.message);
+      throw err;
+    }
+  }
+
+  async getReportRequestById(request_id: string): Promise<any | null> {
+    try {
+      const currentProjectId = validateProjectId();
+      const cleanDatasetId = getCleanDatasetId();
+      const [rows] = await initializeBigQueryClient().query({
+        query: `SELECT * FROM \`${currentProjectId}.${cleanDatasetId}.report_requests\` WHERE request_id = @request_id`,
+        params: { request_id: request_id.trim() },
+        location: BQ_LOCATION,
+      });
+      if (!rows || rows.length === 0) return null;
+      const r = rows[0];
+      return {
+        ...r,
+        segment_ids: r.segment_ids ? (typeof r.segment_ids === 'string' ? JSON.parse(r.segment_ids) : r.segment_ids) : [],
+      };
+    } catch (err: any) {
+      if (err?.message?.includes('Not found') || err?.code === 404) return null;
+      console.error('[BQ getReportRequestById]', err?.message);
+      throw err;
+    }
+  }
+
+  async createReportRequest(row: any): Promise<void> {
+    const now = new Date();
+    const cleaned: any = {
+      request_id: String(row.request_id).trim(),
+      requested_by: String(row.requested_by).trim(),
+      requested_by_name: String(row.requested_by_name ?? '').trim(),
+      requested_at: formatTimestampForBigQuery(row.requested_at || now),
+      project_id: String(row.project_id).trim(),
+      report_type: String(row.report_type ?? 'custom').trim(),
+      report_title: String(row.report_title ?? '').trim(),
+      description: row.description != null ? String(row.description).trim() : null,
+      start_date: row.start_date ? formatDateForBigQuery(row.start_date) : null,
+      end_date: row.end_date ? formatDateForBigQuery(row.end_date) : null,
+      segment_ids: row.segment_ids && Array.isArray(row.segment_ids) ? JSON.stringify(row.segment_ids) : null,
+      status: String(row.status ?? 'pending').trim(),
+      reviewed_by: row.reviewed_by != null ? String(row.reviewed_by).trim() : null,
+      reviewed_at: row.reviewed_at ? formatTimestampForBigQuery(row.reviewed_at) : null,
+      review_comment: row.review_comment != null ? String(row.review_comment).trim() : null,
+      report_url: row.report_url != null ? String(row.report_url).trim() : null,
+      completed_at: row.completed_at ? formatTimestampForBigQuery(row.completed_at) : null,
+      error_message: row.error_message != null ? String(row.error_message).trim() : null,
+    };
+    await getDataset().table('report_requests').insert([cleaned], { ignoreUnknownValues: true });
+  }
+
+  async updateReportRequest(request_id: string, updates: any): Promise<void> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const allowed = [
+      'report_title', 'description', 'report_type', 'start_date', 'end_date', 'segment_ids',
+      'status', 'reviewed_by', 'reviewed_at', 'review_comment', 'report_url', 'completed_at', 'error_message'
+    ];
+    const setParts: string[] = [];
+    const params: any = { request_id: request_id.trim() };
+    
+    allowed.forEach(f => {
+      if (updates[f] !== undefined) {
+        if (f === 'start_date' || f === 'end_date') {
+          setParts.push(`${f} = @${f}`);
+          params[f] = formatDateForBigQuery(updates[f]);
+        } else if (f === 'segment_ids' && Array.isArray(updates[f])) {
+          setParts.push(`${f} = @${f}`);
+          params[f] = JSON.stringify(updates[f]);
+        } else if (f === 'reviewed_at' || f === 'completed_at') {
+          setParts.push(`${f} = @${f}`);
+          params[f] = formatTimestampForBigQuery(updates[f]);
+        } else {
+          setParts.push(`${f} = @${f}`);
+          params[f] = updates[f];
+        }
+      }
+    });
+    
+    if (setParts.length === 0) return;
+    
+    const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.report_requests\` SET ${setParts.join(', ')}, updated_at = CURRENT_TIMESTAMP() WHERE request_id = @request_id`;
+    await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
+  }
+
   // ==================== 変更履歴 (change_history) ====================
 
   async getChangeHistories(project_id?: string): Promise<any[]> {

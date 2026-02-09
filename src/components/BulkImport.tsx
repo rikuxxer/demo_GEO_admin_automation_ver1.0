@@ -7,10 +7,10 @@ import { Alert, AlertDescription } from './ui/alert';
 import { downloadExcelTemplate } from '../utils/excelTemplateGenerator';
 import { parseExcelFile, type ExcelParseResult, type ExcelProjectData, type ExcelSegmentData, type ExcelLocationData } from '../utils/excelParser';
 import { BulkImportEditor } from './BulkImportEditor';
-import { MEDIA_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS } from '../types/schema';
+import { MEDIA_OPTIONS, EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, type PoiInfo } from '../types/schema';
 import { bigQueryService } from '../utils/bigquery';
 import { useAuth } from '../contexts/AuthContext';
-import { convertPoiToSpreadsheetRow, saveToExportQueue, exportToGoogleSheets } from '../utils/spreadsheetExport';
+import { exportPoisToSheet } from '../utils/googleSheets';
 
 interface BulkImportProps {
   onImportComplete: () => void;
@@ -170,7 +170,7 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
 
       // 3. 地点を登録
       let successCount = 0;
-      const spreadsheetRows: any[] = []; // スプレッドシート出力用のデータを蓄積
+      const createdPois: PoiInfo[] = []; // 作成された地点を蓄積（スプレッドシート出力用）
       
       for (const location of result.locations) {
         // 来店計測地点の場合はセグメント不要、グループ必須
@@ -230,19 +230,9 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
           stay_time: segmentData?.stay_time || '',
         });
 
-        // 営業ユーザーによるTG地点登録の場合、スプレッドシート出力用データを蓄積
-        // （来店計測地点はスプレッドシート出力対象外）
-        if (user?.role === 'sales' && location.poi_category !== 'visit_measurement') {
-          try {
-            const segment = segmentDataMap.get(location.segment_name_ref);
-            if (segment) {
-              const spreadsheetRow = convertPoiToSpreadsheetRow(createdPoi, createdProject, segment);
-              spreadsheetRows.push(spreadsheetRow);
-            }
-          } catch (error) {
-            console.error('スプレッドシート出力データの作成に失敗しました:', error);
-            // エラーが発生しても地点登録は成功とする
-          }
+        // 作成された地点を蓄積（スプレッドシート出力用）
+        if (user?.role === 'sales') {
+          createdPois.push(createdPoi);
         }
 
         successCount++;
@@ -250,20 +240,33 @@ export function BulkImport({ onImportComplete }: BulkImportProps) {
       }
 
       // 一括登録の場合、全ての地点をまとめてスプレッドシートに送信
-      if (user?.role === 'sales' && spreadsheetRows.length > 0) {
+      // 全地点を出力（TG地点・来店計測地点・ポリゴン地点を含む）
+      if (user?.role === 'sales' && createdPois.length > 0) {
         try {
-          const result = await exportToGoogleSheets(spreadsheetRows);
-          if (result.success) {
-            console.log('✅ スプレッドシートに一括自動入力成功:', result.message);
+          const createdSegments = Array.from(segmentDataMap.values());
+          const sheetResult = await exportPoisToSheet(
+            createdPois,
+            createdProject,
+            createdSegments,
+            {
+              useAccumulation: true,
+              exportedBy: user?.email || user?.user_id || 'system',
+              exportedByName: user?.name || 'システム',
+            }
+          );
+          
+          if (sheetResult.success) {
+            console.log('✅ スプレッドシートに一括自動入力成功:', sheetResult.message);
+            if (sheetResult.exportId) {
+              console.log('📊 エクスポートID:', sheetResult.exportId);
+            }
           } else {
-            // 失敗した場合はキューに保存
-            spreadsheetRows.forEach(row => saveToExportQueue(row));
-            console.warn('⚠️ スプレッドシート自動入力失敗、キューに保存:', result.message);
+            console.warn('⚠️ スプレッドシート自動入力失敗:', sheetResult.message);
+            // スプレッドシート出力失敗してもエラーにはしない（一括登録自体は成功）
           }
         } catch (error) {
           console.error('スプレッドシート一括出力に失敗しました:', error);
-          // エラー時はキューに保存
-          spreadsheetRows.forEach(row => saveToExportQueue(row));
+          // エラーでも処理は継続
         }
       }
 

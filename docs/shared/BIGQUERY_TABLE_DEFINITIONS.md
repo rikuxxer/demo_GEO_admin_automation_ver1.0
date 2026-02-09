@@ -66,6 +66,7 @@ UNIVERSEGEOシステムで使用するBigQueryテーブルの包括的な定義�
 | 10 | `visit_measurement_groups` | 来店計測地点グループ | 来店計測地点のグループ | `group_id` | - | `projects`, `pois` |
 | 11 | `sheet_exports` | スプレッドシートエクスポート履歴 | スプレッドシートへのエクスポート履歴 | `export_id` | `exported_at` | `projects`, `segments` |
 | 12 | `sheet_export_data` | スプレッドシートエクスポートデータ | エクスポートされたデータの詳細 | `export_data_id` | `created_at` | `sheet_exports`, `projects`, `segments`, `pois` |
+| 13 | `report_requests` | レポート作成依頼 | レポート作成依頼を管理するテーブル | `request_id` | `requested_at` | `projects` |
 
 ---
 
@@ -740,6 +741,75 @@ OPTIONS(
 
 ---
 
+### 13. report_requests（レポート作成依頼テーブル）
+
+**説明**: レポート作成依頼を管理するテーブル
+
+**CREATE文**:
+```sql
+CREATE TABLE `universegeo_dataset.report_requests` (
+  request_id STRING NOT NULL,
+  requested_by STRING NOT NULL,
+  requested_by_name STRING NOT NULL,
+  requested_at TIMESTAMP NOT NULL,
+  project_id STRING NOT NULL,
+  report_type STRING NOT NULL,
+  report_title STRING NOT NULL,
+  description STRING,
+  start_date DATE,
+  end_date DATE,
+  segment_ids STRING,
+  status STRING NOT NULL,
+  reviewed_by STRING,
+  reviewed_at TIMESTAMP,
+  review_comment STRING,
+  report_url STRING,
+  completed_at TIMESTAMP,
+  error_message STRING,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+)
+PARTITION BY DATE(requested_at)
+OPTIONS(
+  description="レポート作成依頼"
+);
+```
+
+**フィールド定義**:
+
+| フィールド名 | データ型 | NULL | 説明 | 例 |
+|------------|---------|------|------|-----|
+| `request_id` | STRING | NO | リクエストID（主キー） | `RPT-20250113-001` |
+| `requested_by` | STRING | NO | 依頼者（user_id） | `user-sales-001` |
+| `requested_by_name` | STRING | NO | 依頼者名 | `営業太郎` |
+| `requested_at` | TIMESTAMP | NO | 依頼日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
+| `project_id` | STRING | NO | 案件ID（外部キー） | `PRJ-1` |
+| `report_type` | STRING | NO | レポート種別 | `delivery_performance`, `effectiveness`, `custom` |
+| `report_title` | STRING | NO | レポートタイトル | `2025年1月配信実績レポート` |
+| `description` | STRING | YES | レポート説明 | `詳細な説明...` |
+| `start_date` | DATE | YES | 期間開始日 | `2025-01-01` |
+| `end_date` | DATE | YES | 期間終了日 | `2025-01-31` |
+| `segment_ids` | STRING | YES | 対象セグメントID（JSON配列形式） | `["SEG-1", "SEG-2"]` |
+| `status` | STRING | NO | ステータス | `pending`, `approved`, `rejected`, `in_progress`, `completed`, `failed` |
+| `reviewed_by` | STRING | YES | レビューした管理者（user_id） | `user-admin-001` |
+| `reviewed_at` | TIMESTAMP | YES | レビュー日時 | `2025-01-13 11:00:00 UTC` |
+| `review_comment` | STRING | YES | レビューコメント | `承認しました` |
+| `report_url` | STRING | YES | 生成されたレポートのURL | `https://storage.googleapis.com/...` |
+| `completed_at` | TIMESTAMP | YES | レポート生成完了日時 | `2025-01-13 12:00:00 UTC` |
+| `error_message` | STRING | YES | エラーメッセージ | `レポート生成に失敗しました` |
+| `created_at` | TIMESTAMP | YES | 作成日時 | `2025-01-13 10:00:00 UTC` |
+| `updated_at` | TIMESTAMP | YES | 更新日時 | `2025-01-13 12:00:00 UTC` |
+
+**ビジネスルール**:
+- `request_id`は自動採番（形式: `RPT-{YYYYMMDD}-{連番}`）
+- `report_type`は`delivery_performance`, `effectiveness`, `custom`のみ
+- `status`は`pending`, `approved`, `rejected`, `in_progress`, `completed`, `failed`のみ
+- `project_id`は必須（`projects`テーブルに存在する必要がある）
+- `end_date`は`start_date`より後である必要がある
+- `segment_ids`はJSON配列形式の文字列として保存（例: `["SEG-1", "SEG-2"]`）
+
+---
+
 ## リレーションシップ
 
 ### ER図（概念図）
@@ -762,6 +832,8 @@ users (1) ──< (N) change_history (changed_by)
 users (1) ──< (N) edit_requests (requested_by, reviewed_by)
 users (1) ──< (N) feature_requests (requested_by, reviewed_by)
 users (1) ──< (N) sheet_exports (exported_by)
+projects (1) ──< (N) report_requests
+users (1) ──< (N) report_requests (requested_by, reviewed_by)
 ```
 
 ### 外部キー制約
@@ -784,6 +856,8 @@ BigQueryでは外部キー制約はサポートされていませんが、アプ
 12. **pois → sheet_export_data**: `sheet_export_data.poi_id` → `pois.poi_id`
 13. **users → projects**: `projects.person_in_charge` → `users.user_id`, `projects.sub_person_in_charge` → `users.user_id`
 14. **users → sheet_exports**: `sheet_exports.exported_by` → `users.user_id`
+15. **projects → report_requests**: `report_requests.project_id` → `projects.project_id`
+16. **users → report_requests**: `report_requests.requested_by` → `users.user_id`, `report_requests.reviewed_by` → `users.user_id`
 
 ---
 
@@ -797,6 +871,7 @@ BigQueryでは外部キー制約はサポートされていませんが、アプ
 | `segments` | `segment_registered_at` | DATE | 登録日でパーティション分割 |
 | `pois` | `created_at` | DATE | 作成日でパーティション分割 |
 | `messages` | `timestamp` | DATE | 送信日でパーティション分割 |
+| `report_requests` | `requested_at` | DATE | 依頼日でパーティション分割 |
 | `sheet_exports` | `exported_at` | DATE | エクスポート日でパーティション分割 |
 | `sheet_export_data` | `created_at` | DATE | 作成日でパーティション分割 |
 

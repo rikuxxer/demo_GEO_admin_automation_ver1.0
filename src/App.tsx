@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, ChevronDown, HelpCircle } from "lucide-react";
+import { Plus, ChevronDown, HelpCircle, RefreshCw } from "lucide-react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Login } from "./components/Login";
 import { PasswordReset } from "./components/PasswordReset";
@@ -20,6 +20,7 @@ import { OperationGuide } from "./components/OperationGuide";
 import { ChatBot } from "./components/ChatBot";
 import { FeatureRequestList } from "./components/FeatureRequestList";
 import { UserManagement } from "./components/UserManagement";
+import { TopProgressBar } from "./components/TopProgressBar";
 import { UserApprovalManagement } from "./components/UserApprovalManagement";
 import { Button } from "./components/ui/button";
 import {
@@ -69,9 +70,11 @@ function AppContent() {
     selectedProject,
     unreadNotificationsCount,
     
-    // Data Refreshers
+    // Loading state & Refreshers
+    isLoadingProjects,
     refreshProjects,
     refreshSegments,
+    refreshAllForProjectsPage,
     
     // Actions
     createProject,
@@ -285,6 +288,11 @@ function AppContent() {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* 案件管理画面の再読み込み時のプログレッシブバー */}
+      <TopProgressBar
+        visible={currentPage === "projects" && isLoadingProjects}
+      />
+
       {/* Sidebar */}
       <Sidebar
         isCollapsed={sidebarCollapsed}
@@ -344,6 +352,19 @@ function AppContent() {
                       <h2 className="text-sm text-gray-700">
                         案件サマリ
                       </h2>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => refreshAllForProjectsPage()}
+                        disabled={isLoadingProjects}
+                        title="再読み込み"
+                        aria-label="案件一覧を再読み込み"
+                      >
+                        <RefreshCw
+                          className={`h-4 w-4 ${isLoadingProjects ? "animate-spin" : ""}`}
+                        />
+                      </Button>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

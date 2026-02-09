@@ -316,6 +316,45 @@ export const FEATURE_REQUEST_STATUS_OPTIONS = [
   { value: 'implemented', label: '実装済み', color: 'purple' },
 ] as const;
 
+// レポート作成依頼（Report Request）
+export interface ReportRequest {
+  request_id: string; // リクエストID（自動採番）RPT-YYYYMMDD-XXXXX
+  requested_by: string; // 依頼者（営業のuser_id）
+  requested_by_name: string; // 依頼者名
+  requested_at: string; // 依頼日時（ISO 8601形式）
+  project_id: string; // 案件ID
+  report_type: 'delivery_performance' | 'effectiveness' | 'custom'; // レポート種別
+  report_title: string; // レポートタイトル
+  description?: string; // レポート説明
+  start_date?: string; // 期間開始日（ISO 8601形式）
+  end_date?: string; // 期間終了日（ISO 8601形式）
+  segment_ids?: string[]; // 対象セグメントID（配列）
+  status: 'pending' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'failed'; // ステータス
+  reviewed_by?: string; // レビューした管理者のuser_id
+  reviewed_at?: string; // レビュー日時（ISO 8601形式）
+  review_comment?: string; // レビューコメント
+  report_url?: string; // 生成されたレポートのURL
+  completed_at?: string; // レポート生成完了日時（ISO 8601形式）
+  error_message?: string; // エラーメッセージ
+}
+
+// レポート種別の選択肢
+export const REPORT_TYPE_OPTIONS = [
+  { value: 'delivery_performance', label: '配信実績レポート' },
+  { value: 'effectiveness', label: '効果測定レポート' },
+  { value: 'custom', label: 'カスタムレポート' },
+] as const;
+
+// レポート作成依頼ステータスの選択肢
+export const REPORT_REQUEST_STATUS_OPTIONS = [
+  { value: 'pending', label: '承認待ち', color: 'yellow' },
+  { value: 'approved', label: '承認済み', color: 'blue' },
+  { value: 'rejected', label: '却下', color: 'red' },
+  { value: 'in_progress', label: '生成中', color: 'blue' },
+  { value: 'completed', label: '完了', color: 'green' },
+  { value: 'failed', label: '失敗', color: 'red' },
+] as const;
+
 // プロジェクト内メッセージ（管理部⇔営業の連絡）
 export interface ProjectMessage {
   message_id: string;

@@ -21,6 +21,7 @@ export function useProjectSystem() {
   
   // UI State that is closely related to data
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   // Data Loading Functions
   const loadProjects = useCallback(async () => {
@@ -89,12 +90,38 @@ export function useProjectSystem() {
     }
   }, [user]);
 
+  // 案件管理画面用の一括再読み込み（プログレッシブバー表示用）
+  const refreshAllForProjectsPage = useCallback(async () => {
+    setIsLoadingProjects(true);
+    try {
+      await Promise.all([
+        loadProjects(),
+        loadAllSegments(),
+        loadAllPois(),
+        loadEditRequests(),
+      ]);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, [loadProjects, loadAllSegments, loadAllPois, loadEditRequests]);
+
   // Initial Data Load
   useEffect(() => {
-    loadProjects();
-    loadAllSegments();
-    loadAllPois();
-    loadEditRequests();
+    let cancelled = false;
+    (async () => {
+      setIsLoadingProjects(true);
+      try {
+        await Promise.all([
+          loadProjects(),
+          loadAllSegments(),
+          loadAllPois(),
+          loadEditRequests(),
+        ]);
+      } finally {
+        if (!cancelled) setIsLoadingProjects(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [loadProjects, loadAllSegments, loadAllPois, loadEditRequests]);
 
   useEffect(() => {
@@ -692,11 +719,15 @@ export function useProjectSystem() {
     selectedProject,
     unreadNotificationsCount,
 
+    // Loading state（案件管理画面のプログレッシブバー用）
+    isLoadingProjects,
+
     // Loaders (exposed for refreshing data if needed)
     refreshProjects: loadProjects,
     refreshSegments: loadAllSegments,
     refreshPois: loadAllPois,
     refreshEditRequests: loadEditRequests,
+    refreshAllForProjectsPage,
     refreshNotifications: loadUnreadNotifications,
 
     // Actions

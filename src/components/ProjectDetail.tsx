@@ -792,25 +792,22 @@ export function ProjectDetail({
         });
 
         // スプレッドシートに自動出力（営業ユーザーの場合）
-        // TG地点のみを出力（来店計測地点は出力しない）
+        // 全地点を出力（TG地点・来店計測地点・ポリゴン地点を含む）
+        // setting_flagは地点タイプと属性に応じて自動決定（2,4,5,6,7,8）
         if (user?.role === 'sales') {
           try {
             console.log('📊 スプレッドシートに出力中...');
             
-            // TG地点のみをフィルタリング（ポリゴン地点は除外）
-            const tgPois = segmentPois.filter(poi => 
-              (poi.poi_category === 'tg' || !poi.poi_category) &&
-              poi.poi_type !== 'polygon' &&
-              !(poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)
-            );
+            // 全地点を出力対象とする（フィルタリングなし）
+            const allPois = segmentPois;
             
-            console.log(`📊 出力対象: TG地点=${tgPois.length}件（全地点=${segmentPois.length}件）`);
+            console.log(`📊 出力対象: 全地点=${allPois.length}件（TG地点・来店計測地点・ポリゴン地点を含む）`);
             
-            if (tgPois.length === 0) {
-              console.log('⚠️ TG地点が存在しないため、スプレッドシート出力をスキップします');
+            if (allPois.length === 0) {
+              console.log('⚠️ 地点が存在しないため、スプレッドシート出力をスキップします');
             } else {
               const sheetResult = await exportPoisToSheet(
-                tgPois,
+                allPois,
                 project,
                 segments,
                 {

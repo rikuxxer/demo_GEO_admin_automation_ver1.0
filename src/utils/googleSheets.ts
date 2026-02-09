@@ -116,6 +116,29 @@ export function convertPoiToSheetRow(
     city = poi.cities[0];
   }
 
+  // ポリゴン座標のフォーマット（ポリゴン地点の場合）
+  // 形式: "lng lat, lng lat, ..." （サンプルデータに合わせる）
+  let polygonString = '';
+  if (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0) {
+    // ポリゴン座標を文字列に変換
+    // poi.polygonは [[lat, lng], [lat, lng], ...] の形式
+    // スプレッドシートには "lng lat, lng lat, ..." の形式で出力
+    polygonString = poi.polygon.map((coord: number[]) => {
+      if (coord.length >= 2) {
+        const lat = coord[0]; // 緯度
+        const lng = coord[1]; // 経度
+        return `${lng} ${lat}`; // lng lat の順で出力
+      }
+      return '';
+    }).filter(s => s !== '').join(', ');
+  }
+
+  // poi_typeを判定（ポリゴン座標が存在する場合はpolygon）
+  // 優先順位: polygon座標 > poi_type > prefectures配列の存在
+  const poiType = polygonString 
+    ? 'polygon' 
+    : (poi.poi_type || (poi.prefectures && poi.prefectures.length > 0 ? 'prefecture' : 'manual'));
+
   // 半径を数値に変換
   const radiusValue = parseRadius(poi.designated_radius || segment?.designated_radius);
   
@@ -139,18 +162,41 @@ export function convertPoiToSheetRow(
   // YYYY-MM-DD形式をYYYY/MM/DD形式に変換
   const createdDateFormatted = formatDateToYYYYMMDD(coordinationDate);
 
-  // 半径の入力方法に応じてcategory_id、radius、setting_flagを決定
+  // setting_flag、category_id、radius、polygonを決定
   let categoryId: string;
   let radius: string;
   let settingFlag: string;
 
-  if (radiusValue === 0) {
+  // 属性（attribute）を取得（居住者・勤務者の判定に使用）
+  const attribute = poi.attribute || segment?.attribute;
+
+  if (poiType === 'polygon' || polygonString) {
+    // ポリゴン抽出（setting_flag=5）
+    categoryId = '';
+    radius = '';
+    settingFlag = '5';
+  } else if (poiType === 'prefecture') {
+    // 都道府県・市区町村指定（setting_flag=6）
+    categoryId = '';
+    radius = '';
+    settingFlag = '6';
+  } else if (attribute === 'resident' && radiusValue > 0 && poi.latitude && poi.longitude) {
+    // 緯度半径ベースでの居住者（setting_flag=7）
+    categoryId = '';
+    radius = String(radiusValue);
+    settingFlag = '7';
+  } else if (attribute === 'worker' && radiusValue > 0 && poi.latitude && poi.longitude) {
+    // 緯度半径ベースでの勤務者（setting_flag=8）
+    categoryId = '';
+    radius = String(radiusValue);
+    settingFlag = '8';
+  } else if (radiusValue === 0) {
     // 半径が設定されていない場合
     categoryId = '';
     radius = '';
     settingFlag = poi.setting_flag || '2';
   } else if (isFreeInputRadius(radiusValue)) {
-    // 自由入力範囲（0-1000m）の場合
+    // 自由入力範囲（1-999m）の場合（setting_flag=2）
     // category_id: 99000XXX（XXXは半径の値、4桁で0埋め）
     // radius: 空
     // setting_flag: 2
@@ -158,7 +204,7 @@ export function convertPoiToSheetRow(
     radius = '';
     settingFlag = '2';
   } else if (isSelectableRadius(radiusValue)) {
-    // 選択可能な値（1000m以上）の場合
+    // 選択可能な値（1000m以上）の場合（setting_flag=4）
     // category_id: 空
     // radius: 選択した値
     // setting_flag: 4
@@ -167,8 +213,7 @@ export function convertPoiToSheetRow(
     settingFlag = '4';
   } else {
     // その他の値（1000m超で選択可能な値以外）の場合
-    // 選択可能な値に最も近い値に丸める、またはエラーとして扱う
-    // ここでは選択可能な値に最も近い値を使用
+    // 選択可能な値に最も近い値に丸める
     const closestSelectable = SELECTABLE_RADIUS_VALUES.reduce((prev, curr) => {
       return Math.abs(curr - radiusValue) < Math.abs(prev - radiusValue) ? curr : prev;
     });
@@ -200,7 +245,7 @@ export function convertPoiToSheetRow(
     prefecture: prefecture || '', // 空の場合は空文字列
     city: city || '', // 空の場合は空文字列
     radius: radius, // 選択可能な値の場合のみ設定
-    polygon: '', // 空
+    polygon: polygonString, // ポリゴン座標（存在する場合）
     setting_flag: settingFlag,
     created: createdDateFormatted, // YYYY/MM/DD形式
   };
@@ -480,11 +525,7 @@ export async function exportPoisToSheet(
     // POIデータを変換
     const rows = pois.map(poi => {
       const segment = segments.find(s => s.segment_id === poi.segment_id);
-      // 来店計測地点の場合はグループIDを使用
-      const visitMeasurementGroupId = poi.poi_category === 'visit_measurement' 
-        ? poi.visit_measurement_group_id 
-        : undefined;
-      return convertPoiToSheetRow(poi, project, segment, visitMeasurementGroupId);
+      return convertPoiToSheetRow(poi, project, segment);
     });
 
     // バリデーション
