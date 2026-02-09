@@ -267,6 +267,103 @@ WHERE registerd_provider_segment IS NULL;
 
 **補足**: BigQueryでは、新規に追加されたカラムは自動的に`NULL`になります。デフォルト値を設定するには、`UPDATE`文で明示的に値を設定する必要があります。アプリケーション側でデフォルト値（`false`）を処理するように実装されています。
 
+### 方法2-3: segments の delivery_media / media_id を STRING から ARRAY&lt;STRING&gt; へ変更（新規テーブル作成＋移行）
+
+**注意**: これは既存テーブルの ALTER による修正ではなく、**正スキーマの新規テーブルを作成し、データを移行したうえで入れ替える**手順です。BigQuery では列の型を STRING → ARRAY に変更する ALTER がサポートされていないため、この方式で対応します。
+
+**前提**: 既存の `segments` で `delivery_media` と `media_id` が STRING 型の場合、定義書どおり ARRAY&lt;STRING&gt; に揃えるために、新規テーブル作成・データ移行・旧テーブル削除・コピーで `segments` を差し替えます。
+
+**実行用SQL（コピー用）**: [SEGMENTS_BQ_MIGRATION.sql](SEGMENTS_BQ_MIGRATION.sql) にプロジェクトIDを置き換えて実行できる一式を用意しています。
+
+**手順概要**:
+1. 正スキーマで `segments_new` を作成する。
+2. 既存 `segments` からデータを変換して `segments_new` に挿入する（STRING はカンマ区切りで SPLIT して ARRAY に）。
+3. 既存 `segments` を削除し、`segments_new` を `segments` にリネームする（またはテーブルスワップ）。
+
+**ステップ1: 新規テーブル作成**
+
+定義書 [BIGQUERY_TABLE_DEFINITIONS.md](../BIGQUERY_TABLE_DEFINITIONS.md) の「2. segments」の CREATE 文をそのまま使い、テーブル名だけ `segments_new` にして実行する。
+
+```sql
+CREATE TABLE `universegeo_dataset.segments_new` (
+  segment_id STRING NOT NULL,
+  project_id STRING NOT NULL,
+  segment_name STRING,
+  segment_registered_at TIMESTAMP,
+  delivery_media ARRAY<STRING>,
+  media_id ARRAY<STRING>,
+  poi_category STRING,
+  poi_type STRING,
+  attribute STRING,
+  extraction_period STRING,
+  extraction_period_type STRING,
+  extraction_start_date DATE,
+  extraction_end_date DATE,
+  extraction_dates ARRAY<STRING>,
+  detection_count INT64,
+  detection_time_start TIME,
+  detection_time_end TIME,
+  stay_time STRING,
+  designated_radius STRING,
+  location_request_status STRING,
+  data_coordination_date DATE,
+  delivery_confirmed BOOL,
+  registerd_provider_segment BOOL,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
+PARTITION BY DATE(segment_registered_at)
+OPTIONS(description="セグメント情報（移行先）");
+```
+
+**ステップ2: データ移行（STRING → ARRAY 変換）**
+
+既存の `delivery_media` / `media_id` がカンマ区切り STRING の場合は `SPLIT`、単一値の場合は 1 要素の ARRAY にする。`detection_count` が既に INT64 ならそのまま、STRING なら `SAFE_CAST(detection_count AS INT64)` で変換する。
+
+```sql
+INSERT INTO `universegeo_dataset.segments_new` (
+  segment_id, project_id, segment_name, segment_registered_at,
+  delivery_media, media_id, poi_category, poi_type, attribute,
+  extraction_period, extraction_period_type, extraction_start_date, extraction_end_date, extraction_dates,
+  detection_count, detection_time_start, detection_time_end, stay_time, designated_radius,
+  location_request_status, data_coordination_date, delivery_confirmed, registerd_provider_segment,
+  created_at, updated_at
+)
+SELECT
+  segment_id, project_id, segment_name, segment_registered_at,
+  -- STRING をカンマ区切りで分割して ARRAY に（NULL/空は NULL）
+  CASE WHEN delivery_media IS NULL OR TRIM(delivery_media) = '' THEN NULL
+       ELSE ARRAY(SELECT TRIM(x) FROM UNNEST(SPLIT(delivery_media, ',')) AS x WHERE TRIM(x) != '') END,
+  CASE WHEN media_id IS NULL OR TRIM(media_id) = '' THEN NULL
+       ELSE ARRAY(SELECT TRIM(x) FROM UNNEST(SPLIT(media_id, ',')) AS x WHERE TRIM(x) != '') END,
+  poi_category, poi_type, attribute,
+  extraction_period,
+  NULL AS extraction_period_type,  -- 既存テーブルに無い列のため NULL で投入
+  extraction_start_date, extraction_end_date, extraction_dates,
+  SAFE_CAST(detection_count AS INT64) AS detection_count,
+  detection_time_start, detection_time_end, stay_time, designated_radius,
+  location_request_status, data_coordination_date, delivery_confirmed, registerd_provider_segment,
+  created_at, updated_at
+FROM `universegeo_dataset.segments`;
+```
+
+**ステップ3: テーブル入れ替え**
+
+```sql
+-- 既存 segments を削除
+DROP TABLE `universegeo_dataset.segments`;
+
+-- 新規テーブルを segments にリネーム（BigQuery では bq cp または CREATE TABLE ... AS SELECT の後に DROP で対応）
+-- リネームが使えない場合は: 新規作成時から segments という名前で別データセットに作り、元 segments を DROP してからコピーする運用も可。
+```
+
+**補足**: BigQuery にはテーブル名の直接リネームがないため、運用では次のいずれかを用いる。
+
+- **A.** 一時データセットを使う: `segments_new` を `segments` という名前で別データセットに作成し、元データセットの `segments` を DROP したあと、`segments_new` を元データセットにコピーして `segments` として作成する。
+- **B.** 運用ウィンドウで DROP → 再作成: 上記 INSERT の直後に元 `segments` を DROP し、`CREATE TABLE segments AS SELECT * FROM segments_new` で `segments` を再作成したうえで `segments_new` を DROP する。
+
+移行後、アプリケーション（バックエンド）は定義書どおり **ARRAY&lt;STRING&gt; で送受信**するようにする。一時的に STRING で送っている実装は、BQ 変更後に配列送信に戻すこと。
+
 ### 方法3: スキーマを更新（既存フィールドを保持）
 
 #### projectsテーブル

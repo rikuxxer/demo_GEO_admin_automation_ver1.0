@@ -318,6 +318,16 @@ function formatDeliveryMediaForBigQuery(value: any): string[] | null {
   return s ? [s] : null;
 }
 
+// 旧BQ用: delivery_media / media_id が STRING のときのカンマ区切り変換（新スキーマでは未使用）
+function formatMediaIdStringForBigQuery(value: any): string | null {
+  const arr = formatMediaIdArrayForBigQuery(value);
+  return arr && arr.length > 0 ? arr.join(',') : null;
+}
+function formatDeliveryMediaStringForBigQuery(value: any): string | null {
+  const arr = formatDeliveryMediaForBigQuery(value);
+  return arr && arr.length > 0 ? arr.join(',') : null;
+}
+
 const COUNTERS_TABLE = 'id_counters';
 
 async function ensureCountersTable(): Promise<void> {
@@ -1037,7 +1047,7 @@ export class BigQueryService {
         throw new Error('project_id is required and must be a non-empty string');
       }
 
-      // スキーマに存在するフィールドのみを含める（data_link_* はフロントから送られる）
+      // スキーマに存在するフィールドのみを含める（data_link_* / request_confirmed はフロントから送られる）
       const allowedFields = [
         'segment_id',
         'project_id',
@@ -1065,6 +1075,9 @@ export class BigQueryService {
         'data_coordination_date',
         'delivery_confirmed',
         'registerd_provider_segment',
+        'ads_account_id',
+        'provider_segment_id',
+        'segment_expire_date',
       ];
 
       const cleanedSegment: any = {
@@ -1081,12 +1094,17 @@ export class BigQueryService {
         cleanedSegment.data_link_status = 'before_request';
       }
 
+      // フロントの request_confirmed を BQ の delivery_confirmed にマッピング
+      if (segment.request_confirmed !== undefined && segment.request_confirmed !== null) {
+        cleanedSegment.delivery_confirmed = formatBoolForBigQuery(segment.request_confirmed);
+      }
+
       // 許可されたフィールドのみをコピー
       for (const field of allowedFields) {
         if (field in segment && segment[field] !== undefined && segment[field] !== null) {
           if (field === 'extraction_start_date' || field === 'extraction_end_date' || field === 'data_coordination_date') {
             cleanedSegment[field] = formatDateForBigQuery(segment[field]);
-          } else if (field === 'data_link_request_date' || field === 'data_link_scheduled_date') {
+          } else if (field === 'data_link_request_date' || field === 'data_link_scheduled_date' || field === 'segment_expire_date') {
             cleanedSegment[field] = formatDateForBigQuery(segment[field]);
           } else if (field === 'detection_time_start' || field === 'detection_time_end') {
             cleanedSegment[field] = formatTimeForBigQuery(segment[field]);
@@ -1095,13 +1113,17 @@ export class BigQueryService {
           } else if (field === 'segment_registered_at') {
             cleanedSegment[field] = formatTimestampForBigQuery(segment[field] || new Date());
           } else if (field === 'media_id') {
-            // media_id: ARRAY<STRING>（配信媒体IDの複数可）
+            // BQ は media_id を ARRAY<STRING> で保存（定義書・新スキーマ）
             const arr = formatMediaIdArrayForBigQuery(segment[field]);
             if (arr) cleanedSegment[field] = arr;
           } else if (field === 'delivery_media') {
-            // delivery_media: ARRAY<STRING>（universe, tver_sp, tver_ctv 等の複数可）
+            // BQ は delivery_media を ARRAY<STRING> で保存（定義書・新スキーマ）
             const arr = formatDeliveryMediaForBigQuery(segment[field]);
             if (arr) cleanedSegment[field] = arr;
+          } else if (field === 'detection_count') {
+            // BQ は detection_count が INT64
+            const n = parseInt(String(segment[field]), 10);
+            if (!Number.isNaN(n)) cleanedSegment[field] = n;
           } else if (field === 'extraction_dates') {
             // extraction_dates: ARRAY<STRING> 形式（YYYY-MM-DDの配列）
             if (Array.isArray(segment[field])) {
@@ -1153,12 +1175,11 @@ export class BigQueryService {
     const currentProjectId = validateProjectId();
     
     const processedUpdates = { ...updates };
-    // media_id: ARRAY<STRING> に正規化
+    // BQ は media_id / delivery_media を ARRAY<STRING> で保存（定義書・新スキーマ）
     if ('media_id' in processedUpdates && processedUpdates.media_id !== undefined) {
       const arr = formatMediaIdArrayForBigQuery(processedUpdates.media_id);
       processedUpdates.media_id = arr;
     }
-    // delivery_media: ARRAY<STRING> に正規化
     if ('delivery_media' in processedUpdates && processedUpdates.delivery_media !== undefined) {
       const arr = formatDeliveryMediaForBigQuery(processedUpdates.delivery_media);
       processedUpdates.delivery_media = arr;

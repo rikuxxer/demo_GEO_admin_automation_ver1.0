@@ -134,6 +134,8 @@ OPTIONS(
 
 **説明**: 配信設定の単位を管理するテーブル
 
+**正スキーマ（BQ変更後の目標）**: 本CREATE文が正とする。既存の BigQuery で `delivery_media` / `media_id` が STRING の場合は、[スキーマ更新ガイド](troubleshooting/UPDATE_BIGQUERY_SCHEMA.md) の「segments: delivery_media / media_id を ARRAY へ変更」を実行すること。
+
 **CREATE文**:
 ```sql
 CREATE TABLE `universegeo_dataset.segments` (
@@ -151,7 +153,7 @@ CREATE TABLE `universegeo_dataset.segments` (
   extraction_start_date DATE,
   extraction_end_date DATE,
   extraction_dates ARRAY<STRING>,
-  detection_count STRING,
+  detection_count INT64,
   detection_time_start TIME,
   detection_time_end TIME,
   stay_time STRING,
@@ -187,7 +189,7 @@ OPTIONS(
 | `extraction_start_date` | DATE | YES | 抽出開始日 | `2025-01-01` |
 | `extraction_end_date` | DATE | YES | 抽出終了日 | `2025-03-31` |
 | `extraction_dates` | ARRAY<STRING> | YES | 抽出対象日付（特定日付指定時） | `['2025-01-01','2025-01-15']` |
-| `detection_count` | STRING | YES | 検知回数 | `1回以上` |
+| `detection_count` | INT64 | YES | 検知回数（数値。〇回以上の「〇」） | `1`, `2`, `3` |
 | `detection_time_start` | TIME | YES | 検知時間開始 | `09:00:00` |
 | `detection_time_end` | TIME | YES | 検知時間終了 | `18:00:00` |
 | `stay_time` | STRING | YES | 滞在時間 | `3min`, `5min`, `10min` |
@@ -982,7 +984,7 @@ SET OPTIONS(
 
 ## 定義書診断（2026-01-28・poi_type 追加後）
 
-- **segments**: CREATE文・フィールド定義はバックエンド実装と一致（`delivery_media`・`media_id` を ARRAY&lt;STRING&gt;、`poi_category`、**`poi_type`**（POI登録時に自動記録）、`registerd_provider_segment`、`extraction_dates` ARRAY&lt;STRING&gt; を反映済み）。
+- **segments**: CREATE文・フィールド定義はバックエンド実装と一致（`delivery_media`・`media_id` を ARRAY&lt;STRING&gt;、`detection_count` を INT64、`poi_category`、**`poi_type`**（POI登録時に自動記録）、`registerd_provider_segment`、`extraction_dates` ARRAY&lt;STRING&gt; を反映済み）。本定義が正スキーマ。既存BQで delivery_media/media_id が STRING の場合は [UPDATE_BIGQUERY_SCHEMA](troubleshooting/UPDATE_BIGQUERY_SCHEMA.md) のマイグレーションを実行すること。
 - **pois**: `prefectures`/`cities` ARRAY&lt;STRING&gt;、`polygon` STRING（JSON）は実装と一致。`location_id`の例をビジネスルール（TG-{segment_id}-{連番}）に合わせて `TG-SEG-001-001` に修正済み。
 - **projects**: ドキュメントのCREATE文には `universe_service_id`、`universe_service_name`、`sub_person_in_charge` が含まれるが、バックエンドは「スキーマに存在しない」としてこれらを除外している。実際のBQテーブルにこれらの列がある場合は、バックエンドの `allowedFields` への追加を検討すること。
 - **表記**: `registerd_provider_segment` は BQ 列名上の typo（正しくは registered）のため、既存テーブル・コードと合わせて表記を統一している。
@@ -1001,6 +1003,7 @@ SET OPTIONS(
 - **2026-01-28**: `segments.media_id`をSTRINGからARRAY&lt;STRING&gt;に変更（配信媒体IDの複数指定に対応）。バックエンドは配列として正規化・保存するよう変更
 - **2026-01-28**: `segments`テーブルに`poi_type`カラム（STRING）を追加。POI登録・更新・削除時に当該セグメントの`poi_type`を自動記録またはクリア（`manual`/`prefecture`/`polygon`）。定義書を追加後のテーブル定義に更新（バージョン2.3）
 - **2026-01-28**: 本番環境におけるフロントエンドAPI接続状況を概要に追加。`segment_id`の説明を拡張（`SEG-{連番}`に加え、フロント採番の`seg-uni-{3桁}`/`seg-ctv-{3桁}`を記載）。仕様書を本番環境の挙動に合わせて更新（バージョン2.4）。詳細は [PRODUCTION_API_CONNECTION_STATUS.md](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) を参照。
+- **2026-02-07**: `segments.detection_count` を STRING から INT64 に変更（アプリ・既存BQとの統一）。正スキーマを明示し、既存BQで delivery_media/media_id が STRING の場合のマイグレーション手順を [UPDATE_BIGQUERY_SCHEMA](troubleshooting/UPDATE_BIGQUERY_SCHEMA.md) に追加。
 
 **既存の segments テーブルに poi_type を追加する場合**:
 ```sql

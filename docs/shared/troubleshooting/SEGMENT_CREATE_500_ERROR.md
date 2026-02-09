@@ -35,6 +35,10 @@ A listener indicated an asynchronous response by returning true, but the message
 - **location_request_status**: 未送信時は `'not_requested'` をセット。
 - **data_link_status**: 未送信時は `'before_request'` をセット。
 - **data_link_request_date / data_link_scheduled_date**: フロントから送られていれば許可フィールドとして BigQuery に渡す。
+- **request_confirmed**: フロントの `request_confirmed` を BQ の `delivery_confirmed` にマッピングして挿入。
+- **ads_account_id / provider_segment_id / segment_expire_date**: 許可フィールドに含め、フロントから送られていれば BQ に渡す（テーブルに列が無い場合は `ignoreUnknownValues: true` で無視される）。
+
+**500 レスポンス**: バックエンドは 500 時に `{ error: string, bqErrors?: Array<{message,reason,location}> }` を返す。ブラウザのネットワークタブやフロントのエラーハンドラで `bqErrors` を確認すると、欠けている列名（`location`）や理由（`reason`）が分かる。
 
 これで多くの環境では 500 が解消されます。まだ 500 が出る場合は本番の BigQuery スキーマとログの突き合わせが必要です。
 

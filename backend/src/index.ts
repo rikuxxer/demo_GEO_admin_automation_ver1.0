@@ -425,7 +425,11 @@ app.post('/api/segments', async (req, res) => {
     res.status(201).json({ message: 'Segment created successfully' });
   } catch (error: any) {
     console.error('Error creating segment:', error);
-    res.status(500).json({ error: error.message });
+    const payload: { error: string; bqErrors?: unknown } = { error: error?.message ?? 'Unknown error' };
+    if (error?.errors && Array.isArray(error.errors)) {
+      payload.bqErrors = error.errors;
+    }
+    res.status(500).json(payload);
   }
 });
 
