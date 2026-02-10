@@ -216,6 +216,7 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
                       setRadiusBlurError('半径は1-1000m、または選択肢で指定してください');
                       return;
                     }
+                    // "XXm" 形式で保存（スプシ掃き出し・parseRadius と同一）
                     onChange('designated_radius', `${radiusNum}m`);
                     setDesignatedRadiusDraft(String(radiusNum));
                     if (radiusNum > 0) {

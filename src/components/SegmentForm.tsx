@@ -198,7 +198,7 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
   };
 
   const handleChange = useCallback((field: string, value: any) => {
-    if (field === 'designated_radius' || field === 'extraction_period_type' || field === 'extraction_period' || field === 'extraction_dates' || field === 'extraction_start_date' || field === 'extraction_end_date') {
+    if (field === 'extraction_period_type' || field === 'extraction_period' || field === 'extraction_dates' || field === 'extraction_start_date' || field === 'extraction_end_date') {
       startTransition(() => setFormData(prev => ({ ...prev, [field]: value })));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));

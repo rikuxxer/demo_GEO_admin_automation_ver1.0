@@ -7,6 +7,7 @@
 - **半径 useEffect の依存**: `formData.designated_radius` のみに限定（期間など他変更で発火しないように）
 - **handleChange**: SegmentForm 側で `useCallback` により参照を安定化
 - **SegmentFormCommonConditions**: `React.memo` で、formData が同じ参照のときは再レンダーをスキップ
+- **半径の startTransition 除外**: `designated_radius` は startTransition の対象から外し、blur 時に同期的に state を更新。登録直後に空/古い値で送信されてエラーになる事象を防止。保存形式は「XXm」（スプシ掃き出し・parseRadius と同一）。
 
 ---
 
