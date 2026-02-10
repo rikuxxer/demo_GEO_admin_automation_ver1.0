@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, startTransition } from 'react';
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -92,29 +92,29 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
 
   const selectedMediaIds = Array.isArray(formData.media_id) ? formData.media_id : [];
 
-  // 開発環境でのバリデーションデバッグ
+  // 開発環境でのバリデーションデバッグ（スロットルで連続実行を抑えフリーズ防止）
+  const devValidationLastRun = useRef(0);
+  const DEV_VALIDATION_THROTTLE_MS = 400;
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      // 配信媒体のバリデーション
-      const mediaValidation = validateMediaSelection(
-        selectedMediaIds,
-        existingSegments,
-        segment?.segment_id
-      );
-      
-      // セグメント全体のバリデーション
-      const segmentValidation = validateSegment(formData, existingSegments, poiCount);
-      
-      logValidationDebug('SegmentForm', {
-        formData,
-        selectedMediaIds,
-        existingSegments: existingSegments.length,
-        poiCount,
-      }, {
-        media: mediaValidation,
-        segment: segmentValidation,
-      });
-    }
+    if (process.env.NODE_ENV !== 'development') return;
+    const now = Date.now();
+    if (now - devValidationLastRun.current < DEV_VALIDATION_THROTTLE_MS) return;
+    devValidationLastRun.current = now;
+    const mediaValidation = validateMediaSelection(
+      selectedMediaIds,
+      existingSegments,
+      segment?.segment_id
+    );
+    const segmentValidation = validateSegment(formData, existingSegments, poiCount);
+    logValidationDebug('SegmentForm', {
+      formData,
+      selectedMediaIds,
+      existingSegments: existingSegments.length,
+      poiCount,
+    }, {
+      media: mediaValidation,
+      segment: segmentValidation,
+    });
   }, [selectedMediaIds, formData.request_confirmed, formData.ads_account_id, formData.data_link_scheduled_date]);
 
   // このセグメント以外の既存セグメントを取得

@@ -48,22 +48,18 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
   };
   
   const [polygons, setPolygons] = useState<Array<{ id: string; coordinates: number[][]; name?: string }>>(initializePolygons());
+  const polygonSignatureRef = useRef<string>('');
   const headingText = titleLabel ?? 'セグメント共通条件';
   const periodLabel = extractionLabel ?? '抽出期間';
   const noteText = noteLabel ?? '※ このセグメントに属する全地点に同じ条件が適用されます';
 
-  // 既存のポリゴンデータを読み込む（内容が同じときは更新しないでフリーズ・不要な再レンダーを防止）
+  // 既存のポリゴンデータを読み込む（参照だけ変わり内容が同じときは setPolygons しないでフリーズ・不要な再レンダーを防止）
   useEffect(() => {
     const initialized = initializePolygons();
-    setPolygons(prev => {
-      if (prev.length !== initialized.length) return initialized;
-      const same = prev.every((p, i) => {
-        const init = initialized[i];
-        if (!init || p.coordinates.length !== init.coordinates.length) return false;
-        return p.coordinates.every((c, j) => c[0] === init.coordinates[j][0] && c[1] === init.coordinates[j][1]);
-      });
-      return same ? prev : initialized;
-    });
+    const signature = JSON.stringify(initialized.map(p => p.coordinates));
+    if (polygonSignatureRef.current === signature) return;
+    polygonSignatureRef.current = signature;
+    setPolygons(initialized);
   }, [formData.polygon, formData.polygons]);
   // 半径50m以下の警告ポップアップ表示状態
   const [showRadiusWarning, setShowRadiusWarning] = useState(false);
@@ -113,6 +109,14 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     return selectedDate < sixMonthsAgo;
+  };
+
+  // extraction_dates の内容が同じなら onChange を呼ばない（不要な親の再レンダー・フリーズ防止）
+  const extractionDatesEqual = (a: string[] | undefined, b: string[] | undefined): boolean => {
+    const arrA = a ?? [];
+    const arrB = b ?? [];
+    if (arrA.length !== arrB.length) return false;
+    return arrA.every((v, i) => v === arrB[i]);
   };
 
   // 編集時・ドロップダウン選択時にドラフトを formData.designated_radius のみに同期（他フィールド編集時の不要な再実行を防ぐ）
@@ -453,7 +457,7 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
                         }
                         const arr = [...(formData.extraction_dates || [])];
                         arr[i] = selectedDate;
-                        onChange('extraction_dates', arr);
+                        if (!extractionDatesEqual(arr, formData.extraction_dates)) onChange('extraction_dates', arr);
                       }}
                       className="flex-1"
                     />
@@ -461,7 +465,7 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
                       type="button"
                       onClick={() => {
                         const arr = (formData.extraction_dates || []).filter((_, j) => j !== i);
-                        onChange('extraction_dates', arr);
+                        if (!extractionDatesEqual(arr, formData.extraction_dates)) onChange('extraction_dates', arr);
                       }}
                       className="text-red-600 hover:text-red-800 text-sm px-2"
                     >

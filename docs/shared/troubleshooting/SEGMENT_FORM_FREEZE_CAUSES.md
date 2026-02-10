@@ -8,6 +8,9 @@
 - **handleChange**: SegmentForm 側で `useCallback` により参照を安定化
 - **SegmentFormCommonConditions**: `React.memo` で、formData が同じ参照のときは再レンダーをスキップ
 - **半径の startTransition 除外**: `designated_radius` は startTransition の対象から外し、blur 時に同期的に state を更新。登録直後に空/古い値で送信されてエラーになる事象を防止。保存形式は「XXm」（スプシ掃き出し・parseRadius と同一）。
+- **ポリゴン useEffect**: 参照だけ変わり内容が同じときは `setPolygons` を呼ばない（`polygonSignatureRef` で JSON 署名比較）。不要な setState を防止。
+- **extraction_dates**: 日付変更・削除時に「内容が同じなら `onChange` を呼ばない」ガードを追加。不要な親の再レンダーを防止。
+- **開発環境バリデーション**: 効果の実行を 400ms スロットルし、連続実行による重い処理を抑制。
 
 ---
 
@@ -16,9 +19,7 @@
 ### 1. ポリゴン用 useEffect の依存
 
 - **場所**: `SegmentFormCommonConditions` の `[formData.polygon, formData.polygons]`
-- **懸念**: 親の `setFormData` で `formData` を新オブジェクトにした際、`polygon` / `polygons` の参照が毎回変わると、この effect が毎回走り `setPolygons` が発火する。
-- **確認**: 親は `setFormData(prev => ({ ...prev, [field]: value }))` のように `prev` を spread しているため、他フィールド変更時は `prev.polygon` がそのまま渡り参照は通常変わらない。ポリゴン編集時のみ参照が変わる想定。
-- **対策**: 問題が出る場合は、effect 内で「前回値と内容が同じなら `setPolygons` しない」比較をより厳密にするか、依存をやめて初回マウント時のみ同期するなどの検討。
+- **実施済み**: effect 内で `polygonSignatureRef` により「内容が前回と同じなら `setPolygons` を呼ばない」ようにした。参照だけ変わる再レンダーでは setState が走らない。
 
 ### 2. 親（SegmentForm の親）の再レンダー頻度
 
@@ -35,13 +36,11 @@
 ### 4. 開発環境のバリデーション useEffect
 
 - **場所**: SegmentForm の `process.env.NODE_ENV === 'development'` 内の effect（validateSegment / logValidationDebug）
-- **懸念**: 依存に `formData` の一部が含まれており、開発時のみ重い処理が走る。本番では無効なので本番フリーズの直接原因にはなりにくい。
-- **対策**: 開発時のみ。依存を必要最小限（例: バリデーションに本当に必要なフィールドだけ）にすると安全。
+- **実施済み**: 実行を 400ms スロットルし、連続実行による重い処理を抑制。本番では無効。
 
 ### 5. 日付・期間まわりのインライン配列
 
-- **懸念**: `extraction_dates` の map 内で `onChange('extraction_dates', arr)` のように新しい配列を毎回作成している。参照が変わるたびに親が再レンダーするが、通常は 1 回の操作 1 回の更新で済む。
-- **対策**: 特に変更不要。同じ操作で何度も `setFormData` が呼ばれていないかだけ確認するとよい。
+- **実施済み**: `extraction_dates` の変更・削除時に「内容が同じなら `onChange` を呼ばない」ガード（`extractionDatesEqual`）を追加。同一値での親の再レンダーを防止。
 
 ### 6. ブラウザ・デバイス側
 
