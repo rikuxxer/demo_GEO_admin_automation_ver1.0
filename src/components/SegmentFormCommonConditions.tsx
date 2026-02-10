@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -29,7 +29,7 @@ interface SegmentFormCommonConditionsProps {
   isVisitMeasurement?: boolean;
 }
 
-export function SegmentFormCommonConditions({ formData, onChange, titleLabel, extractionLabel, noteLabel, isVisitMeasurement = false }: SegmentFormCommonConditionsProps) {
+function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extractionLabel, noteLabel, isVisitMeasurement = false }: SegmentFormCommonConditionsProps) {
   const [showPolygonEditor, setShowPolygonEditor] = useState(false);
   
   // ポリゴンデータの初期化（複数ポリゴン対応）
@@ -115,11 +115,11 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
     return selectedDate < sixMonthsAgo;
   };
 
-  // 編集時・ドロップダウン選択時にドラフトを formData に同期（自由入力は非制御のため入力中は関係しない）
+  // 編集時・ドロップダウン選択時にドラフトを formData.designated_radius のみに同期（他フィールド編集時の不要な再実行を防ぐ）
   useEffect(() => {
     const nextDraft = parsedRadiusFromForm;
     setDesignatedRadiusDraft(prev => (prev === nextDraft ? prev : nextDraft));
-  }, [parsedRadiusFromForm]);
+  }, [formData.designated_radius]);
 
   return (
     <div className="border border-gray-200 rounded-lg p-6 bg-white space-y-6">
@@ -184,13 +184,16 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                 <Input
                   ref={radiusFreeInputRef}
                   id="designated_radius"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  step="1"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   placeholder="1-1000"
-                  key={`radius-free-${parsedRadiusFromForm || 'empty'}`}
                   defaultValue={parsedRadiusFromForm}
+                  onInput={(e) => {
+                    const el = e.currentTarget;
+                    const digits = el.value.replace(/\D/g, '');
+                    if (digits !== el.value) el.value = digits;
+                  }}
                   onBlur={() => {
                     setRadiusBlurError(null);
                     const raw = radiusFreeInputRef.current?.value?.trim() ?? '';
@@ -256,10 +259,12 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
                   if (!value) {
                     setDesignatedRadiusDraft('');
                     onChange('designated_radius', '');
+                    if (radiusFreeInputRef.current) radiusFreeInputRef.current.value = '';
                     return;
                   }
                   setDesignatedRadiusDraft(value);
                   onChange('designated_radius', `${value}m`);
+                  if (radiusFreeInputRef.current) radiusFreeInputRef.current.value = value;
                 }}
                 className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
               >
@@ -696,3 +701,6 @@ export function SegmentFormCommonConditions({ formData, onChange, titleLabel, ex
     </div>
   );
 }
+
+// formData 参照が変わらない親の再レンダー時に子の再レンダーを抑え、フリーズ・カクつきを軽減
+export const SegmentFormCommonConditions = memo(SegmentFormCommonConditionsInner);
