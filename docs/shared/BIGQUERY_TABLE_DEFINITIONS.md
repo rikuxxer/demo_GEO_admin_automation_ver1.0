@@ -162,6 +162,12 @@ CREATE TABLE `universegeo_dataset.segments` (
   data_coordination_date DATE,
   delivery_confirmed BOOL,
   registerd_provider_segment BOOL DEFAULT FALSE,
+  data_link_status STRING,
+  data_link_request_date DATE,
+  data_link_scheduled_date DATE,
+  ads_account_id STRING,
+  provider_segment_id STRING,
+  segment_expire_date DATE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 )
@@ -198,6 +204,12 @@ OPTIONS(
 | `data_coordination_date` | DATE | YES | データ連携目途 | `2025-02-01` |
 | `delivery_confirmed` | BOOL | YES | 配信確定フラグ | `true`, `false` |
 | `registerd_provider_segment` | BOOL | YES | プロバイダセグメント取り込み済みフラグ | `true`, `false` |
+| `data_link_status` | STRING | YES | データ連携ステータス（連携依頼前／依頼済／連携済） | `before_request`, `requested`, `linked` |
+| `data_link_request_date` | DATE | YES | データ連携依頼日 | `2025-01-13` |
+| `data_link_scheduled_date` | DATE | YES | 連携予定日 | `2025-02-01` |
+| `ads_account_id` | STRING | YES | AdsアカウントID | `17890` |
+| `provider_segment_id` | STRING | YES | プロバイダセグメントID（管理部入力） | - |
+| `segment_expire_date` | DATE | YES | セグメント有効期限（データ連携完了から6ヶ月後等） | `2025-08-01` |
 | `created_at` | TIMESTAMP | YES | 作成日時 | `2025-01-13 10:00:00 UTC` |
 | `updated_at` | TIMESTAMP | YES | 更新日時 | `2025-01-13 10:00:00 UTC` |
 
@@ -1004,6 +1016,7 @@ SET OPTIONS(
 - **2026-01-28**: `segments`テーブルに`poi_type`カラム（STRING）を追加。POI登録・更新・削除時に当該セグメントの`poi_type`を自動記録またはクリア（`manual`/`prefecture`/`polygon`）。定義書を追加後のテーブル定義に更新（バージョン2.3）
 - **2026-01-28**: 本番環境におけるフロントエンドAPI接続状況を概要に追加。`segment_id`の説明を拡張（`SEG-{連番}`に加え、フロント採番の`seg-uni-{3桁}`/`seg-ctv-{3桁}`を記載）。仕様書を本番環境の挙動に合わせて更新（バージョン2.4）。詳細は [PRODUCTION_API_CONNECTION_STATUS.md](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) を参照。
 - **2026-02-07**: `segments.detection_count` を STRING から INT64 に変更（アプリ・既存BQとの統一）。正スキーマを明示し、既存BQで delivery_media/media_id が STRING の場合のマイグレーション手順を [UPDATE_BIGQUERY_SCHEMA](troubleshooting/UPDATE_BIGQUERY_SCHEMA.md) に追加。
+- **2026-02-07**: `segments` に `data_link_status`, `data_link_request_date`, `data_link_scheduled_date`, `ads_account_id`, `provider_segment_id`, `segment_expire_date` を追加（バックエンド送信列と定義書の一致）。同様のケースでは「バックエンドが送る列は定義書に記載する」方針で [BQ_TABLE_DEFINITION_COMPARISON](troubleshooting/BQ_TABLE_DEFINITION_COMPARISON.md) に記載。
 
 **既存の segments テーブルに poi_type を追加する場合**:
 ```sql

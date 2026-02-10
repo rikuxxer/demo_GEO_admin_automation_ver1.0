@@ -1,5 +1,9 @@
 # BigQueryテーブルスキーマ更新ガイド
 
+**BQ に追加が必要な項目の一覧:** [BQ_ADD_REQUIRED_COLUMNS.md](BQ_ADD_REQUIRED_COLUMNS.md) に、定義書・バックエンドと揃えるために追加すべき列をテーブル別にまとめています。
+
+---
+
 ## 現在のコードで使用されているフィールド
 
 ### 1. projectsテーブル
@@ -389,13 +393,17 @@ if [ ! -f schema.json ]; then
 fi
 
 # 新しいフィールドを追加（既に存在する場合はスキップ）
+# 定義書・バックエンドと一致させるため universe_service_id, universe_service_name, sub_person_in_charge も追加推奨
 jq '
   def addfield($f):
     if (map(.name) | index($f.name)) then . else . + [$f] end;
   addfield({"name":"agency_name","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"remarks","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"project_status","type":"STRING","mode":"NULLABLE"}) |
-  addfield({"name":"project_registration_started_at","type":"TIMESTAMP","mode":"NULLABLE"})
+  addfield({"name":"project_registration_started_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
+  addfield({"name":"universe_service_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"universe_service_name","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"sub_person_in_charge","type":"STRING","mode":"NULLABLE"})
 ' schema.json > schema_new.json
 
 # 更新後のスキーマを確認
@@ -477,6 +485,7 @@ TABLE="segments"
 bq show --schema --format=prettyjson "${PROJECT_ID}:${DATASET_ID}.${TABLE}" > schema.json
 
 # 新しいフィールドを追加（既に存在する場合はスキップ）
+# 定義書・[BQ_ADD_REQUIRED_COLUMNS](BQ_ADD_REQUIRED_COLUMNS.md) と一致させる
 jq '
   def addfield($f):
     if (map(.name) | index($f.name)) then . else . + [$f] end;
@@ -484,10 +493,14 @@ jq '
   addfield({"name":"segment_registered_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
   addfield({"name":"delivery_media","type":"STRING","mode":"REPEATED"}) |
   addfield({"name":"media_id","type":"STRING","mode":"REPEATED"}) |
+  addfield({"name":"poi_category","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"poi_type","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"attribute","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"extraction_period","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"extraction_period_type","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"extraction_start_date","type":"DATE","mode":"NULLABLE"}) |
   addfield({"name":"extraction_end_date","type":"DATE","mode":"NULLABLE"}) |
+  addfield({"name":"extraction_dates","type":"STRING","mode":"REPEATED"}) |
   addfield({"name":"detection_count","type":"INTEGER","mode":"NULLABLE"}) |
   addfield({"name":"detection_time_start","type":"TIME","mode":"NULLABLE"}) |
   addfield({"name":"detection_time_end","type":"TIME","mode":"NULLABLE"}) |
@@ -496,6 +509,13 @@ jq '
   addfield({"name":"location_request_status","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"data_coordination_date","type":"DATE","mode":"NULLABLE"}) |
   addfield({"name":"delivery_confirmed","type":"BOOL","mode":"NULLABLE"}) |
+  addfield({"name":"registerd_provider_segment","type":"BOOL","mode":"NULLABLE"}) |
+  addfield({"name":"data_link_status","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"data_link_request_date","type":"DATE","mode":"NULLABLE"}) |
+  addfield({"name":"data_link_scheduled_date","type":"DATE","mode":"NULLABLE"}) |
+  addfield({"name":"ads_account_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"provider_segment_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"segment_expire_date","type":"DATE","mode":"NULLABLE"}) |
   addfield({"name":"created_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
   addfield({"name":"updated_at","type":"TIMESTAMP","mode":"NULLABLE"})
 ' schema.json > schema_new.json
@@ -529,6 +549,7 @@ jq '
   addfield({"name":"designated_radius","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"setting_flag","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"visit_measurement_group_id","type":"STRING","mode":"NULLABLE"}) |
+  addfield({"name":"polygon","type":"STRING","mode":"NULLABLE"}) |
   addfield({"name":"created_at","type":"TIMESTAMP","mode":"NULLABLE"}) |
   addfield({"name":"updated_at","type":"TIMESTAMP","mode":"NULLABLE"})
 ' schema.json > schema_new.json

@@ -772,23 +772,22 @@ export class BigQueryService {
 
       // 3. DATE型フィールドをYYYY-MM-DD形式に変換（共通関数を使用）
 
-      // 4. BigQueryのスキーマに存在するフィールドのみを含める
-      // スキーマに存在するフィールド: project_id, advertiser_name, appeal_point, delivery_start_date, 
-      // delivery_end_date, person_in_charge, project_status, agency_name, remarks,
-      // _register_datetime, created_at, updated_at
-      // 注意: universe_service_id, universe_service_name, sub_person_in_charge は
-      // スキーマに存在しないため、除外されます
+      // 4. BigQueryのスキーマに存在するフィールドのみを含める（定義書と一致）
+      // BQに列が無い場合は ignoreUnknownValues で無視される
       const allowedFields = [
         'project_id',
         'advertiser_name',
-        'agency_name', // スキーマに追加済み
+        'agency_name',
         'appeal_point',
         'delivery_start_date',
         'delivery_end_date',
         'person_in_charge',
         'project_status',
-        'remarks', // スキーマに追加済み
-        'project_registration_started_at', // 追加フィールド（存在する場合）
+        'remarks',
+        'project_registration_started_at',
+        'universe_service_id',
+        'universe_service_name',
+        'sub_person_in_charge',
       ];
 
       // 受信したプロジェクトデータの全フィールドをログ出力
