@@ -18,7 +18,7 @@ export function TopProgressBar({ visible = true, className }: TopProgressBarProp
       role="progressbar"
       aria-label="読み込み中"
       className={cn(
-        "fixed inset-0 z-[100] flex items-center justify-center bg-black/10",
+        "fixed inset-0 z-[100] flex items-center justify-center bg-white/50",
         className
       )}
     >
