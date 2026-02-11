@@ -2397,6 +2397,7 @@ export function ProjectDetail({
                                       setShowRadiusWarning(false);
                                       setHasShownRadius30mWarning(false);
                                     }
+                                  }
                                 }
                               });
                             }}
