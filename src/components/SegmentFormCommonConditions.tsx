@@ -199,48 +199,49 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
                     if (digits !== el.value) el.value = digits;
                   }}
                   onBlur={() => {
-                    setRadiusBlurError(null);
-                    const raw = radiusFreeInputRef.current?.value?.trim() ?? '';
-                    if (raw === '') {
-                      onChange('designated_radius', '');
-                      setDesignatedRadiusDraft('');
-                      return;
-                    }
-                    const radiusNum = parseInt(raw, 10);
-                    const isFixed = fixedRadiusOptions.includes(radiusNum);
-                    if (Number.isNaN(radiusNum)) {
-                      setRadiusBlurError('半径は数値で入力してください');
-                      return;
-                    }
-                    if (radiusNum >= 1000 && !isFixed) {
-                      setRadiusBlurError('1000m以上は選択肢から指定してください');
-                      return;
-                    }
-                    if (radiusNum < 1 || radiusNum > 10000) {
-                      setRadiusBlurError('半径は1-1000m、または選択肢で指定してください');
-                      return;
-                    }
-                    // "XXm" 形式で保存（スプシ掃き出し・parseRadius と同一）
-                    onChange('designated_radius', `${radiusNum}m`);
-                    setDesignatedRadiusDraft(String(radiusNum));
-                    if (radiusNum > 0) {
-                      const isVisitMeasurementGroup = titleLabel === '来訪計測グループ条件';
-                      if (!isVisitMeasurementGroup) {
-                        if (radiusNum <= 30 && !hasShownRadius30mWarning) {
-                          setShowRadius30mWarning(true);
-                          setHasShownRadius30mWarning(true);
-                        } else if (radiusNum > 30 && radiusNum <= 50) {
-                          setHasShownRadius30mWarning(false);
-                          if (!hasShownRadiusWarning) {
-                            setShowRadiusWarning(true);
-                            setHasShownRadiusWarning(true);
+                    const raw = (radiusFreeInputRef.current?.value?.trim() ?? '');
+                    requestAnimationFrame(() => {
+                      setRadiusBlurError(null);
+                      if (raw === '') {
+                        onChange('designated_radius', '');
+                        setDesignatedRadiusDraft('');
+                        return;
+                      }
+                      const radiusNum = parseInt(raw, 10);
+                      const isFixed = fixedRadiusOptions.includes(radiusNum);
+                      if (Number.isNaN(radiusNum)) {
+                        setRadiusBlurError('半径は数値で入力してください');
+                        return;
+                      }
+                      if (radiusNum >= 1000 && !isFixed) {
+                        setRadiusBlurError('1000m以上は選択肢から指定してください');
+                        return;
+                      }
+                      if (radiusNum < 1 || radiusNum > 10000) {
+                        setRadiusBlurError('半径は1-1000m、または選択肢で指定してください');
+                        return;
+                      }
+                      onChange('designated_radius', `${radiusNum}m`);
+                      setDesignatedRadiusDraft(String(radiusNum));
+                      if (radiusNum > 0) {
+                        const isVisitMeasurementGroup = titleLabel === '来訪計測グループ条件';
+                        if (!isVisitMeasurementGroup) {
+                          if (radiusNum <= 30 && !hasShownRadius30mWarning) {
+                            setShowRadius30mWarning(true);
+                            setHasShownRadius30mWarning(true);
+                          } else if (radiusNum > 30 && radiusNum <= 50) {
+                            setHasShownRadius30mWarning(false);
+                            if (!hasShownRadiusWarning) {
+                              setShowRadiusWarning(true);
+                              setHasShownRadiusWarning(true);
+                            }
+                          } else if (radiusNum > 50) {
+                            setShowRadiusWarning(false);
+                            setHasShownRadius30mWarning(false);
                           }
-                        } else if (radiusNum > 50) {
-                          setShowRadiusWarning(false);
-                          setHasShownRadius30mWarning(false);
                         }
                       }
-                    }
+                    });
                   }}
                   className="flex-1"
                   required

@@ -2374,33 +2374,31 @@ export function ProjectDetail({
                             }}
                             onBlur={() => {
                               const value = designatedRadiusDraft;
-                              if (value === '') {
-                                setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: '' }));
-                                return;
-                              }
-                              const radiusNum = parseInt(value, 10);
-                              const isFixed = fixedRadiusOptions.includes(radiusNum);
-                              if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
-                                setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
-                                if (radiusNum > 0) {
-                                  // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
-                                  if (radiusNum <= 30 && !hasShownRadius30mWarning) {
-                                    setShowRadius30mWarning(true);
-                                    setHasShownRadius30mWarning(true);
-                                  } else if (radiusNum > 30 && radiusNum <= 50) {
-                                    // 30mを超えて50m以下の場合、30m警告フラグをリセットして50m警告を表示
-                                    setHasShownRadius30mWarning(false);
-                                    if (!hasShownRadiusWarning) {
-                                      setShowRadiusWarning(true);
-                                      setHasShownRadiusWarning(true);
-                                    }
-                                  } else if (radiusNum > 50) {
-                                    // 50mを超えた場合、警告表示フラグをリセット
-                                    setHasShownRadiusWarning(false);
-                                    setHasShownRadius30mWarning(false);
-                                  }
+                              requestAnimationFrame(() => {
+                                if (value === '') {
+                                  setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: '' }));
+                                  return;
                                 }
-                              }
+                                const radiusNum = parseInt(value, 10);
+                                const isFixed = fixedRadiusOptions.includes(radiusNum);
+                                if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
+                                  setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
+                                  if (radiusNum > 0) {
+                                    if (radiusNum <= 30 && !hasShownRadius30mWarning) {
+                                      setShowRadius30mWarning(true);
+                                      setHasShownRadius30mWarning(true);
+                                    } else if (radiusNum > 30 && radiusNum <= 50) {
+                                      setHasShownRadius30mWarning(false);
+                                      if (!hasShownRadiusWarning) {
+                                        setShowRadiusWarning(true);
+                                        setHasShownRadiusWarning(true);
+                                      }
+                                    } else if (radiusNum > 50) {
+                                      setShowRadiusWarning(false);
+                                      setHasShownRadius30mWarning(false);
+                                    }
+                                }
+                              });
                             }}
                             className="flex-1"
                           />
