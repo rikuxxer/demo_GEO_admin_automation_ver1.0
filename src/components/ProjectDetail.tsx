@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, startTransition } from 'react';
 import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2 } from 'lucide-react';
 import { EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { toast } from 'sonner';
@@ -101,6 +101,15 @@ export function ProjectDetail({
 
   const { user, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+
+  // タブ切り替え時にフォーカスをアクティブなトリガーへ移し、非表示パネル内にフォーカスが残って aria-hidden 警告が出るのを防ぐ
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    requestAnimationFrame(() => {
+      const trigger = document.querySelector(`[data-tab-value="${value}"]`) as HTMLElement | null;
+      trigger?.focus();
+    });
+  };
   const [showSegmentForm, setShowSegmentForm] = useState(false);
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
   const [showPoiForm, setShowPoiForm] = useState(false);
@@ -133,6 +142,7 @@ export function ProjectDetail({
   
   // 来店計測地点の矛盾修正済みフラグ（無限ループを防ぐため）
   const [fixedPoiIds, setFixedPoiIds] = useState<Set<string>>(new Set());
+  const isFixingInconsistenciesRef = useRef(false);
   
   // ジオコーディング関連の��態
   const [showGeocodeProgress, setShowGeocodeProgress] = useState(false);
@@ -160,6 +170,17 @@ export function ProjectDetail({
   const [hasShownRadius30mWarning, setHasShownRadius30mWarning] = useState(false);
   // 6ヶ月以上前の日付選択警告ポップアップ表示状態
   const [showDateRangeWarning, setShowDateRangeWarning] = useState(false);
+
+  // 抽出条件ポップアップ内の state 更新を startTransition で遅延し、入力時のフリーズを軽減
+  const setExtractionConditionsDeferred = (updater: (prev: Partial<PoiInfo>) => Partial<PoiInfo>) => {
+    startTransition(() => setExtractionConditionsFormData(updater));
+  };
+  const extractionDatesEqual = (a: string[] | undefined, b: string[] | undefined): boolean => {
+    const arrA = a ?? [];
+    const arrB = b ?? [];
+    if (arrA.length !== arrB.length) return false;
+    return arrA.every((v, i) => v === arrB[i]);
+  };
 
   // 6ヶ月前の日付を計算（YYYY-MM-DD形式）
   const getSixMonthsAgoDate = (): string => {
@@ -379,7 +400,7 @@ export function ProjectDetail({
 
   const handleManagePois = (segment: Segment) => {
     // 地点管理画面（タブ）へ移動
-    setActiveTab('pois');
+    handleTabChange('pois');
     setExpandedSegmentId(segment.segment_id);
   };
 
@@ -444,8 +465,12 @@ export function ProjectDetail({
     loadGroups();
   }, [project?.project_id]);
 
-  // 来店計測地点の矛盾を検出・修正
+  // 来店計測地点の矛盾を検出・修正（pois 更新のたびに effect が走るため、実行中は再実行しないように ref でガードしてフリーズ防止）
   useEffect(() => {
+    if (pois.length === 0) return;
+    if (isFixingInconsistenciesRef.current) return;
+    isFixingInconsistenciesRef.current = true;
+
     const fixInconsistencies = async () => {
       const inconsistencies: Array<{ poi: PoiInfo; fixes: Partial<PoiInfo> }> = [];
 
@@ -478,7 +503,7 @@ export function ProjectDetail({
       // 矛盾を修正
       if (inconsistencies.length > 0) {
         console.log(`🔧 ${inconsistencies.length}件の来店計測地点の矛盾を検出しました。修正を開始します...`);
-        
+
         const fixedIds: string[] = [];
         for (const { poi, fixes } of inconsistencies) {
           try {
@@ -498,9 +523,9 @@ export function ProjectDetail({
       }
     };
 
-    if (pois.length > 0) {
-      fixInconsistencies();
-    }
+    fixInconsistencies().finally(() => {
+      isFixingInconsistenciesRef.current = false;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pois]); // poisが更新されたときに実行
 
@@ -1059,11 +1084,12 @@ export function ProjectDetail({
       </div>
 
       {/* タブ */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
           <TabsList className="w-full h-auto p-1.5 bg-[#f5f5ff] border-b border-gray-200 flex gap-1.5 rounded-none">
             <TabsTrigger 
-              value="overview" 
+              value="overview"
+              data-tab-value="overview"
               className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all hover:bg-white/60 hover:shadow-sm"
             >
               <div className="flex items-center gap-2">
@@ -1074,6 +1100,7 @@ export function ProjectDetail({
             <TabsTrigger 
               value="segments"
               data-guide="segment-tab"
+              data-tab-value="segments"
               className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all hover:bg-white/60 hover:shadow-sm"
             >
               <div className="flex items-center gap-2">
@@ -1085,6 +1112,7 @@ export function ProjectDetail({
             <TabsTrigger 
               value="pois"
               data-guide="poi-tab"
+              data-tab-value="pois"
               className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all hover:bg-white/60 hover:shadow-sm"
             >
               <div className="flex items-center gap-2">
@@ -1095,6 +1123,7 @@ export function ProjectDetail({
             </TabsTrigger>
             <TabsTrigger 
               value="messages"
+              data-tab-value="messages"
               className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all hover:bg-white/60 hover:shadow-sm"
             >
               <div className="flex items-center gap-2">
@@ -1110,6 +1139,7 @@ export function ProjectDetail({
             {user?.role === 'admin' && (
               <TabsTrigger 
                 value="history"
+                data-tab-value="history"
                 className="flex-1 py-2.5 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-[#5b5fff] data-[state=active]:border-2 rounded-lg transition-all hover:bg-white/60 hover:shadow-sm"
               >
                 <div className="flex items-center gap-2">
@@ -1468,7 +1498,7 @@ export function ProjectDetail({
                  <p className="text-sm text-muted-foreground mb-6">
                    地点を登録するには、まずセグメントを作成する必要があります。
                  </p>
-                 <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); setActiveTab("segments"); }}>
+                 <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); handleTabChange("segments"); }}>
                    セグメントを作成する
                  </Button>
                </div>
@@ -1539,7 +1569,7 @@ export function ProjectDetail({
                       <p className="text-sm text-muted-foreground mb-6">
                         地点を登録するには、まずセグメントを作成する必要があります。
                       </p>
-                      <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); setActiveTab("segments"); }}>
+                      <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); handleTabChange("segments"); }}>
                         セグメントを作成する
                       </Button>
                     </div>
@@ -1842,7 +1872,7 @@ export function ProjectDetail({
                       <p className="text-sm text-muted-foreground mb-6">
                         地点を登録するには、まずセグメントを作成する必要があります。
                       </p>
-                      <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); setActiveTab("segments"); }}>
+                      <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); handleTabChange("segments"); }}>
                         セグメントを作成する
                       </Button>
                     </div>
@@ -2339,19 +2369,19 @@ export function ProjectDetail({
                               const value = e.target.value;
                               const valueNum = Number(value);
                               if (value === '' || (!Number.isNaN(valueNum) && valueNum >= 1 && valueNum <= 1000)) {
-                                setDesignatedRadiusDraft(value);
+                                startTransition(() => setDesignatedRadiusDraft(value));
                               }
                             }}
                             onBlur={() => {
                               const value = designatedRadiusDraft;
                               if (value === '') {
-                                setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: '' }));
+                                setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: '' }));
                                 return;
                               }
                               const radiusNum = parseInt(value, 10);
                               const isFixed = fixedRadiusOptions.includes(radiusNum);
                               if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
-                                setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
+                                setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
                                 if (radiusNum > 0) {
                                   // 半径が30m以下の場合、警告ポップアップを表示（一度だけ）
                                   if (radiusNum <= 30 && !hasShownRadius30mWarning) {
@@ -2391,11 +2421,11 @@ export function ProjectDetail({
                             const value = e.target.value;
                             if (!value) {
                               setDesignatedRadiusDraft('');
-                              setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: '' }));
+                              setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: '' }));
                               return;
                             }
                             setDesignatedRadiusDraft(value);
-                            setExtractionConditionsFormData(prev => ({ ...prev, designated_radius: `${value}m` }));
+                            setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: `${value}m` }));
                           }}
                           className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
                         >
@@ -2449,7 +2479,7 @@ export function ProjectDetail({
                         type="radio"
                         name="period_type_popup"
                         checked={extractionConditionsFormData.extraction_period_type === 'preset'}
-                        onChange={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period_type: 'preset' }))}
+                        onChange={() => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_period_type: 'preset' }))}
                         disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
@@ -2460,7 +2490,7 @@ export function ProjectDetail({
                         type="radio"
                         name="period_type_popup"
                         checked={extractionConditionsFormData.extraction_period_type === 'custom'}
-                        onChange={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period_type: 'custom' }))}
+                        onChange={() => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_period_type: 'custom' }))}
                         disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
@@ -2471,7 +2501,7 @@ export function ProjectDetail({
                         type="radio"
                         name="period_type_popup"
                         checked={extractionConditionsFormData.extraction_period_type === 'specific_dates'}
-                        onChange={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period_type: 'specific_dates', extraction_dates: prev.extraction_dates?.length ? prev.extraction_dates : [''] }))}
+                        onChange={() => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_period_type: 'specific_dates', extraction_dates: prev.extraction_dates?.length ? prev.extraction_dates : [''] }))}
                         disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="text-[#5b5fff] focus:ring-[#5b5fff]"
                       />
@@ -2484,7 +2514,7 @@ export function ProjectDetail({
                       <p className="text-xs text-gray-700">プリセット期間を選択してください</p>
                       <select
                         value={extractionConditionsFormData.extraction_period || '1month'}
-                        onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, extraction_period: e.target.value }))}
+                        onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_period: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                       >
                         {EXTRACTION_PERIOD_PRESET_OPTIONS.map((option) => (
@@ -2513,7 +2543,9 @@ export function ProjectDetail({
                                 }
                                 const arr = [...(extractionConditionsFormData.extraction_dates || [])];
                                 arr[i] = selectedDate;
-                                setExtractionConditionsFormData(prev => ({ ...prev, extraction_dates: arr }));
+                                if (!extractionDatesEqual(arr, extractionConditionsFormData.extraction_dates)) {
+                                  setExtractionConditionsDeferred(prev => ({ ...prev, extraction_dates: arr }));
+                                }
                               }}
                               className="flex-1 bg-white"
                             />
@@ -2521,7 +2553,9 @@ export function ProjectDetail({
                               type="button"
                               onClick={() => {
                                 const arr = (extractionConditionsFormData.extraction_dates || []).filter((_, j) => j !== i);
-                                setExtractionConditionsFormData(prev => ({ ...prev, extraction_dates: arr }));
+                                if (!extractionDatesEqual(arr, extractionConditionsFormData.extraction_dates)) {
+                                  setExtractionConditionsDeferred(prev => ({ ...prev, extraction_dates: arr }));
+                                }
                               }}
                               className="text-red-600 hover:text-red-800 text-sm px-2"
                             >
@@ -2532,7 +2566,7 @@ export function ProjectDetail({
                       </div>
                       <button
                         type="button"
-                        onClick={() => setExtractionConditionsFormData(prev => ({ ...prev, extraction_dates: [...(prev.extraction_dates || []), ''] }))}
+                        onClick={() => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_dates: [...(prev.extraction_dates || []), ''] }))}
                         className="text-sm text-[#5b5fff] hover:text-[#5b5fff]/80 font-medium"
                       >
                         + 日付を追加
@@ -2543,14 +2577,14 @@ export function ProjectDetail({
                       <Input
                         type="date"
                         value={extractionConditionsFormData.extraction_start_date || ''}
-                        onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, extraction_start_date: e.target.value }))}
+                        onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_start_date: e.target.value }))}
                         className="bg-white"
                       />
                       <span className="text-gray-500">〜</span>
                       <Input
                         type="date"
                         value={extractionConditionsFormData.extraction_end_date || ''}
-                        onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, extraction_end_date: e.target.value }))}
+                        onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_end_date: e.target.value }))}
                         className="bg-white"
                       />
                     </div>
@@ -2581,7 +2615,7 @@ export function ProjectDetail({
                             updates.extraction_period_type = 'preset';
                             updates.extraction_dates = [];
                           }
-                          setExtractionConditionsFormData(prev => ({ ...prev, ...updates }));
+                          setExtractionConditionsDeferred(prev => ({ ...prev, ...updates }));
                         }}
                         className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
                           extractionConditionsFormData.attribute === option.value
@@ -2607,7 +2641,7 @@ export function ProjectDetail({
                         type="number"
                         min="1"
                         value={extractionConditionsFormData.detection_count || 1}
-                        onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, detection_count: parseInt(e.target.value) || 1 }))}
+                        onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, detection_count: parseInt(e.target.value) || 1 }))}
                         className="bg-white"
                       />
                       <span className="text-sm text-gray-500 whitespace-nowrap">回以上</span>
@@ -2628,7 +2662,7 @@ export function ProjectDetail({
                         <Input
                           type="time"
                           value={extractionConditionsFormData.detection_time_start || ''}
-                          onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, detection_time_start: e.target.value }))}
+                          onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, detection_time_start: e.target.value }))}
                           className="w-full"
                         />
                       </div>
@@ -2637,7 +2671,7 @@ export function ProjectDetail({
                         <Input
                           type="time"
                           value={extractionConditionsFormData.detection_time_end || ''}
-                          onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, detection_time_end: e.target.value }))}
+                          onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, detection_time_end: e.target.value }))}
                           className="w-full"
                         />
                       </div>
@@ -2653,7 +2687,7 @@ export function ProjectDetail({
                   </Label>
                   <select
                     value={extractionConditionsFormData.attribute === 'detector' ? (extractionConditionsFormData.stay_time || '') : ''}
-                    onChange={(e) => setExtractionConditionsFormData(prev => ({ ...prev, stay_time: e.target.value }))}
+                    onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, stay_time: e.target.value }))}
                     disabled={extractionConditionsFormData.attribute !== 'detector'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
                   >

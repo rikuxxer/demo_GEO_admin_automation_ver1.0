@@ -12,6 +12,7 @@
 - **extraction_dates**: 日付変更・削除時に「内容が同じなら `onChange` を呼ばない」ガードを追加。不要な親の再レンダーを防止。
 - **開発環境バリデーション**: 効果の実行を 400ms スロットルし、連続実行による重い処理を抑制。
 - **otherSegments / otherMediaIds / hasTverCTV / hasOtherMedia**: SegmentForm 内で `useMemo` によりメモ化。`existingSegments` や `segment?.segment_id` が変わらない限り同じ参照を返し、毎レンダーの filter・flatMap・some を避けてフリーズを軽減。
+- **ProjectDetail の fixInconsistencies**: `useEffect([pois])` 内で `onPoiUpdate` を呼ぶと親が `pois` を更新し、effect が連鎖的に再実行されてフリーズする問題を防止。`isFixingInconsistenciesRef` で「実行中は再実行しない」ガードを入れ、`.finally()` でフラグをリセット。
 
 ---
 
@@ -72,6 +73,18 @@
 
 - **懸念**: 既存セグメント数が多い場合、`otherSegments.map` による「コピー元」ドロップダウンや媒体競合チェックの計算が毎レンダーで走る。リストの仮想化は行っていない。
 - **対策**: セグメント数が数十以上になる場合は、`otherSegments` の useMemo とあわせて、リスト部分のメモ化や表示件数制限を検討。
+
+### 12. 抽出条件設定ポップアップ（実施済み）
+
+- **場所**: ProjectDetail の「抽出条件設定」ポップアップ（ターゲティングの抽出条件設定時）。
+- **懸念**: ラジオ・セレクト・日付入力のたびに `setExtractionConditionsFormData` が同期的に走り、ProjectDetail 全体が再レンダーしてフリーズしていた。
+- **実施済み**: ポップアップ内のフォーム更新を `setExtractionConditionsDeferred`（startTransition でラップ）に統一。半径の自由入力は `startTransition(() => setDesignatedRadiusDraft(value))` で遅延。`extraction_dates` の変更・削除時に `extractionDatesEqual` で同一なら setState をスキップ。
+
+### 13. ProjectDetail の来店計測矛盾修正 effect（実施済み）
+
+- **場所**: `ProjectDetail` の `useEffect`（`pois` 依存で `fixInconsistencies` を実行し `onPoiUpdate` を呼ぶ）。
+- **懸念**: `onPoiUpdate` のたびに親が state を更新し `pois` の参照が変わるため、effect が連鎖的に再実行され、複数回の API 呼び出しと setState でフリーズしていた。
+- **実施済み**: `isFixingInconsistenciesRef` で実行中は再実行しないようにガードし、`.finally()` でフラグをリセット。
 
 ---
 
