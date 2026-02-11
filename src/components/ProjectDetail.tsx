@@ -1405,7 +1405,7 @@ export function ProjectDetail({
               </div>
               {canEditProject(user, project) && (
                 <Button
-                  onClick={() => setShowSegmentForm(true)}
+                  onClick={() => { setEditingSegment(null); setShowSegmentForm(true); }}
                   data-guide="new-segment-button"
                   className="bg-[#5b5fff] text-white hover:bg-[#4949dd] h-10 px-6 gap-2 shadow-sm hover:shadow-md transition-all"
                 >
@@ -1468,7 +1468,7 @@ export function ProjectDetail({
                  <p className="text-sm text-muted-foreground mb-6">
                    地点を登録するには、まずセグメントを作成する必要があります。
                  </p>
-                 <Button onClick={() => { setShowSegmentForm(true); setActiveTab("segments"); }}>
+                 <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); setActiveTab("segments"); }}>
                    セグメントを作成する
                  </Button>
                </div>
@@ -1539,7 +1539,7 @@ export function ProjectDetail({
                       <p className="text-sm text-muted-foreground mb-6">
                         地点を登録するには、まずセグメントを作成する必要があります。
                       </p>
-                      <Button onClick={() => { setShowSegmentForm(true); setActiveTab("segments"); }}>
+                      <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); setActiveTab("segments"); }}>
                         セグメントを作成する
                       </Button>
                     </div>
@@ -1842,7 +1842,7 @@ export function ProjectDetail({
                       <p className="text-sm text-muted-foreground mb-6">
                         地点を登録するには、まずセグメントを作成する必要があります。
                       </p>
-                      <Button onClick={() => { setShowSegmentForm(true); setActiveTab("segments"); }}>
+                      <Button onClick={() => { setEditingSegment(null); setShowSegmentForm(true); setActiveTab("segments"); }}>
                         セグメントを作成する
                       </Button>
                     </div>
@@ -2086,7 +2086,7 @@ export function ProjectDetail({
              <div className="text-center py-8">
                <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                <p className="text-gray-600 mb-4">セグメントがありません。先にセグメントを作成してください。</p>
-               <Button onClick={() => { setShowSegmentSelectForPoi(false); setShowSegmentForm(true); }}>
+               <Button onClick={() => { setShowSegmentSelectForPoi(false); setEditingSegment(null); setShowSegmentForm(true); }}>
                  新規セグメント作成
                </Button>
              </div>

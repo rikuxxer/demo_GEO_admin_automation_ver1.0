@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, startTransition } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -58,7 +58,7 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
     // 共通条件
     designated_radius: segment?.designated_radius || '',
     extraction_period: segment?.extraction_period || '1month',
-    extraction_period_type: segment?.extraction_period_type || 'preset',
+    extraction_period_type: segment?.segment_id ? (segment.extraction_period_type || 'preset') : 'preset',
     extraction_start_date: segment?.extraction_start_date || '',
     extraction_end_date: segment?.extraction_end_date || '',
     extraction_dates: segment?.extraction_dates || [],
@@ -117,16 +117,23 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
     });
   }, [selectedMediaIds, formData.request_confirmed, formData.ads_account_id, formData.data_link_scheduled_date]);
 
-  // このセグメント以外の既存セグメントを取得
-  const otherSegments = existingSegments.filter(s => s.segment_id !== segment?.segment_id);
-  
+  // このセグメント以外の既存セグメントを取得（毎レンダーの filter を避けフリーズ軽減）
+  const otherSegments = useMemo(
+    () => existingSegments.filter(s => s.segment_id !== segment?.segment_id),
+    [existingSegments, segment?.segment_id]
+  );
+
   // 既存セグメントの全媒体を取得（空文字列やnullを除外）
-  const otherMediaIds = otherSegments.flatMap(s => {
-    if (!s.media_id) return [];
-    const ids = Array.isArray(s.media_id) ? s.media_id : [s.media_id];
-    return ids.filter(id => id && id.trim() !== '');
-  });
-  
+  const otherMediaIds = useMemo(
+    () =>
+      otherSegments.flatMap(s => {
+        if (!s.media_id) return [];
+        const ids = Array.isArray(s.media_id) ? s.media_id : [s.media_id];
+        return ids.filter(id => id && id.trim() !== '');
+      }),
+    [otherSegments]
+  );
+
   // 選択された媒体が競合するかチェック（同一セグメント内のみ）
   const hasMediaConflict = () => {
     // TVer(CTV)と他の媒体（UNIVERSE、Tver(SP)）が同時に選択されている場合は競合
@@ -145,19 +152,27 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
   
   const mediaConflict = hasMediaConflict();
 
-  // この案件の他のセグメントにTVer(CTV)が登録されているかチェック（管理部向け）
-  const hasTverCTV = existingSegments.some(s => {
-    if (s.segment_id === segment?.segment_id) return false; // 現在編集中のセグメントは除外
-    const mediaIds = Array.isArray(s.media_id) ? s.media_id : s.media_id ? [s.media_id] : [];
-    return mediaIds.includes('tver_ctv');
-  });
+  // この案件の他のセグメントにTVer(CTV)が登録されているかチェック（管理部向け）（毎レンダーの some を避けフリーズ軽減）
+  const hasTverCTV = useMemo(
+    () =>
+      existingSegments.some(s => {
+        if (s.segment_id === segment?.segment_id) return false;
+        const mediaIds = Array.isArray(s.media_id) ? s.media_id : s.media_id ? [s.media_id] : [];
+        return mediaIds.includes('tver_ctv');
+      }),
+    [existingSegments, segment?.segment_id]
+  );
 
   // この案件の他のセグメントにUNIVERSEまたはTVer(SP)が登録されているかチェック（管理部向け）
-  const hasOtherMedia = existingSegments.some(s => {
-    if (s.segment_id === segment?.segment_id) return false; // 現在編集中のセグメントは除外
-    const mediaIds = Array.isArray(s.media_id) ? s.media_id : s.media_id ? [s.media_id] : [];
-    return mediaIds.includes('universe') || mediaIds.includes('tver_sp');
-  });
+  const hasOtherMedia = useMemo(
+    () =>
+      existingSegments.some(s => {
+        if (s.segment_id === segment?.segment_id) return false;
+        const mediaIds = Array.isArray(s.media_id) ? s.media_id : s.media_id ? [s.media_id] : [];
+        return mediaIds.includes('universe') || mediaIds.includes('tver_sp');
+      }),
+    [existingSegments, segment?.segment_id]
+  );
   
   // チェックボックスの変更ハンドラ
   const handleMediaToggle = (mediaValue: string) => {
@@ -198,7 +213,7 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
   };
 
   const handleChange = useCallback((field: string, value: any) => {
-    if (field === 'extraction_period_type' || field === 'extraction_period' || field === 'extraction_dates' || field === 'extraction_start_date' || field === 'extraction_end_date') {
+    if (field === 'designated_radius' || field === 'extraction_period_type' || field === 'extraction_period' || field === 'extraction_dates' || field === 'extraction_start_date' || field === 'extraction_end_date') {
       startTransition(() => setFormData(prev => ({ ...prev, [field]: value })));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));

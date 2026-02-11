@@ -7,10 +7,11 @@
 - **半径 useEffect の依存**: `formData.designated_radius` のみに限定（期間など他変更で発火しないように）
 - **handleChange**: SegmentForm 側で `useCallback` により参照を安定化
 - **SegmentFormCommonConditions**: `React.memo` で、formData が同じ参照のときは再レンダーをスキップ
-- **半径の startTransition 除外**: `designated_radius` は startTransition の対象から外し、blur 時に同期的に state を更新。登録直後に空/古い値で送信されてエラーになる事象を防止。保存形式は「XXm」（スプシ掃き出し・parseRadius と同一）。
+- **半径の startTransition**: `designated_radius` を startTransition の対象に含め、blur 時の state 更新を低優先度にしてフリーズを軽減。保存形式は「XXm」（スプシ掃き出し・parseRadius と同一）。
 - **ポリゴン useEffect**: 参照だけ変わり内容が同じときは `setPolygons` を呼ばない（`polygonSignatureRef` で JSON 署名比較）。不要な setState を防止。
 - **extraction_dates**: 日付変更・削除時に「内容が同じなら `onChange` を呼ばない」ガードを追加。不要な親の再レンダーを防止。
 - **開発環境バリデーション**: 効果の実行を 400ms スロットルし、連続実行による重い処理を抑制。
+- **otherSegments / otherMediaIds / hasTverCTV / hasOtherMedia**: SegmentForm 内で `useMemo` によりメモ化。`existingSegments` や `segment?.segment_id` が変わらない限り同じ参照を返し、毎レンダーの filter・flatMap・some を避けてフリーズを軽減。
 
 ---
 
@@ -46,6 +47,31 @@
 
 - **懸念**: メモリ不足、拡張機能、別タブの重い処理でメインスレッドがブロックされ、フォーム操作がフリーズしたように見える。
 - **対策**: シークレットウィンドウや拡張無効で再現するか、Performance タブでロングタスク・再レンダー回数を確認する。
+
+### 7. formData の参照で memo が効きにくい
+
+- **懸念**: `handleChange` でどのフィールドを更新しても `formData` が毎回新しいオブジェクト参照になる。そのため `React.memo` の SegmentFormCommonConditions も「formData が同じ参照のときだけスキップ」なので、**セグメント名・媒体・その他フィールドを触るたびに共通条件ブロック全体が再レンダー**する。
+- **対策案**: 共通条件で触るフィールドだけ別 state に分離し、その部分だけ子に渡すと再レンダー範囲を狭められる（変更が大きい）。現状は startTransition で半径・期間系の更新を低優先度にして軽減。
+
+### 8. 親（ProjectDetail）の state 更新
+
+- **懸念**: フォーム表示中に親で `segments` / `pois` の再取得や他タブの state 更新があると、SegmentForm に渡る `existingSegments`・`pois` の参照が変わり、SegmentForm 全体が再レンダーする。
+- **対策**: フォームを開いている間はポーリングや一覧の再 fetch を控える、または SegmentForm をメモ化して props の浅い比較で不要な再レンダーを減らす検討。
+
+### 9. otherSegments / otherMediaIds の毎レンダー計算
+
+- **場所**: SegmentForm の `existingSegments.filter(...)` と `otherSegments.flatMap(...)`。
+- **実施済み**: `useMemo` で `otherSegments`・`otherMediaIds`・`hasTverCTV`・`hasOtherMedia` をメモ化済み。同一条件のときは同じ参照を返し、毎レンダーの計算を抑制。
+
+### 10. PolygonMapEditor（ポリゴン編集）
+
+- **懸念**: ポリゴン編集を開いている間、マップの描画・ドラッグ・頂点の更新で負荷がかかる可能性がある。
+- **対策**: 編集を開くまでマウントしない（現状もモーダル内で開く想定）。重い場合は表示の遅延（lazy）や描画の簡素化を検討。
+
+### 11. 媒体チェック・コピー元セグメントのリスト
+
+- **懸念**: 既存セグメント数が多い場合、`otherSegments.map` による「コピー元」ドロップダウンや媒体競合チェックの計算が毎レンダーで走る。リストの仮想化は行っていない。
+- **対策**: セグメント数が数十以上になる場合は、`otherSegments` の useMemo とあわせて、リスト部分のメモ化や表示件数制限を検討。
 
 ---
 
