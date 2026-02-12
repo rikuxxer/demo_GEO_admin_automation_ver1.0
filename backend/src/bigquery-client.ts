@@ -42,9 +42,9 @@ function validateProjectId(): string {
   return currentProjectId;
 }
 
-// BigQueryのロケーション（固定値）
-// 注意: この値は必ず'asia-northeast1'である必要があります
-const BQ_LOCATION: string = 'asia-northeast1'; // 東京リージョン
+// BigQueryのロケーション（環境変数 BQ_LOCATION で上書き可。未設定時は東京）
+// データセットはこのロケーションに作成する必要があります（「not found in location US」はデータセットが別リージョンにあるか未作成）
+const BQ_LOCATION: string = (process.env.BQ_LOCATION && process.env.BQ_LOCATION.trim()) || 'asia-northeast1';
 
 // BQ_LOCATIONが正しく設定されているか確認
 if (!BQ_LOCATION || BQ_LOCATION.trim() === '') {

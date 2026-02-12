@@ -1638,10 +1638,10 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         <div className="bg-gradient-to-r from-[#5b5fff] to-[#7b7bff] p-6 text-white">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h2 className="text-2xl mb-2">
+              <h2 className="text-lg font-semibold mb-1">
                 {poi ? '地点情報編集' : '新規地点登録'}
               </h2>
-              <div className="flex items-center gap-2 text-white/90 text-sm">
+              <div className="flex items-center gap-2 text-white/90 text-xs">
                 <span>セグメントID: {segmentId}</span>
                 {segmentName && <span>({segmentName})</span>}
               </div>
@@ -2317,12 +2317,12 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
               {entryMethod === 'manual' && (
                 <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex items-center gap-2 text-blue-900 mb-2">
-                    <MapPin className="w-5 h-5" />
-                    <h3>{poi ? '地点情報編集' : '地点コピペ'}</h3>
+                    <MapPin className="w-4 h-4" />
+                    <h3 className="text-sm font-semibold">{poi ? '地点情報編集' : '地点コピペ'}</h3>
                   </div>
                   
                   <div>
-                    <Label htmlFor="poi_name" className="block mb-2">
+                    <Label htmlFor="poi_name" className="block mb-1 text-xs font-medium text-gray-700">
                       地点名 <span className="text-red-500">*</span>
                     </Label>
                     <Input
@@ -2331,13 +2331,13 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                       value={formData.poi_name}
                       onChange={(e) => handleChange('poi_name', e.target.value)}
                       placeholder="例：東京駅、渋谷スクランブル交差点"
-                      className="w-full bg-white"
+                      className="w-full bg-white text-sm h-8"
                       required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="address" className="block mb-2">
+                    <Label htmlFor="address" className="block mb-1 text-xs font-medium text-gray-700">
                       住所
                     </Label>
                     <div className="flex gap-2">
@@ -2347,7 +2347,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         value={formData.address}
                         onChange={(e) => handleChange('address', e.target.value)}
                         placeholder="例：東京都千代田区丸の内1丁目"
-                        className="flex-1 bg-white"
+                        className="flex-1 bg-white text-sm h-8"
                       />
                       <Button
                         type="button"
@@ -2366,7 +2366,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                   {/* 地点カテゴリ選択（defaultCategoryが設定されていない場合、または編集時のみ表示） */}
                   {(!defaultCategory || poi) && (
                     <div>
-                      <Label htmlFor="poi_category" className="block mb-2">
+                      <Label htmlFor="poi_category" className="block mb-1 text-xs font-medium text-gray-700">
                         地点カテゴリ
                       </Label>
                       <select

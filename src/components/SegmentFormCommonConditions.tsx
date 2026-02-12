@@ -21,6 +21,8 @@ import {
 interface SegmentFormCommonConditionsProps {
   formData: Partial<Segment> & { use_polygon?: boolean; polygon?: number[][]; polygons?: number[][][] };
   onChange: (field: string, value: any) => void;
+  /** 指定時は自由入力 blur で親の setState を呼ばずこのコールバックだけ呼ぶ（ref に保存してフリーズ防止） */
+  onDesignatedRadiusBlur?: (value: string) => void;
   // 文言上書き用（訪問計測向けに利用）
   titleLabel?: string;
   extractionLabel?: string;
@@ -29,7 +31,7 @@ interface SegmentFormCommonConditionsProps {
   isVisitMeasurement?: boolean;
 }
 
-function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extractionLabel, noteLabel, isVisitMeasurement = false }: SegmentFormCommonConditionsProps) {
+function SegmentFormCommonConditionsInner({ formData, onChange, onDesignatedRadiusBlur, titleLabel, extractionLabel, noteLabel, isVisitMeasurement = false }: SegmentFormCommonConditionsProps) {
   const [showPolygonEditor, setShowPolygonEditor] = useState(false);
   
   // ポリゴンデータの初期化（複数ポリゴン対応）
@@ -203,8 +205,9 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
                     requestAnimationFrame(() => {
                       setRadiusBlurError(null);
                       if (raw === '') {
-                        onChange('designated_radius', '');
                         setDesignatedRadiusDraft('');
+                        if (onDesignatedRadiusBlur) onDesignatedRadiusBlur('');
+                        else setTimeout(() => onChange('designated_radius', ''), 0);
                         return;
                       }
                       const radiusNum = parseInt(raw, 10);
@@ -221,7 +224,6 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
                         setRadiusBlurError('半径は1-1000m、または選択肢で指定してください');
                         return;
                       }
-                      onChange('designated_radius', `${radiusNum}m`);
                       setDesignatedRadiusDraft(String(radiusNum));
                       if (radiusNum > 0) {
                         const isVisitMeasurementGroup = titleLabel === '来訪計測グループ条件';
@@ -241,6 +243,9 @@ function SegmentFormCommonConditionsInner({ formData, onChange, titleLabel, extr
                           }
                         }
                       }
+                      const value = `${radiusNum}m`;
+                      if (onDesignatedRadiusBlur) onDesignatedRadiusBlur(value);
+                      else setTimeout(() => onChange('designated_radius', value), 0);
                     });
                   }}
                   className="flex-1"

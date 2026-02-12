@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, startTransition } from "react";
 import { toast } from "sonner";
 import { bigQueryService } from "../utils/bigquery";
 import type { Project, Segment, PoiInfo, EditRequest } from "../types/schema";
@@ -178,7 +178,7 @@ export function useProjectSystem() {
     }
   };
 
-  // 案件詳細を表示
+  // 案件詳細を表示（startTransition で選択時の重い再レンダーを遅延し、テーブル選択時のフリーズを軽減）
   const selectProject = async (project: Project) => {
     // 権限チェック
     const statusInfo = getAutoProjectStatus(project, allSegments, allPois);
@@ -186,17 +186,22 @@ export function useProjectSystem() {
       toast.error("この案件を閲覧する権限がありません");
       return false;
     }
-    
-    setSelectedProject(project);
 
-    // 関連データ取得
+    // 先に案件だけトランジションで表示し、UIをブロックしない
+    startTransition(() => {
+      setSelectedProject(project);
+    });
+
+    // 関連データ取得後、セグメント・POI もトランジションで反映
     try {
       const [projectSegments, projectPois] = await Promise.all([
         bigQueryService.getSegmentsByProject(project.project_id),
         bigQueryService.getPoisByProject(project.project_id)
       ]);
-      setSegments(projectSegments);
-      setPois(projectPois);
+      startTransition(() => {
+        setSegments(projectSegments);
+        setPois(projectPois);
+      });
       return true;
     } catch (error) {
       console.error("Error loading project details:", error);

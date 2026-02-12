@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -52,8 +52,12 @@ export function VisitMeasurementGroupForm({
     stay_time: group?.stay_time || '',
   });
 
+  const designatedRadiusRef = useRef<string>(group?.designated_radius ?? formData.designated_radius ?? '');
+  designatedRadiusRef.current = formData.designated_radius ?? designatedRadiusRef.current;
+
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'designated_radius') designatedRadiusRef.current = value ?? '';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -65,9 +69,9 @@ export function VisitMeasurementGroupForm({
       return;
     }
 
-    // 指定半径またはポリゴンの必須チェック
+    const radiusForSubmit = designatedRadiusRef.current ?? formData.designated_radius ?? '';
     if (!formData.use_polygon) {
-      if (!formData.designated_radius || formData.designated_radius.trim() === '') {
+      if (!radiusForSubmit || radiusForSubmit.trim() === '') {
         toast.error('指定半径は必須項目です');
         return;
       }
@@ -89,9 +93,9 @@ export function VisitMeasurementGroupForm({
       return;
     }
 
-    // 来店計測地点の場合は指定属性と検知回数をundefinedに設定（DBに保存しない）
     const submitData = {
       ...formData,
+      designated_radius: radiusForSubmit,
       attribute: undefined,
       detection_count: undefined,
     };
@@ -172,6 +176,7 @@ export function VisitMeasurementGroupForm({
                 stay_time?: string;
               }>}
               onChange={handleChange}
+              onDesignatedRadiusBlur={(v) => { designatedRadiusRef.current = v; }}
               titleLabel="計測条件"
               extractionLabel="計測期間"
               noteLabel="※ このグループに属する全地点に同じ条件が適用されます"

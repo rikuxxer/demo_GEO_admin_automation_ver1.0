@@ -192,3 +192,82 @@
   - 新規テーブル作成・スキーマ更新時に漏れが防げる
   - 照合のたびに「定義書にない」と出さずに済む
 - **今回のようなケース**（バックエンドが送っているが定義書にない列）では、**定義書に追記する**ことを推奨する。本ドキュメントでは segments の6列を定義書に追記済みとする。
+
+---
+
+## 付録: segments / pois カラム一覧照合（バックエンド vs テーブル定義）
+
+### segments
+
+| # | カラム名 | テーブル型（CREATE） | バックエンド（createSegment） | 備考 |
+|---|----------|----------------------|--------------------------------|------|
+| 1 | segment_id | STRING NOT NULL | ✅ allowedFields + 必須 | |
+| 2 | project_id | STRING NOT NULL | ✅ allowedFields + 必須 | |
+| 3 | segment_name | STRING | ✅ allowedFields | |
+| 4 | segment_registered_at | TIMESTAMP | ✅ allowedFields（デフォルトあり） | |
+| 5 | delivery_media | ARRAY<STRING> | ✅ allowedFields（formatDeliveryMediaForBigQuery） | |
+| 6 | media_id | ARRAY<STRING> | ✅ allowedFields（formatMediaIdArrayForBigQuery） | |
+| 7 | poi_category | STRING | ✅ allowedFields | |
+| 8 | poi_type | STRING | ✅ allowedFields | |
+| 9 | attribute | STRING | ✅ allowedFields | |
+| 10 | extraction_period | STRING | ✅ allowedFields | |
+| 11 | extraction_period_type | STRING | ✅ allowedFields | |
+| 12 | extraction_start_date | DATE | ✅ allowedFields（formatDateForBigQuery） | |
+| 13 | extraction_end_date | DATE | ✅ allowedFields（formatDateForBigQuery） | |
+| 14 | extraction_dates | ARRAY<STRING> | ✅ allowedFields | |
+| 15 | detection_count | INT64 | ✅ allowedFields（parseInt） | |
+| 16 | detection_time_start | TIME | ✅ allowedFields（formatTimeForBigQuery） | |
+| 17 | detection_time_end | TIME | ✅ allowedFields（formatTimeForBigQuery） | |
+| 18 | stay_time | STRING | ✅ allowedFields | |
+| 19 | designated_radius | STRING | ✅ allowedFields | |
+| 20 | location_request_status | STRING | ✅ allowedFields（デフォルト not_requested） | |
+| 21 | data_coordination_date | DATE | ✅ allowedFields | |
+| 22 | delivery_confirmed | BOOL | ✅ allowedFields（request_confirmed からマッピング） | |
+| 23 | registerd_provider_segment | BOOL | ✅ allowedFields | |
+| 24 | data_link_status | STRING | ✅ allowedFields（デフォルト before_request） | |
+| 25 | data_link_request_date | DATE | ✅ allowedFields | |
+| 26 | data_link_scheduled_date | DATE | ✅ allowedFields | |
+| 27 | ads_account_id | STRING | ✅ allowedFields | |
+| 28 | provider_segment_id | STRING | ✅ allowedFields | |
+| 29 | segment_expire_date | DATE | ✅ allowedFields | |
+| 30 | created_at | TIMESTAMP | ✅ コードで追加 | |
+| 31 | updated_at | TIMESTAMP | ✅ コードで追加 | |
+
+**結論:** 全31列がテーブル定義とバックエンドで一致。updateSegment は SET 句で動的列指定のため、上記のいずれかが更新可能。
+
+---
+
+### pois
+
+| # | カラム名 | テーブル型（CREATE） | バックエンド（createPoi / createPoisBulk） | 備考 |
+|---|----------|----------------------|---------------------------------------------|------|
+| 1 | poi_id | STRING NOT NULL | ✅ allowedFields + 必須 | |
+| 2 | project_id | STRING NOT NULL | ✅ allowedFields + 必須 | |
+| 3 | segment_id | STRING | ✅ allowedFields | |
+| 4 | location_id | STRING | ✅ allowedFields | |
+| 5 | poi_name | STRING NOT NULL | ✅ allowedFields + 必須 | |
+| 6 | address | STRING | ✅ allowedFields | |
+| 7 | latitude | FLOAT64 | ✅ allowedFields（parseFloat） | |
+| 8 | longitude | FLOAT64 | ✅ allowedFields（parseFloat） | |
+| 9 | prefectures | ARRAY<STRING> | ✅ allowedFields（配列 or JSON パース） | |
+| 10 | cities | ARRAY<STRING> | ✅ allowedFields（配列 or JSON パース） | |
+| 11 | poi_type | STRING | ✅ allowedFields | |
+| 12 | poi_category | STRING | ✅ allowedFields | |
+| 13 | designated_radius | STRING | ✅ allowedFields | |
+| 14 | setting_flag | STRING | ✅ allowedFields | |
+| 15 | visit_measurement_group_id | STRING | ✅ allowedFields | |
+| 16 | polygon | STRING | ✅ allowedFields（number[][] → JSON.stringify） | |
+| 17 | created_at | TIMESTAMP | ✅ コードで追加 | |
+| 18 | updated_at | TIMESTAMP | ✅ コードで追加 | |
+
+**結論:** 全18列がテーブル定義とバックエンドで一致。
+
+---
+
+### スクリプトとの一致
+
+- `docs/scripts/create_all_tables.sql`（dev）
+- `docs/scripts/create_all_tables_prod.sql`（本番）
+- `docs/scripts/create_all_tables_US.sql`（検証用 US）
+
+上記の CREATE 文における **segments** および **pois** のカラム並び・型は、[BIGQUERY_TABLE_DEFINITIONS.md](../BIGQUERY_TABLE_DEFINITIONS.md) および本付録の一覧と同一であり、バックエンドの送信列と一致しています。

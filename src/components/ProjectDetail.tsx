@@ -2375,30 +2375,25 @@ export function ProjectDetail({
                             onBlur={() => {
                               const value = designatedRadiusDraft;
                               requestAnimationFrame(() => {
-                                if (value === '') {
-                                  setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: '' }));
-                                  return;
-                                }
+                                if (value === '') return;
                                 const radiusNum = parseInt(value, 10);
                                 const isFixed = fixedRadiusOptions.includes(radiusNum);
-                                if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
-                                  setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: `${radiusNum}m` }));
-                                  if (radiusNum > 0) {
-                                    if (radiusNum <= 30 && !hasShownRadius30mWarning) {
-                                      setShowRadius30mWarning(true);
-                                      setHasShownRadius30mWarning(true);
-                                    } else if (radiusNum > 30 && radiusNum <= 50) {
-                                      setHasShownRadius30mWarning(false);
-                                      if (!hasShownRadiusWarning) {
-                                        setShowRadiusWarning(true);
-                                        setHasShownRadiusWarning(true);
-                                      }
-                                    } else if (radiusNum > 50) {
-                                      setShowRadiusWarning(false);
-                                      setHasShownRadius30mWarning(false);
+                                if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed) && radiusNum > 0) {
+                                  if (radiusNum <= 30 && !hasShownRadius30mWarning) {
+                                    setShowRadius30mWarning(true);
+                                    setHasShownRadius30mWarning(true);
+                                  } else if (radiusNum > 30 && radiusNum <= 50) {
+                                    setHasShownRadius30mWarning(false);
+                                    if (!hasShownRadiusWarning) {
+                                      setShowRadiusWarning(true);
+                                      setHasShownRadiusWarning(true);
                                     }
+                                  } else if (radiusNum > 50) {
+                                    setShowRadiusWarning(false);
+                                    setHasShownRadius30mWarning(false);
                                   }
                                 }
+                                // 親の state は更新しない（フリーズ防止）。保存時に designatedRadiusDraft を参照する。
                               });
                             }}
                             className="flex-1"
