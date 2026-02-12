@@ -2,6 +2,11 @@
 
 ## 実施済み対策
 
+- **根本原因を特定（抽出条件の自由入力）**: 半径（`designated_radius`）自由入力の `blur` で親（`ProjectDetail` / 各フォーム）の state を即時更新しており、重い再レンダーが同期的に発生してフリーズしていた。
+- **半径 blur 時の親更新を停止**: `SegmentFormCommonConditions` に `onDesignatedRadiusBlur` を追加し、`blur` では親 `onChange('designated_radius', ...)` を呼ばず、必要値は ref / draft 側で保持するよう変更。
+- **VisitMeasurementGroupForm**: `designatedRadiusRef` を導入し、送信時に ref を参照。入力中・blur 中の不要な親再レンダーを回避。
+- **ProjectDetail（抽出条件ポップアップ）**: 半径自由入力の `blur` では `setExtractionConditionsFormData` を呼ばず、`designatedRadiusDraft` のみ更新。保存時に draft から `radiusFromDraft` を計算して反映。
+- **案件テーブル選択時のフリーズ軽減（関連対策）**: `useProjectSystem.selectProject` の `setSelectedProject` / `setSegments` / `setPois` を `startTransition` で低優先度化し、テーブル行選択直後のブロッキング再レンダーを緩和。
 - **半径の自由入力**: 非制御入力に変更し、入力中の state 更新を廃止
 - **半径入力の key 削除**: 他フィールド編集時の再マウントを防止
 - **半径 useEffect の依存**: `formData.designated_radius` のみに限定（期間など他変更で発火しないように）
@@ -17,6 +22,12 @@
 ---
 
 ## その他に考えられる原因
+
+### 0. 抽出条件の自由入力でフリーズする主因（結論）
+
+- **主因**: 抽出条件フォーム（ProjectDetail の抽出条件ポップアップ含む）で、半径自由入力の `blur` が親コンポーネントの state 更新を直接発火し、ProjectDetail 配下の大きなツリーが同期再レンダーしていたこと。
+- **発生しやすい操作**: 「半径に値を入力（例: 10）→ 別フィールドを触る（blur 発生）」。
+- **現在の方針**: 半径入力中・blur 時は ref/draft 更新に留め、保存時・送信時にのみ確定値を親へ反映する。
 
 ### 1. ポリゴン用 useEffect の依存
 
