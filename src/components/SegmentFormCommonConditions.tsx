@@ -572,8 +572,13 @@ function SegmentFormCommonConditionsInner({ formData, onChange, onDesignatedRadi
               id="detection_count"
               type="number"
               min="1"
+              max="15"
               value={formData.detection_count || 1}
-              onChange={(e) => onChange('detection_count', parseInt(e.target.value) || 1)}
+              onChange={(e) => {
+                const raw = parseInt(e.target.value, 10);
+                const clamped = Number.isNaN(raw) ? 1 : Math.min(15, Math.max(1, raw));
+                onChange('detection_count', clamped);
+              }}
               className="w-full"
             />
             <span className="text-sm text-gray-700 whitespace-nowrap">回以上</span>

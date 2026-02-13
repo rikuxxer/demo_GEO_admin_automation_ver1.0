@@ -1645,6 +1645,11 @@ export function ProjectDetail({
                                       setExtractionConditionsSegment(segment);
                                       const firstPoi = segmentPois[0];
                                       const currentRadius = (firstPoi?.designated_radius || segment.designated_radius || '');
+                                      const initialAttribute = (firstPoi?.attribute) || segment.attribute || 'detector';
+                                      const isFixedPeriodAttribute =
+                                        initialAttribute === 'resident' ||
+                                        initialAttribute === 'worker' ||
+                                        initialAttribute === 'resident_and_worker';
                                       // ref に初期値を設定し、input を非制御コンポーネントに（フリーズ防止）
                                       const radiusValue = currentRadius ? String(currentRadius).replace('m', '') : '';
                                       if (designatedRadiusInputRef.current) {
@@ -1652,16 +1657,16 @@ export function ProjectDetail({
                                       }
                                       setExtractionConditionsFormData({
                                         designated_radius: (firstPoi?.designated_radius) || segment.designated_radius || '',
-                                        extraction_period: (firstPoi?.extraction_period) || segment.extraction_period || '1month',
-                                        extraction_period_type: (() => {
-                                          const periodType = (firstPoi?.extraction_period_type) || segment.extraction_period_type || 'custom';
-                                          // presetはそのまま使用（TG地点では使用可能）
-                                          return periodType;
-                                        })(),
-                                        extraction_start_date: (firstPoi?.extraction_start_date) || segment.extraction_start_date || '',
-                                        extraction_end_date: (firstPoi?.extraction_end_date) || segment.extraction_end_date || '',
-                                        extraction_dates: (firstPoi?.extraction_dates || segment.extraction_dates || []).slice(),
-                                        attribute: (firstPoi?.attribute) || segment.attribute || 'detector',
+                                        extraction_period: isFixedPeriodAttribute
+                                          ? '3month'
+                                          : ((firstPoi?.extraction_period) || segment.extraction_period || '1month'),
+                                        extraction_period_type: isFixedPeriodAttribute
+                                          ? 'preset'
+                                          : ((firstPoi?.extraction_period_type) || segment.extraction_period_type || 'custom'),
+                                        extraction_start_date: isFixedPeriodAttribute ? '' : ((firstPoi?.extraction_start_date) || segment.extraction_start_date || ''),
+                                        extraction_end_date: isFixedPeriodAttribute ? '' : ((firstPoi?.extraction_end_date) || segment.extraction_end_date || ''),
+                                        extraction_dates: isFixedPeriodAttribute ? [] : ((firstPoi?.extraction_dates || segment.extraction_dates || []).slice()),
+                                        attribute: initialAttribute,
                                         detection_count: (firstPoi?.detection_count) || segment.detection_count || 1,
                                         detection_time_start: (firstPoi?.detection_time_start) || segment.detection_time_start || '',
                                         detection_time_end: (firstPoi?.detection_time_end) || segment.detection_time_end || '',
@@ -2585,8 +2590,13 @@ export function ProjectDetail({
                       <Input
                         type="number"
                         min="1"
+                        max="15"
                         value={extractionConditionsFormData.detection_count || 1}
-                        onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, detection_count: parseInt(e.target.value) || 1 }))}
+                        onChange={(e) => {
+                          const raw = parseInt(e.target.value, 10);
+                          const clamped = Number.isNaN(raw) ? 1 : Math.min(15, Math.max(1, raw));
+                          setExtractionConditionsDeferred(prev => ({ ...prev, detection_count: clamped }));
+                        }}
                         className="bg-white"
                       />
                       <span className="text-sm text-gray-500 whitespace-nowrap">回以上</span>
@@ -2679,25 +2689,39 @@ export function ProjectDetail({
                     const radiusFromDraft = radiusInputValue === ''
                       ? ''
                       : `${draftNum}m`;
+                    const isFixedPeriodAttribute =
+                      extractionConditionsFormData.attribute === 'resident' ||
+                      extractionConditionsFormData.attribute === 'worker' ||
+                      extractionConditionsFormData.attribute === 'resident_and_worker';
+                    const effectiveConditions: Partial<PoiInfo> = isFixedPeriodAttribute
+                      ? {
+                          ...extractionConditionsFormData,
+                          extraction_period: '3month',
+                          extraction_period_type: 'preset',
+                          extraction_start_date: '',
+                          extraction_end_date: '',
+                          extraction_dates: [],
+                        }
+                      : extractionConditionsFormData;
                     await onSegmentUpdate(extractionConditionsSegment.segment_id, {
                       designated_radius: radiusFromDraft,
-                      extraction_period: extractionConditionsFormData.extraction_period,
-                      extraction_period_type: extractionConditionsFormData.extraction_period_type,
-                      extraction_start_date: extractionConditionsFormData.extraction_start_date,
-                      extraction_end_date: extractionConditionsFormData.extraction_end_date,
-                      extraction_dates: (extractionConditionsFormData.extraction_dates || []).filter(Boolean),
-                      attribute: extractionConditionsFormData.attribute,
-                      detection_count: extractionConditionsFormData.detection_count,
-                      detection_time_start: extractionConditionsFormData.detection_time_start,
-                      detection_time_end: extractionConditionsFormData.detection_time_end,
-                      stay_time: extractionConditionsFormData.stay_time,
+                      extraction_period: effectiveConditions.extraction_period,
+                      extraction_period_type: effectiveConditions.extraction_period_type,
+                      extraction_start_date: effectiveConditions.extraction_start_date,
+                      extraction_end_date: effectiveConditions.extraction_end_date,
+                      extraction_dates: (effectiveConditions.extraction_dates || []).filter(Boolean),
+                      attribute: effectiveConditions.attribute,
+                      detection_count: effectiveConditions.detection_count,
+                      detection_time_start: effectiveConditions.detection_time_start,
+                      detection_time_end: effectiveConditions.detection_time_end,
+                      stay_time: effectiveConditions.stay_time,
                     });
 
                     // 既存地点にも適用
                     for (const poi of segmentPois) {
                       if (poi.poi_id) {
                         await onPoiUpdate(poi.poi_id, {
-                          ...extractionConditionsFormData,
+                          ...effectiveConditions,
                           designated_radius: radiusFromDraft,
                         });
                       }
