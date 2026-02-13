@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, ChevronRight, ChevronLeft, HelpCircle, Play, BookOpen, FileText, MapPin, Package, Upload, Settings, Target } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, HelpCircle, Play, BookOpen, FileText, MapPin, Package, Upload, Target } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import {
@@ -288,43 +288,6 @@ export const operationGuides: OperationGuide[] = [
         content: 'データを確認して「一括登録」ボタンをクリックします。登録が完了すると、案件一覧に反映されます。',
         position: 'top',
         navigateToPage: 'projects', // 案件一覧ページに遷移（フォームはモーダルで開く）
-      },
-    ],
-  },
-  {
-    id: 'segment-common-conditions',
-    title: 'セグメント共通条件の設定',
-    description: 'セグメント共通条件を設定して、地点に自動適用する方法を説明します',
-    icon: Settings,
-    steps: [
-      {
-        target: '[data-guide="segment-common-conditions"]',
-        title: '共通条件の設定',
-        content: 'セグメント登録フォームで「セグメント共通条件を設定する」にチェックを入れます。',
-        position: 'right',
-        navigateToPage: 'project-detail', // 案件詳細ページに遷移
-        action: async () => {
-          // 案件一覧が表示されている場合は先頭案件をクリックして詳細画面へ遷移
-          const firstRow = document.querySelector('[data-guide="project-row-first"]') as HTMLElement;
-          if (firstRow) {
-            firstRow.click();
-          }
-        },
-        waitBeforeAction: 300,
-      },
-      {
-        target: '[data-guide="common-conditions-form"]',
-        title: '条件の入力',
-        content: '指定半径、抽出期間、属性、滞在時間などの条件を設定します。これらの条件は、このセグメントに追加する地点に自動適用されます。',
-        position: 'right',
-        navigateToPage: 'project-detail', // 案件詳細ページに遷移
-      },
-      {
-        target: '[data-guide="common-conditions-save"]',
-        title: '条件の保存',
-        content: '条件を設定してセグメントを登録すると、共通条件が保存されます。',
-        position: 'top',
-        navigateToPage: 'project-detail', // 案件詳細ページに遷移
       },
     ],
   },
