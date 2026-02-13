@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { BarChart3, ClipboardCheck, AlertCircle, CheckCircle, Clock, TrendingDown, Target, DollarSign, Package, MapPin, Activity, FileText } from 'lucide-react';
 import { Card } from './ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import * as Recharts from 'recharts';
 import type { Project, Segment, EditRequest } from '../types/schema';
 import { 
   calculateAverageRegistrationTime, 
@@ -492,10 +492,10 @@ export function AdminDashboard({
           <p className="text-muted-foreground mt-0.5">過去30日間の平均登録時間の推移</p>
         </div>
         <div className="p-6">
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={registrationTimeTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis 
+          <Recharts.ResponsiveContainer width="100%" height={300}>
+            <Recharts.LineChart data={registrationTimeTrend}>
+              <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <Recharts.XAxis 
                 dataKey="date" 
                 stroke="#6b7280"
                 tickFormatter={(value) => {
@@ -503,12 +503,12 @@ export function AdminDashboard({
                   return `${date.getMonth() + 1}/${date.getDate()}`;
                 }}
               />
-              <YAxis 
+              <Recharts.YAxis 
                 stroke="#6b7280"
                 label={{ value: '時間（分）', angle: -90, position: 'insideLeft' }}
                 domain={[0, 'auto']}
               />
-              <Tooltip 
+              <Recharts.Tooltip 
                 formatter={(value: number, name: string, _props: any) => {
                   if (name === 'averageTime') {
                     return [`${value}分`, '平均登録時間'];
@@ -531,8 +531,8 @@ export function AdminDashboard({
                   }
                 }}
               />
-              <Legend />
-              <Line 
+              <Recharts.Legend />
+              <Recharts.Line 
                 type="monotone" 
                 dataKey="averageTime" 
                 stroke="#5b5fff" 
@@ -542,8 +542,8 @@ export function AdminDashboard({
                 activeDot={{ r: 6 }}
                 connectNulls={false}
               />
-            </LineChart>
-          </ResponsiveContainer>
+            </Recharts.LineChart>
+          </Recharts.ResponsiveContainer>
           {registrationTimeTrend.filter(d => d.count > 0).length === 0 && (
             <div className="text-center text-muted-foreground mt-4 text-sm">
               データがありません（過去30日間に登録開始時点が記録されている案件がありません）
@@ -787,8 +787,8 @@ export function AdminDashboard({
               <p className="text-muted-foreground mt-0.5">各操作タイプの平均所要時間を比較</p>
             </div>
             <div className="p-6">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
+              <Recharts.ResponsiveContainer width="100%" height={300}>
+                <Recharts.BarChart data={[
                   {
                     name: '案件',
                     value: workTimeStats.projectCreation?.averageTime || 0,
@@ -805,20 +805,20 @@ export function AdminDashboard({
                     count: workTimeStats.poiCreation?.count || 0,
                   },
                 ].filter(d => d.value > 0)}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" stroke="#6b7280" />
-                  <YAxis 
+                  <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <Recharts.XAxis dataKey="name" stroke="#6b7280" />
+                  <Recharts.YAxis 
                     stroke="#6b7280"
                     label={{ value: '時間（分）', angle: -90, position: 'insideLeft' }}
                   />
-                  <Tooltip 
+                  <Recharts.Tooltip 
                     formatter={(value: number, _name: string, _props: any) => {
                       return [`${formatWorkTime(value)}`, '平均所要時間'];
                     }}
                   />
-                  <Bar dataKey="value" fill="#5b5fff" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+                  <Recharts.Bar dataKey="value" fill="#5b5fff" radius={[8, 8, 0, 0]} />
+                </Recharts.BarChart>
+              </Recharts.ResponsiveContainer>
             </div>
           </Card>
         )}

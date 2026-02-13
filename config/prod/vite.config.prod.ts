@@ -27,6 +27,19 @@ export default defineConfig({
         drop_debugger: true,
       },
     },
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // recharts を単体チャンクにし、minify 時の "X is not a constructor" を防ぐ
+          if (id.includes('node_modules/recharts')) {
+            return 'recharts';
+          }
+        },
+      },
+    },
+  },
+  optimizeDeps: {
+    include: ['recharts'],
   },
   envPrefix: 'VITE_',
 });
