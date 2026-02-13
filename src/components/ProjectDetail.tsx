@@ -2379,19 +2379,22 @@ export function ProjectDetail({
                                 const radiusNum = parseInt(value, 10);
                                 const isFixed = fixedRadiusOptions.includes(radiusNum);
                                 if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed) && radiusNum > 0) {
-                                  if (radiusNum <= 30 && !hasShownRadius30mWarning) {
-                                    setShowRadius30mWarning(true);
-                                    setHasShownRadius30mWarning(true);
-                                  } else if (radiusNum > 30 && radiusNum <= 50) {
-                                    setHasShownRadius30mWarning(false);
-                                    if (!hasShownRadiusWarning) {
-                                      setShowRadiusWarning(true);
-                                      setHasShownRadiusWarning(true);
+                                  // 警告フラグの更新を startTransition でラップし、非ブロッキングに（フリーズ防止）
+                                  startTransition(() => {
+                                    if (radiusNum <= 30 && !hasShownRadius30mWarning) {
+                                      setShowRadius30mWarning(true);
+                                      setHasShownRadius30mWarning(true);
+                                    } else if (radiusNum > 30 && radiusNum <= 50) {
+                                      setHasShownRadius30mWarning(false);
+                                      if (!hasShownRadiusWarning) {
+                                        setShowRadiusWarning(true);
+                                        setHasShownRadiusWarning(true);
+                                      }
+                                    } else if (radiusNum > 50) {
+                                      setShowRadiusWarning(false);
+                                      setHasShownRadius30mWarning(false);
                                     }
-                                  } else if (radiusNum > 50) {
-                                    setShowRadiusWarning(false);
-                                    setHasShownRadius30mWarning(false);
-                                  }
+                                  });
                                 }
                                 // 親の state は更新しない（フリーズ防止）。保存時に designatedRadiusDraft を参照する。
                               });
@@ -2414,11 +2417,11 @@ export function ProjectDetail({
                           onChange={(e) => {
                             const value = e.target.value;
                             if (!value) {
-                              setDesignatedRadiusDraft('');
+                              startTransition(() => setDesignatedRadiusDraft(''));
                               setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: '' }));
                               return;
                             }
-                            setDesignatedRadiusDraft(value);
+                            startTransition(() => setDesignatedRadiusDraft(value));
                             setExtractionConditionsDeferred(prev => ({ ...prev, designated_radius: `${value}m` }));
                           }}
                           className="h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5b5fff] focus:border-transparent"
@@ -2532,7 +2535,7 @@ export function ProjectDetail({
                               onChange={(e) => {
                                 const selectedDate = e.target.value;
                                 if (isDateMoreThanSixMonthsAgo(selectedDate)) {
-                                  setShowDateRangeWarning(true);
+                                  startTransition(() => setShowDateRangeWarning(true));
                                   return; // 日付を更新しない
                                 }
                                 const arr = [...(extractionConditionsFormData.extraction_dates || [])];
