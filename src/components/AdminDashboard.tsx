@@ -33,6 +33,8 @@ export function AdminDashboard({
   onRefresh: _onRefresh
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'exports'>('dashboard');
+  const canRenderResponsiveCharts =
+    typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
   
   // 案件ステータス別カウント（メモ化）
   const projectsByStatus = useMemo(() => ({
@@ -492,58 +494,64 @@ export function AdminDashboard({
           <p className="text-muted-foreground mt-0.5">過去30日間の平均登録時間の推移</p>
         </div>
         <div className="p-6">
-          <Recharts.ResponsiveContainer width="100%" height={300}>
-            <Recharts.LineChart data={registrationTimeTrend}>
-              <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <Recharts.XAxis 
-                dataKey="date" 
-                stroke="#6b7280"
-                tickFormatter={(value) => {
-                  const date = new Date(value);
-                  return `${date.getMonth() + 1}/${date.getDate()}`;
-                }}
-              />
-              <Recharts.YAxis 
-                stroke="#6b7280"
-                label={{ value: '時間（分）', angle: -90, position: 'insideLeft' }}
-                domain={[0, 'auto']}
-              />
-              <Recharts.Tooltip 
-                formatter={(value: number, name: string, _props: any) => {
-                  if (name === 'averageTime') {
-                    return [`${value}分`, '平均登録時間'];
-                  }
-                  return [value, name];
-                }}
-                labelFormatter={(label) => {
-                  if (!label) return '-';
-                  const date = new Date(label);
-                  if (isNaN(date.getTime())) return '-';
-                  try {
-                    return date.toLocaleDateString('ja-JP', { 
-                      month: 'long', 
-                      day: 'numeric',
-                      weekday: 'short'
-                    });
-                  } catch (e) {
-                    console.warn('⚠️ labelFormatter() failed:', label, e);
-                    return '-';
-                  }
-                }}
-              />
-              <Recharts.Legend />
-              <Recharts.Line 
-                type="monotone" 
-                dataKey="averageTime" 
-                stroke="#5b5fff" 
-                strokeWidth={2}
-                name="平均登録時間"
-                dot={{ fill: '#5b5fff', r: 4 }}
-                activeDot={{ r: 6 }}
-                connectNulls={false}
-              />
-            </Recharts.LineChart>
-          </Recharts.ResponsiveContainer>
+          {canRenderResponsiveCharts ? (
+            <Recharts.ResponsiveContainer width="100%" height={300}>
+              <Recharts.LineChart data={registrationTimeTrend}>
+                <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <Recharts.XAxis 
+                  dataKey="date" 
+                  stroke="#6b7280"
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                  }}
+                />
+                <Recharts.YAxis 
+                  stroke="#6b7280"
+                  label={{ value: '時間（分）', angle: -90, position: 'insideLeft' }}
+                  domain={[0, 'auto']}
+                />
+                <Recharts.Tooltip 
+                  formatter={(value: number, name: string, _props: any) => {
+                    if (name === 'averageTime') {
+                      return [`${value}分`, '平均登録時間'];
+                    }
+                    return [value, name];
+                  }}
+                  labelFormatter={(label) => {
+                    if (!label) return '-';
+                    const date = new Date(label);
+                    if (isNaN(date.getTime())) return '-';
+                    try {
+                      return date.toLocaleDateString('ja-JP', { 
+                        month: 'long', 
+                        day: 'numeric',
+                        weekday: 'short'
+                      });
+                    } catch (e) {
+                      console.warn('⚠️ labelFormatter() failed:', label, e);
+                      return '-';
+                    }
+                  }}
+                />
+                <Recharts.Legend />
+                <Recharts.Line 
+                  type="monotone" 
+                  dataKey="averageTime" 
+                  stroke="#5b5fff" 
+                  strokeWidth={2}
+                  name="平均登録時間"
+                  dot={{ fill: '#5b5fff', r: 4 }}
+                  activeDot={{ r: 6 }}
+                  connectNulls={false}
+                />
+              </Recharts.LineChart>
+            </Recharts.ResponsiveContainer>
+          ) : (
+            <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+              この環境ではグラフ表示に必要な API（ResizeObserver）が利用できないため、チャートを表示できません。
+            </div>
+          )}
           {registrationTimeTrend.filter(d => d.count > 0).length === 0 && (
             <div className="text-center text-muted-foreground mt-4 text-sm">
               データがありません（過去30日間に登録開始時点が記録されている案件がありません）
@@ -787,38 +795,44 @@ export function AdminDashboard({
               <p className="text-muted-foreground mt-0.5">各操作タイプの平均所要時間を比較</p>
             </div>
             <div className="p-6">
-              <Recharts.ResponsiveContainer width="100%" height={300}>
-                <Recharts.BarChart data={[
-                  {
-                    name: '案件',
-                    value: workTimeStats.projectCreation?.averageTime || 0,
-                    count: workTimeStats.projectCreation?.count || 0,
-                  },
-                  {
-                    name: 'セグメント',
-                    value: workTimeStats.segmentCreation?.averageTime || 0,
-                    count: workTimeStats.segmentCreation?.count || 0,
-                  },
-                  {
-                    name: '地点',
-                    value: workTimeStats.poiCreation?.averageTime || 0,
-                    count: workTimeStats.poiCreation?.count || 0,
-                  },
-                ].filter(d => d.value > 0)}>
-                  <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <Recharts.XAxis dataKey="name" stroke="#6b7280" />
-                  <Recharts.YAxis 
-                    stroke="#6b7280"
-                    label={{ value: '時間（分）', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Recharts.Tooltip 
-                    formatter={(value: number, _name: string, _props: any) => {
-                      return [`${formatWorkTime(value)}`, '平均所要時間'];
-                    }}
-                  />
-                  <Recharts.Bar dataKey="value" fill="#5b5fff" radius={[8, 8, 0, 0]} />
-                </Recharts.BarChart>
-              </Recharts.ResponsiveContainer>
+              {canRenderResponsiveCharts ? (
+                <Recharts.ResponsiveContainer width="100%" height={300}>
+                  <Recharts.BarChart data={[
+                    {
+                      name: '案件',
+                      value: workTimeStats.projectCreation?.averageTime || 0,
+                      count: workTimeStats.projectCreation?.count || 0,
+                    },
+                    {
+                      name: 'セグメント',
+                      value: workTimeStats.segmentCreation?.averageTime || 0,
+                      count: workTimeStats.segmentCreation?.count || 0,
+                    },
+                    {
+                      name: '地点',
+                      value: workTimeStats.poiCreation?.averageTime || 0,
+                      count: workTimeStats.poiCreation?.count || 0,
+                    },
+                  ].filter(d => d.value > 0)}>
+                    <Recharts.CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <Recharts.XAxis dataKey="name" stroke="#6b7280" />
+                    <Recharts.YAxis 
+                      stroke="#6b7280"
+                      label={{ value: '時間（分）', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Recharts.Tooltip 
+                      formatter={(value: number, _name: string, _props: any) => {
+                        return [`${formatWorkTime(value)}`, '平均所要時間'];
+                      }}
+                    />
+                    <Recharts.Bar dataKey="value" fill="#5b5fff" radius={[8, 8, 0, 0]} />
+                  </Recharts.BarChart>
+                </Recharts.ResponsiveContainer>
+              ) : (
+                <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+                  この環境ではグラフ表示に必要な API（ResizeObserver）が利用できないため、チャートを表示できません。
+                </div>
+              )}
             </div>
           </Card>
         )}
