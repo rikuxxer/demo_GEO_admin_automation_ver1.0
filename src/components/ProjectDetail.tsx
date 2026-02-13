@@ -2457,7 +2457,8 @@ export function ProjectDetail({
                       <select
                         value={extractionConditionsFormData.extraction_period || '1month'}
                         onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_period: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
                       >
                         {EXTRACTION_PERIOD_PRESET_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -2520,6 +2521,7 @@ export function ProjectDetail({
                         type="date"
                         value={extractionConditionsFormData.extraction_start_date || ''}
                         onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_start_date: e.target.value }))}
+                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="bg-white"
                       />
                       <span className="text-gray-500">〜</span>
@@ -2527,6 +2529,7 @@ export function ProjectDetail({
                         type="date"
                         value={extractionConditionsFormData.extraction_end_date || ''}
                         onChange={(e) => setExtractionConditionsDeferred(prev => ({ ...prev, extraction_end_date: e.target.value }))}
+                        disabled={extractionConditionsFormData.attribute === 'resident' || extractionConditionsFormData.attribute === 'worker' || extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="bg-white"
                       />
                     </div>
