@@ -20,13 +20,8 @@ export default defineConfig({
     target: 'esnext',
     outDir: 'build',
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
+    // recharts が "X is not a constructor" で落ちるため terser ではなく esbuild で minify
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: (id) => {
