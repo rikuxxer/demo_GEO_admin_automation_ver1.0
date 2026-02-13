@@ -2364,34 +2364,6 @@ export function ProjectDetail({
                             step="1"
                             placeholder="1-1000"
                             defaultValue=""
-                            onBlur={(e) => {
-                              const value = e.target.value;
-                              if (value === '') return;
-                              const radiusNum = parseInt(value, 10);
-                              const isFixed = fixedRadiusOptions.includes(radiusNum);
-                              // バリデーション：範囲外の値は無効化
-                              if (isNaN(radiusNum) || radiusNum < 1 || (radiusNum > 1000 && !isFixed)) {
-                                return;
-                              }
-                              // 警告フラグの更新を startTransition でラップし、非ブロッキングに（フリーズ防止）
-                              requestAnimationFrame(() => {
-                                startTransition(() => {
-                                  if (radiusNum > 0 && radiusNum <= 30 && !hasShownRadius30mWarning) {
-                                    setShowRadius30mWarning(true);
-                                    setHasShownRadius30mWarning(true);
-                                  } else if (radiusNum > 30 && radiusNum <= 50) {
-                                    setHasShownRadius30mWarning(false);
-                                    if (!hasShownRadiusWarning) {
-                                      setShowRadiusWarning(true);
-                                      setHasShownRadiusWarning(true);
-                                    }
-                                  } else if (radiusNum > 50) {
-                                    setShowRadiusWarning(false);
-                                    setHasShownRadius30mWarning(false);
-                                  }
-                                });
-                              });
-                            }}
                             className="flex-1"
                           />
                           <span className="text-sm text-gray-500 whitespace-nowrap">m</span>
@@ -2694,11 +2666,16 @@ export function ProjectDetail({
                     // ref から半径の値を取得（非制御コンポーネントのため）
                     const radiusInputValue = designatedRadiusInputRef.current?.value || '';
                     const draftNum = Number(radiusInputValue);
+                    
+                    // バリデーション：無効な値の場合はエラー
+                    if (radiusInputValue !== '' && (Number.isNaN(draftNum) || draftNum < 1 || (draftNum > 1000 && !fixedRadiusOptions.includes(draftNum)))) {
+                      toast.error('半径は1-1000m、または選択肢から指定してください');
+                      return;
+                    }
+                    
                     const radiusFromDraft = radiusInputValue === ''
                       ? ''
-                      : (!Number.isNaN(draftNum) && (draftNum <= 1000 || fixedRadiusOptions.includes(draftNum)))
-                        ? `${draftNum}m`
-                        : extractionConditionsFormData.designated_radius;
+                      : `${draftNum}m`;
                     await onSegmentUpdate(extractionConditionsSegment.segment_id, {
                       designated_radius: radiusFromDraft,
                       extraction_period: extractionConditionsFormData.extraction_period,
