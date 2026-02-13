@@ -18,6 +18,11 @@
 - **開発環境バリデーション**: 効果の実行を 400ms スロットルし、連続実行による重い処理を抑制。
 - **otherSegments / otherMediaIds / hasTverCTV / hasOtherMedia**: SegmentForm 内で `useMemo` によりメモ化。`existingSegments` や `segment?.segment_id` が変わらない限り同じ参照を返し、毎レンダーの filter・flatMap・some を避けてフリーズを軽減。
 - **ProjectDetail の fixInconsistencies**: `useEffect([pois])` 内で `onPoiUpdate` を呼ぶと親が `pois` を更新し、effect が連鎖的に再実行されてフリーズする問題を防止。`isFixingInconsistenciesRef` で「実行中は再実行しない」ガードを入れ、`.finally()` でフラグをリセット。
+- **PoiForm の半径入力フリーズ対策（抽出条件の自由入力）**:
+  - `designatedRadiusRef` を追加し、blur 時に ref のみを更新することで親 state 更新を回避。
+  - `handleChange` 関数で `designated_radius` 更新時に `startTransition` でラップし、ドロップダウン選択時のフリーズも軽減。
+  - 送信時は `designatedRadiusRef.current` を優先的に使用し、blur 時に ref だけが更新されているケースに対応。
+  - ドロップダウン選択時の同期用に `useEffect` を追加し、`formData.designated_radius` の変化を ref に反映。
 
 ---
 
@@ -89,7 +94,12 @@
 
 - **場所**: ProjectDetail の「抽出条件設定」ポップアップ（ターゲティングの抽出条件設定時）。
 - **懸念**: ラジオ・セレクト・日付入力のたびに `setExtractionConditionsFormData` が同期的に走り、ProjectDetail 全体が再レンダーしてフリーズしていた。
-- **実施済み**: ポップアップ内のフォーム更新を `setExtractionConditionsDeferred`（startTransition でラップ）に統一。半径の自由入力は `startTransition(() => setDesignatedRadiusDraft(value))` で遅延。`extraction_dates` の変更・削除時に `extractionDatesEqual` で同一なら setState をスキップ。
+- **実施済み**: 
+  - ポップアップ内のフォーム更新を `setExtractionConditionsDeferred`（startTransition でラップ）に統一。
+  - **半径自由入力の blur 時の警告フラグ更新**（`setShowRadiusWarning`, `setShowRadius30mWarning`）を `startTransition` でラップし、非ブロッキングに変更。
+  - **半径ドロップダウン選択時の draft state 更新**（`setDesignatedRadiusDraft`）を `startTransition` でラップし、選択時のフリーズを軽減。
+  - **日付選択時の警告フラグ更新**（`setShowDateRangeWarning`）を `startTransition` でラップし、6ヶ月以上前の日付選択時のブロッキングを回避。
+  - `extraction_dates` の変更・削除時に `extractionDatesEqual` で同一なら setState をスキップ。
 
 ### 13. ProjectDetail の来店計測矛盾修正 effect（実施済み）
 
