@@ -93,13 +93,17 @@
 ### 12. 抽出条件設定ポップアップ（実施済み）
 
 - **場所**: ProjectDetail の「抽出条件設定」ポップアップ（ターゲティングの抽出条件設定時）。
-- **懸念**: ラジオ・セレクト・日付入力のたびに `setExtractionConditionsFormData` が同期的に走り、ProjectDetail 全体が再レンダーしてフリーズしていた。
+- **懸念**: ラジオ・セレクト・日付入力のたびに `setExtractionConditionsFormData` が同期的に走り、ProjectDetail 全体が再レンダーしてフリーズしていた。特に、**半径の自由入力中に `designatedRadiusDraft` state が更新されるたびに ProjectDetail 全体が再レンダー**され、入力がフリーズしていた。
 - **実施済み**: 
   - ポップアップ内のフォーム更新を `setExtractionConditionsDeferred`（startTransition でラップ）に統一。
-  - **半径自由入力の blur 時の警告フラグ更新**（`setShowRadiusWarning`, `setShowRadius30mWarning`）を `startTransition` でラップし、非ブロッキングに変更。
-  - **半径ドロップダウン選択時の draft state 更新**（`setDesignatedRadiusDraft`）を `startTransition` でラップし、選択時のフリーズを軽減。
+  - **半径入力を非制御コンポーネントに変更**：`designatedRadiusDraft` state を削除し、`designatedRadiusInputRef` ref に置き換え。入力中の state 更新を完全に排除し、blur 時のみバリデーションと警告表示を行う。
+  - **半径自由入力の blur 時の警告フラグ更新**（`setShowRadiusWarning`, `setShowRadius30mWarning`）を `startTransition` + `requestAnimationFrame` でラップし、非ブロッキングに変更。
+  - **半径ドロップダウン選択時**: ref を直接更新し、state 更新は `setExtractionConditionsDeferred` 経由で遅延実行。
+  - **ポップアップを開く際**: ref に初期値を設定し、input の defaultValue として使用。
+  - **保存時**: ref から値を取得してバリデーション・保存を実行。
   - **日付選択時の警告フラグ更新**（`setShowDateRangeWarning`）を `startTransition` でラップし、6ヶ月以上前の日付選択時のブロッキングを回避。
   - `extraction_dates` の変更・削除時に `extractionDatesEqual` で同一なら setState をスキップ。
+- **結果**: 半径の自由入力中の state 更新が完全に排除され、入力のフリーズが解消。blur 時の警告表示も非同期化され、UI がブロックされなくなった。
 
 ### 13. ProjectDetail の来店計測矛盾修正 effect（実施済み）
 
