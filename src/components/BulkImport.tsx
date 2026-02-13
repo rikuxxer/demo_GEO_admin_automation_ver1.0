@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Label } from './ui/label';
+import { Progress } from './ui/progress';
 import { Upload, Download, FileText, AlertCircle, CheckCircle, Info, Loader2, Edit } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import { downloadExcelTemplate } from '../utils/excelTemplateGenerator';
@@ -26,6 +27,7 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
   const [importing, setImporting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -37,21 +39,34 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
 
   const handleDownloadTemplate = async () => {
     setDownloading(true);
+    setDownloadProgress(0);
+
+    let timer: ReturnType<typeof setInterval> | null = null;
     try {
-      // 最低表示時間を確保してユーザーにフィードバックを提供
-      await Promise.all([
-        downloadExcelTemplate(),
-        new Promise(resolve => setTimeout(resolve, 800)) // 最低800ms表示
-      ]);
-      
-      // ダウンロード完了後、さらに200ms待ってから通常状態に戻す
+      // 実進捗は取得できないため、体感進捗を表示（上限90%）
+      timer = setInterval(() => {
+        setDownloadProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + (prev < 60 ? 8 : 3);
+        });
+      }, 120);
+
+      await downloadExcelTemplate();
+
+      setDownloadProgress(100);
       setTimeout(() => {
         setDownloading(false);
-      }, 200);
+        setDownloadProgress(0);
+      }, 350);
     } catch (error) {
       console.error('テンプレートダウンロードエラー:', error);
       alert('テンプレートのダウンロード中にエラーが発生しました。');
       setDownloading(false);
+      setDownloadProgress(0);
+    } finally {
+      if (timer) {
+        clearInterval(timer);
+      }
     }
   };
 
@@ -348,6 +363,15 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
               </>
             )}
           </Button>
+          {downloading && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-blue-700">
+                <span>テンプレートを準備中...</span>
+                <span>{Math.min(downloadProgress, 100)}%</span>
+              </div>
+              <Progress value={downloadProgress} className="h-2" />
+            </div>
+          )}
         </div>
       </Card>
 

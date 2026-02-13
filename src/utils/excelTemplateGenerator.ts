@@ -94,9 +94,8 @@ async function createGuideSheet(workbook: ExcelJS.Workbook) {
     [''],
     ['⚠️ 注意事項'],
     ['・このテンプレートでは【1案件のみ】登録可能です。'],
-    ['・青色ヘッダー = 必須項目、薄い青ヘッダー = 任意項目'],
+    ['・ヘッダー名に「⭐」が付いた項目 = 必須項目'],
     ['・地点ID：自動採番されるため入力不要です'],
-    ['・ポリゴン指定はExcelでは登録できません（画面から登録してください）'],
     ['・緯度経度：任意項目です。未入力の場合は住所から自動的に変換されます'],
     ['・配信範囲（指定半径）：1-1000mは自由入力、1000m以上は選択肢から指定'],
     ['・1行目（ヘッダー）は編集できません。サンプル行を参考に入力行に入力してください。'],
@@ -126,9 +125,9 @@ async function createProjectSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.addWorksheet('2.案件情報');
   applySheetDefaults(sheet);
   const headers = [
-    { name: '広告主名', required: true }, { name: '代理店名', required: true },
-    { name: '訴求内容', required: true }, { name: '配信開始日', required: true },
-    { name: '配信終了日', required: true }, { name: '備考', required: false }
+    { name: '広告主名 ⭐', required: true }, { name: '代理店名 ⭐', required: true },
+    { name: '訴求内容 ⭐', required: true }, { name: '配信開始日 ⭐', required: true },
+    { name: '配信終了日 ⭐', required: true }, { name: '備考', required: false }
   ];
   const headerRow = sheet.getRow(1);
   headers.forEach((h, i) => {
@@ -176,19 +175,19 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
   const sheet = workbook.addWorksheet('3.セグメント・TG地点設定');
   applySheetDefaults(sheet);
   const headers = [
-    { name: 'セグメント名', group: 'seg' }, { name: '配信先', group: 'seg' }, { name: '配信範囲', group: 'seg' },
-    { name: '抽出期間', group: 'seg' }, { name: '抽出開始日', group: 'seg' }, { name: '抽出終了日', group: 'seg' },
-    { name: '対象者', group: 'seg' }, { name: '検知回数', group: 'seg' }, { name: '検知時間開始', group: 'seg' },
-    { name: '検知時間終了', group: 'seg' }, { name: '滞在時間', group: 'seg' },
-    { name: '地点の名前', group: 'loc' }, { name: '住所', group: 'loc' }, { name: '緯度（任意）', group: 'loc' },
-    { name: '経度（任意）', group: 'loc' }
+    { name: 'セグメント名 ⭐', group: 'seg', required: true }, { name: '配信先 ⭐', group: 'seg', required: true }, { name: '配信範囲 ⭐', group: 'seg', required: true },
+    { name: '抽出期間 ⭐', group: 'seg', required: true }, { name: '抽出開始日', group: 'seg', required: false }, { name: '抽出終了日', group: 'seg', required: false },
+    { name: '対象者 ⭐', group: 'seg', required: true }, { name: '検知回数（検知者のみ⭐）', group: 'seg', required: false }, { name: '検知時間開始', group: 'seg', required: false },
+    { name: '検知時間終了', group: 'seg', required: false }, { name: '滞在時間', group: 'seg', required: false },
+    { name: '地点の名前 ⭐', group: 'loc', required: true }, { name: '住所 ⭐', group: 'loc', required: true }, { name: '緯度（任意）', group: 'loc', required: false },
+    { name: '経度（任意）', group: 'loc', required: false }
   ];
 
   const headerRow = sheet.getRow(1);
   headers.forEach((h, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = h.name;
-    cell.style = h.group === 'seg' ? SEGMENT_HEADER_STYLE : LOCATION_HEADER_STYLE;
+    cell.style = h.required ? REQUIRED_HEADER_STYLE : (h.group === 'seg' ? SEGMENT_HEADER_STYLE : LOCATION_HEADER_STYLE);
   });
   headerRow.height = 22;
 
@@ -223,10 +222,10 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
       type: 'custom',
       allowBlank: true,
       showErrorMessage: true,
-      error: '配信範囲は1-1000mは自由入力、1000m以上は選択肢から指定してください',
+      error: '配信範囲は1-1000は自由入力（500 / 500m）、1000m以上は選択肢から指定してください',
       errorStyle: 'warning',
       formulae: [
-        `OR(C${r}="",AND(ISNUMBER(C${r}),C${r}>=1,C${r}<=1000),COUNTIF('${optionsSheetName}'!$F$1:$F$14,C${r})>0)`
+        `OR(C${r}="",AND(ISNUMBER(C${r}),C${r}>=1,C${r}<=1000),AND(RIGHT(C${r},1)="m",IFERROR(VALUE(LEFT(C${r},LEN(C${r})-1)),0)>=1,IFERROR(VALUE(LEFT(C${r},LEN(C${r})-1)),0)<=1000),COUNTIF('${optionsSheetName}'!$F$1:$F$14,C${r})>0)`
       ]
     };
     // 4. 抽出期間 (Option Col B - 日本語あり)
@@ -364,9 +363,9 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.addWorksheet('4.来店計測地点リスト');
   applySheetDefaults(sheet);
   const headers = [
-    { name: '地点の名前', required: true },
-    { name: '来訪計測グループ名', required: true },
-    { name: '住所', required: true },
+    { name: '地点の名前 ⭐', required: true },
+    { name: '来訪計測グループ名 ⭐', required: true },
+    { name: '住所 ⭐', required: true },
     { name: '緯度（任意）', required: false },
     { name: '経度（任意）', required: false }
   ];
@@ -427,7 +426,7 @@ async function createOptionsSheet(workbook: ExcelJS.Workbook) {
     C: ['検知者', '居住者', '勤務者', '居住者&勤務者'], // 対象者（居住者&勤務者を追加）
     D: ['1回以上', '2回以上', '3回以上', '4回以上', '5回以上'], // 検知回数
     E: ['3分以上', '5分以上', '10分以上', '15分以上', '30分以上'], // 滞在時間
-    F: [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000] // 配信範囲（固定）
+    F: ['1000m', '1500m', '2000m', '2500m', '3000m', '3500m', '4000m', '4500m', '5000m', '6000m', '7000m', '8000m', '9000m', '10000m'] // 配信範囲（固定）
   };
 
   // データの書き込み
