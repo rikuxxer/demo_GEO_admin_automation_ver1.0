@@ -14,9 +14,10 @@ interface ProjectMessagesProps {
   project: Project;
   onMessageSent?: () => void;
   onUnreadCountUpdate?: () => void;
+  onMessagesRead?: () => void;
 }
 
-export function ProjectMessages({ project, onMessageSent, onUnreadCountUpdate }: ProjectMessagesProps) {
+export function ProjectMessages({ project, onMessageSent, onUnreadCountUpdate, onMessagesRead }: ProjectMessagesProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -26,25 +27,38 @@ export function ProjectMessages({ project, onMessageSent, onUnreadCountUpdate }:
 
   // メッセージのロード
   useEffect(() => {
-    loadMessages();
-    
-    // 既読処理（コンポーネントがマウントされたとき、またはproject_id/userが変更されたとき）
-    if (user) {
-      const userRole = user.role === 'admin' ? 'admin' : 'sales';
-      bigQueryService.markMessagesAsRead(project.project_id, userRole)
-        .then(() => {
-          // 既読状態を更新するために再ロード
-          loadMessages();
-          // お知らせ数を更新
-          if (onUnreadCountUpdate) {
-            onUnreadCountUpdate();
+    const initializeMessages = async () => {
+      setIsLoading(true);
+      try {
+        const data = await bigQueryService.getProjectMessages(project.project_id);
+        setMessages(data);
+
+        // 既読更新は既に取得したデータを使って最小限のAPI呼び出しにする
+        if (user) {
+          const userRole = user.role === 'admin' ? 'admin' : 'sales';
+          const unreadIds = data
+            .filter(m => m.sender_role !== userRole && !m.is_read)
+            .map(m => m.message_id)
+            .filter(Boolean) as string[];
+
+          if (unreadIds.length > 0) {
+            await bigQueryService.markMessagesAsRead(project.project_id, userRole, unreadIds);
+            setMessages(prev =>
+              prev.map(m => (m.message_id && unreadIds.includes(m.message_id)) ? { ...m, is_read: true } : m)
+            );
+            onUnreadCountUpdate?.();
+            onMessagesRead?.();
           }
-        })
-        .catch((error) => {
-          console.error('Failed to mark messages as read:', error);
-        });
-    }
-  }, [project.project_id, user]);
+        }
+      } catch (error) {
+        console.error('Failed to load messages', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeMessages();
+  }, [project.project_id, user, onUnreadCountUpdate, onMessagesRead]);
 
   const loadMessages = async () => {
     try {

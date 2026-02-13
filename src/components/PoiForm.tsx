@@ -63,21 +63,6 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     return selectedDate < sixMonthsAgo;
   };
 
-  // 5日前の日付を計算（YYYY-MM-DD形式）
-  const getFiveDaysAgoDate = (): string => {
-    const date = new Date();
-    date.setDate(date.getDate() - 5);
-    return date.toISOString().split('T')[0];
-  };
-
-  // 日付が5日前より前かどうかをチェック
-  const isDateMoreThanFiveDaysAgo = (dateString: string): boolean => {
-    if (!dateString) return false;
-    const selectedDate = new Date(dateString);
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    return selectedDate < fiveDaysAgo;
-  };
   // 指定半径のドラフト状態（入力中の値を保持）
   const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
   // 指定半径を ref で保持（blur 時の親 setState を避けてフリーズ防止）
@@ -2983,38 +2968,20 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                         <Input
                           type="date"
                           value={formData.extraction_start_date}
-                          min={getFiveDaysAgoDate()}
                           max={new Date().toISOString().split('T')[0]}
-                          onChange={(e) => {
-                            const selectedDate = e.target.value;
-                            if (isDateMoreThanFiveDaysAgo(selectedDate)) {
-                              toast.error('開始日は5日前以降の日付を指定してください');
-                              return;
-                            }
-                            handleChange('extraction_start_date', selectedDate);
-                          }}
+                          onChange={(e) => handleChange('extraction_start_date', e.target.value)}
                           className="bg-white"
                         />
-                        <p className="text-xs text-gray-500 mt-1">5日前以降</p>
                       </div>
                       <span className="text-gray-500">〜</span>
                       <div className="flex-1">
                         <Input
                           type="date"
                           value={formData.extraction_end_date}
-                          min={getFiveDaysAgoDate()}
                           max={new Date().toISOString().split('T')[0]}
-                          onChange={(e) => {
-                            const selectedDate = e.target.value;
-                            if (isDateMoreThanFiveDaysAgo(selectedDate)) {
-                              toast.error('終了日は5日前以降の日付を指定してください');
-                              return;
-                            }
-                            handleChange('extraction_end_date', selectedDate);
-                          }}
+                          onChange={(e) => handleChange('extraction_end_date', e.target.value)}
                           className="bg-white"
                         />
-                        <p className="text-xs text-gray-500 mt-1">5日前以降</p>
                       </div>
                     </div>
                   )}

@@ -1520,11 +1520,15 @@ class BigQueryService {
     }
   }
 
-  async markMessagesAsRead(projectId: string, readerRole: 'admin' | 'sales'): Promise<void> {
+  async markMessagesAsRead(projectId: string, readerRole: 'admin' | 'sales', messageIds?: string[]): Promise<void> {
     if (USE_API) {
       try {
-        const messages = await this.getProjectMessages(projectId);
-        const toMark = messages.filter(m => m.sender_role !== readerRole && !m.is_read).map(m => m.message_id).filter(Boolean);
+        const toMark = (messageIds && messageIds.length > 0)
+          ? messageIds
+          : (await this.getProjectMessages(projectId))
+              .filter(m => m.sender_role !== readerRole && !m.is_read)
+              .map(m => m.message_id)
+              .filter(Boolean);
         if (toMark.length === 0) return;
         const response = await fetch(`${API_BASE_URL}/api/messages/mark-read`, {
           method: 'POST',

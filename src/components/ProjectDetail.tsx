@@ -197,6 +197,59 @@ export function ProjectDetail({
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     return selectedDate < sixMonthsAgo;
   };
+  // 大量データ時の描画遅延を避けるため、POI集合をカテゴリ・キー別にメモ化
+  const tgPois = useMemo(
+    () => pois.filter(p => p.poi_category === 'tg' || !p.poi_category),
+    [pois]
+  );
+  const visitMeasurementPois = useMemo(
+    () => pois.filter(p => p.poi_category === 'visit_measurement'),
+    [pois]
+  );
+  const allPoisBySegmentId = useMemo(() => {
+    const map = new Map<string, PoiInfo[]>();
+    for (const poi of pois) {
+      if (!poi.segment_id) continue;
+      const list = map.get(poi.segment_id);
+      if (list) list.push(poi);
+      else map.set(poi.segment_id, [poi]);
+    }
+    return map;
+  }, [pois]);
+  const tgPoiStatsBySegmentId = useMemo(() => {
+    const map = new Map<string, { pois: PoiInfo[]; poisWithCoords: number }>();
+    for (const poi of tgPois) {
+      if (!poi.segment_id) continue;
+      const current = map.get(poi.segment_id);
+      if (current) {
+        current.pois.push(poi);
+        if (poi.latitude && poi.longitude) current.poisWithCoords += 1;
+      } else {
+        map.set(poi.segment_id, {
+          pois: [poi],
+          poisWithCoords: poi.latitude && poi.longitude ? 1 : 0,
+        });
+      }
+    }
+    return map;
+  }, [tgPois]);
+  const visitPoiStatsByGroupId = useMemo(() => {
+    const map = new Map<string, { pois: PoiInfo[]; poisWithCoords: number }>();
+    for (const poi of visitMeasurementPois) {
+      if (!poi.visit_measurement_group_id) continue;
+      const current = map.get(poi.visit_measurement_group_id);
+      if (current) {
+        current.pois.push(poi);
+        if (poi.latitude && poi.longitude) current.poisWithCoords += 1;
+      } else {
+        map.set(poi.visit_measurement_group_id, {
+          pois: [poi],
+          poisWithCoords: poi.latitude && poi.longitude ? 1 : 0,
+        });
+      }
+    }
+    return map;
+  }, [visitMeasurementPois]);
   const statusInfo = useMemo(() => getAutoProjectStatus(project, segments, pois), [project, segments, pois]);
   const statusColor = getStatusColor(statusInfo.status);
 
@@ -207,22 +260,9 @@ export function ProjectDetail({
       const userRole = user.role === 'admin' ? 'admin' : 'sales';
       const count = messages.filter(m => m.sender_role !== userRole && !m.is_read).length;
       setUnreadMessageCount(count);
-      
-      // messagesタブが開かれたときに既読処理を実行
-      if (activeTab === 'messages') {
-        try {
-          await bigQueryService.markMessagesAsRead(project.project_id, userRole);
-          // 未読数を更新
-          if (onUnreadCountUpdate) {
-            onUnreadCountUpdate();
-          }
-        } catch (error) {
-          console.error('Failed to mark messages as read:', error);
-        }
-      }
     };
     loadUnreadCount();
-  }, [project.project_id, user, activeTab, onUnreadCountUpdate]);
+  }, [project.project_id, user]);
 
   const formatDate = (dateStr?: string | null | Date | any) => {
     // null、undefined、空文字列の場合は「-」を返す
@@ -339,7 +379,7 @@ export function ProjectDetail({
       
       // 既存セグメントから地点をコピーする場合
       if (copyFromSegmentId && newSegment && onPoiCreateBulk) {
-        const sourcePois = pois.filter(p => p.segment_id === copyFromSegmentId);
+      const sourcePois = allPoisBySegmentId.get(copyFromSegmentId) || [];
         if (sourcePois.length > 0) {
           // 地点情報をコピー（segment_idを新しいセグメントIDに変更）
           const copiedPois = sourcePois.map(poi => {
@@ -1515,13 +1555,13 @@ export function ProjectDetail({
                       value="tg" 
                       className="px-6 py-3 rounded-md border-2 border-transparent data-[state=active]:border-[#5b5fff] data-[state=active]:bg-[#5b5fff]/10 data-[state=active]:text-[#5b5fff] data-[state=active]:shadow-md font-medium transition-all hover:bg-gray-50"
                     >
-                      TG地点 ({pois.filter(p => p.poi_category === 'tg' || !p.poi_category).length})
+                      TG地点 ({tgPois.length})
                     </TabsTrigger>
                     <TabsTrigger 
                       value="visit_measurement" 
                       className="px-6 py-3 rounded-md border-2 border-transparent data-[state=active]:border-[#5b5fff] data-[state=active]:bg-[#5b5fff]/10 data-[state=active]:text-[#5b5fff] data-[state=active]:shadow-md font-medium transition-all hover:bg-gray-50"
                     >
-                      来店計測地点 ({pois.filter(p => p.poi_category === 'visit_measurement').length})
+                      来店計測地点 ({visitMeasurementPois.length})
                     </TabsTrigger>
                   </TabsList>
                   
@@ -1556,7 +1596,7 @@ export function ProjectDetail({
                   {poiViewModeByCategory.tg === 'map' ? (
                     <PoiMapViewer 
                       // カテゴリ未設定（既存データ）もTGとして扱う
-                      pois={pois.filter(p => p.poi_category === 'tg' || !p.poi_category)} 
+                      pois={tgPois}
                       segments={segments} 
                       onPoiUpdate={async (poiId: string, updates: Partial<PoiInfo>) => {
                         await onPoiUpdate(poiId, updates);
@@ -1576,9 +1616,10 @@ export function ProjectDetail({
                   ) : (
                     <Accordion type="single" collapsible className="space-y-4" value={accordionValue} onValueChange={(value) => setExpandedSegmentId(value || undefined)}>
                       {segments.map((segment) => {
-                        const segmentPois = pois.filter(poi => poi.segment_id === segment.segment_id && (poi.poi_category === 'tg' || !poi.poi_category));
+                        const stats = tgPoiStatsBySegmentId.get(segment.segment_id) || { pois: [], poisWithCoords: 0 };
+                        const segmentPois = stats.pois;
                         const poiCount = segmentPois.length;
-                        const poisWithCoords = segmentPois.filter(p => p.latitude && p.longitude).length;
+                        const poisWithCoords = stats.poisWithCoords;
                         const statusInfo = getStatusInfo(segment.location_request_status);
                         
                         return (
@@ -1855,7 +1896,7 @@ export function ProjectDetail({
                 <TabsContent value="visit_measurement" className="mt-0">
                   {poiViewModeByCategory.visit_measurement === 'map' ? (
                     <PoiMapViewer 
-                      pois={pois.filter(p => p.poi_category === 'visit_measurement')} 
+                      pois={visitMeasurementPois}
                       segments={segments} 
                       onPoiUpdate={async (poiId: string, updates: Partial<PoiInfo>) => {
                         await onPoiUpdate(poiId, updates);
@@ -1905,9 +1946,10 @@ export function ProjectDetail({
                       
                       <Accordion type="single" collapsible className="space-y-4" value={groupAccordionValue} onValueChange={(value) => setExpandedGroupId(value || undefined)}>
                         {visitMeasurementGroups.map((group) => {
-                        const groupPois = pois.filter(poi => poi.poi_category === 'visit_measurement' && poi.visit_measurement_group_id === group.group_id);
+                        const stats = visitPoiStatsByGroupId.get(group.group_id) || { pois: [], poisWithCoords: 0 };
+                        const groupPois = stats.pois;
                         const poiCount = groupPois.length;
-                        const poisWithCoords = groupPois.filter(p => p.latitude && p.longitude).length;
+                        const poisWithCoords = stats.poisWithCoords;
                         
                         return (
                         <AccordionItem 
@@ -2101,7 +2143,11 @@ export function ProjectDetail({
 
         {/* 連絡事項タブ */}
         <TabsContent value="messages" className="p-6 bg-gradient-to-br from-[#eeeeff] via-[#f5f5ff] to-[#fafaff]">
-          <ProjectMessages project={project} onUnreadCountUpdate={onUnreadCountUpdate} />
+          <ProjectMessages
+            project={project}
+            onUnreadCountUpdate={onUnreadCountUpdate}
+            onMessagesRead={() => setUnreadMessageCount(0)}
+          />
         </TabsContent>
 
         {/* 変更履歴タブ（管理部のみ） */}
@@ -2219,7 +2265,7 @@ export function ProjectDetail({
           projectId={project.project_id}
           group={editingGroup}
           existingGroups={visitMeasurementGroups}
-          pois={pois.filter(p => p.poi_category === 'visit_measurement')}
+          pois={visitMeasurementPois}
           onSubmit={async (groupData) => {
             try {
               if (editingGroup) {
@@ -2672,7 +2718,7 @@ export function ProjectDetail({
                 onClick={async () => {
                   if (!extractionConditionsSegment) return;
                   
-                  const segmentPois = pois.filter(p => p.segment_id === extractionConditionsSegment.segment_id);
+                  const segmentPois = allPoisBySegmentId.get(extractionConditionsSegment.segment_id) || [];
                   
                   try {
                     // セグメントに条件を保存して今後追加する地点の初期値にも反映
