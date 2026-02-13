@@ -80,6 +80,13 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   };
   // 指定半径のドラフト状態（入力中の値を保持）
   const [designatedRadiusDraft, setDesignatedRadiusDraft] = useState('');
+  // 指定半径を ref で保持（blur 時の親 setState を避けてフリーズ防止）
+  const designatedRadiusRef = useRef(
+    poi?.designated_radius || 
+    (defaultCategory === 'visit_measurement' && visitMeasurementGroups.find(g => g.group_id === (poi?.visit_measurement_group_id || defaultGroupId))?.designated_radius) ||
+    segment?.designated_radius || 
+    ''
+  );
   const isFirstPoi = segmentPoiCount === 0 && !poi;
   
   // セグメントに共通条件が設定されているかチェック
@@ -206,6 +213,9 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
         : (segment?.stay_time ? segment.stay_time : '')),
   });
   
+  // ref を初期化・同期（毎レンダーで formData.designated_radius を ref に反映）
+  designatedRadiusRef.current = formData.designated_radius || designatedRadiusRef.current || '';
+  
   // 来店計測地点の場合、選択されたグループの抽出条件を取得（formData更新後に計算）
   // TG地点の場合はグループを取得しない
   const selectedGroup = (formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement')
@@ -214,6 +224,11 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       )
     : undefined;
   
+  // formData.designated_radius が変更されたら ref も同期（ドロップダウン選択時など）
+  useEffect(() => {
+    designatedRadiusRef.current = formData.designated_radius || designatedRadiusRef.current;
+  }, [formData.designated_radius]);
+
   // 来店計測地点の場合、グループが変更されたときに抽出条件を更新
   useEffect(() => {
     if ((defaultCategory === 'visit_measurement' || formData.poi_category === 'visit_measurement') && selectedGroup) {
@@ -1091,7 +1106,11 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     e.preventDefault();
     setErrorMessage(null); // エラーメッセージをクリア
     
-    // バリデーション
+    // 送信用に ref の値を反映した formData を作成（blur で ref のみ更新されている場合に備える）
+    const radiusForSubmit = designatedRadiusRef.current || formData.designated_radius || '';
+    const localFormData = { ...formData, designated_radius: radiusForSubmit };
+    
+    // バリデーション（localFormData を使用）
     // ポリゴン選択の場合
     if (entryMethod === 'polygon' || formData.poi_type === 'polygon') {
       if (!formData.polygon || formData.polygon.length === 0) {
@@ -1285,14 +1304,14 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     // 都道府県指定とポリゴン選択以外の場合のみ半径が必須（来店計測地点の場合はグループの抽出条件から継承されるため除外）
     if (formData.poi_type !== 'prefecture' && formData.poi_type !== 'polygon' && 
         !(formData.poi_category === 'visit_measurement' || defaultCategory === 'visit_measurement') &&
-        !formData.designated_radius) {
+        !radiusForSubmit) {
       setErrorMessage('指定半径は必須項目です');
       return;
     }
     
     // 半径のバリデーション（1-1000は自由、1000超は選択肢のみ）
-    if (formData.designated_radius) {
-      const radiusNum = parseInt(formData.designated_radius.replace('m', ''));
+    if (radiusForSubmit) {
+      const radiusNum = parseInt(radiusForSubmit.replace('m', ''));
       if (
         isNaN(radiusNum) ||
         radiusNum < 1 ||
@@ -1323,7 +1342,7 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
     const isPolygonEntry = entryMethod === 'polygon' || formData.poi_type === 'polygon';
 
     // ポリゴン選択の場合、地点名を自動生成（未設定の場合）
-    let finalFormData = { ...formData };
+    let finalFormData = { ...localFormData };
     if (isPolygonEntry) {
       // 既存のポリゴン地点名から連番を決定
       const existingPolygonPois = pois.filter(p => 
@@ -1465,6 +1484,9 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
       }
     }
 
+    // 送信時は ref の値を使用（blur 時に ref のみ更新しているため、formData より ref が最新）
+    submitData.designated_radius = designatedRadiusRef.current || submitData.designated_radius || '';
+
     // デバッグ: ポリゴン指定の場合、送信データをログ出力
     if (submitData.poi_type === 'polygon' || (submitData.polygon && Array.isArray(submitData.polygon) && submitData.polygon.length > 0)) {
       console.log('📤 ポリゴン指定地点を送信:', {
@@ -1480,7 +1502,13 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
   };
 
   const handleChange = (field: keyof PoiInfo, value: string | number | undefined) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // designated_radius の更新時は startTransition で遅延し、ドロップダウン選択時のフリーズも軽減
+    if (field === 'designated_radius') {
+      designatedRadiusRef.current = String(value ?? '');
+      startTransition(() => setFormData(prev => ({ ...prev, [field]: value })));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   // 住所から緯度経度を取得
@@ -2801,27 +2829,30 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                                 }
                               }}
                               onBlur={() => {
-                                const value = designatedRadiusDraft;
-                                if (value === '') {
-                                  handleChange('designated_radius', '');
-                                  return;
-                                }
-                                const radiusNum = parseInt(value, 10);
-                                const isFixed = fixedRadiusOptions.includes(radiusNum);
-                                if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
-                                  handleChange('designated_radius', `${radiusNum}m`);
-                                  // 来店計測地点の場合は警告を表示しない
-                                  if (!isVisitMeasurementCategory) {
-                                    // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                                    if (radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
-                                      setShowRadiusWarning(true);
-                                      setHasShownRadiusWarning(true);
-                                    } else if (radiusNum > 50) {
-                                      // 50mを超えた場合は警告表示フラグをリセット
-                                      setHasShownRadiusWarning(false);
+                                // blur では ref だけ更新し親 state を更新しない（フリーズ防止）
+                                requestAnimationFrame(() => {
+                                  const value = designatedRadiusDraft;
+                                  if (value === '') {
+                                    designatedRadiusRef.current = '';
+                                    return;
+                                  }
+                                  const radiusNum = parseInt(value, 10);
+                                  const isFixed = fixedRadiusOptions.includes(radiusNum);
+                                  if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
+                                    designatedRadiusRef.current = `${radiusNum}m`;
+                                    // 来店計測地点の場合は警告を表示しない
+                                    if (!isVisitMeasurementCategory) {
+                                      // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                                      if (radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                        setShowRadiusWarning(true);
+                                        setHasShownRadiusWarning(true);
+                                      } else if (radiusNum > 50) {
+                                        // 50mを超えた場合は警告表示フラグをリセット
+                                        setHasShownRadiusWarning(false);
+                                      }
                                     }
                                   }
-                                }
+                                });
                               }}
                               className="flex-1"
                             />
@@ -3197,24 +3228,27 @@ export function PoiForm({ projectId, segmentId, segmentName, segment, pois = [],
                               }
                             }}
                             onBlur={() => {
-                              const value = designatedRadiusDraft;
-                              if (value === '') {
-                                handleChange('designated_radius', '');
-                                return;
-                              }
-                              const radiusNum = parseInt(value, 10);
-                              const isFixed = fixedRadiusOptions.includes(radiusNum);
-                              if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
-                                handleChange('designated_radius', `${radiusNum}m`);
-                                // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
-                                if (radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
-                                  setShowRadiusWarning(true);
-                                  setHasShownRadiusWarning(true);
-                                } else if (radiusNum > 50) {
-                                  // 50mを超えた場合は警告表示フラグをリセット
-                                  setHasShownRadiusWarning(false);
+                              // blur では ref だけ更新し親 state を更新しない（フリーズ防止）
+                              requestAnimationFrame(() => {
+                                const value = designatedRadiusDraft;
+                                if (value === '') {
+                                  designatedRadiusRef.current = '';
+                                  return;
                                 }
-                              }
+                                const radiusNum = parseInt(value, 10);
+                                const isFixed = fixedRadiusOptions.includes(radiusNum);
+                                if (!isNaN(radiusNum) && (radiusNum <= 1000 || isFixed)) {
+                                  designatedRadiusRef.current = `${radiusNum}m`;
+                                  // 半径が50m以下の場合、警告ポップアップを表示（一度だけ）
+                                  if (radiusNum > 0 && radiusNum <= 50 && !hasShownRadiusWarning) {
+                                    setShowRadiusWarning(true);
+                                    setHasShownRadiusWarning(true);
+                                  } else if (radiusNum > 50) {
+                                    // 50mを超えた場合は警告表示フラグをリセット
+                                    setHasShownRadiusWarning(false);
+                                  }
+                                }
+                              });
                             }}
                             className="flex-1"
                           />
