@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, startTransition } from 'react';
-import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Building2, Package, Users, FileText, Plus, MapPin, X, Map as MapIcon, List, CheckCircle, ChevronDown, Edit, Save, FileEdit, Database, AlertCircle, ExternalLink, Clock, Target, Settings2, MessageSquare, History, Loader2 } from 'lucide-react';
 import { EXTRACTION_PERIOD_PRESET_OPTIONS, ATTRIBUTE_OPTIONS, STAY_TIME_OPTIONS } from '../types/schema';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -1586,7 +1586,7 @@ export function ProjectDetail({
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                     >
-                      <Map className="w-4 h-4" />
+                      <MapIcon className="w-4 h-4" />
                       地図
                     </button>
                   </div>
