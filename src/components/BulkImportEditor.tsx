@@ -4,7 +4,7 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { AlertCircle, CheckCircle, Pencil, X, Save, Calendar as CalendarIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle, Pencil, X, Save, Calendar as CalendarIcon, Wand2 } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import {
   AlertDialog,
@@ -79,16 +79,73 @@ export function BulkImportEditor({
   const projectErrors = errors.filter(e => e.section === '②案件情報');
   const segmentErrors = errors.filter(e => e.section === '③セグメント設定');
   const locationErrors = errors.filter(e => e.section === '④地点リスト');
+  const errorCounts = useMemo(() => ({
+    project: projectErrors.length,
+    segment: segmentErrors.length,
+    location: locationErrors.length,
+  }), [projectErrors.length, segmentErrors.length, locationErrors.length]);
 
   // エラーがある行を特定
-  const getSegmentError = (index: number) => {
+  const getSegmentErrors = (index: number) => {
     const segment = editingSegments[index];
-    return segmentErrors.find(e => e.row === segment._rowNum);
+    return segmentErrors.filter(e => e.row === segment._rowNum);
   };
 
-  const getLocationError = (index: number) => {
+  const getLocationErrors = (index: number) => {
     const location = editingLocations[index];
-    return locationErrors.find(e => e.row === location._rowNum);
+    return locationErrors.filter(e => e.row === location._rowNum);
+  };
+
+  const handleAutoFixCommonIssues = () => {
+    // よくある入力ゆれ・ルール違反を自動補正
+    if (editingProject) {
+      setEditingProject({
+        ...editingProject,
+        advertiser_name: (editingProject.advertiser_name || '').trim(),
+        agency_name: (editingProject.agency_name || '').trim(),
+        appeal_point: (editingProject.appeal_point || '').trim(),
+      });
+    }
+
+    setEditingSegments(prev => prev.map(segment => {
+      const radiusRaw = String(segment.designated_radius || '').trim();
+      const numMatch = radiusRaw.match(/^(\d+)$/);
+      const mMatch = radiusRaw.match(/^(\d+)m$/);
+      const radiusNum = numMatch ? parseInt(numMatch[1], 10) : (mMatch ? parseInt(mMatch[1], 10) : NaN);
+      const normalizedRadius = Number.isNaN(radiusNum)
+        ? segment.designated_radius
+        : `${Math.min(10000, Math.max(0, radiusNum))}m`;
+
+      if (segment.attribute === 'resident' || segment.attribute === 'worker' || segment.attribute === 'resident_and_worker') {
+        return {
+          ...segment,
+          extraction_period: '3month',
+          extraction_start_date: '',
+          extraction_end_date: '',
+          detection_count: 3,
+          detection_time_start: '',
+          detection_time_end: '',
+          stay_time: '',
+          designated_radius: normalizedRadius,
+        };
+      }
+
+      const detectorCount = Math.min(15, Math.max(1, Number(segment.detection_count || 1)));
+      return {
+        ...segment,
+        extraction_period: segment.extraction_period || '1month',
+        detection_count: detectorCount,
+        designated_radius: normalizedRadius,
+      };
+    }));
+
+    setEditingLocations(prev => prev.map(location => ({
+      ...location,
+      poi_name: (location.poi_name || '').trim(),
+      address: (location.address || '').trim(),
+      segment_name_ref: location.segment_name_ref ? location.segment_name_ref.trim() : location.segment_name_ref,
+      group_name_ref: location.group_name_ref ? location.group_name_ref.trim() : location.group_name_ref,
+    })));
   };
 
   const handleSave = () => {
@@ -110,11 +167,15 @@ export function BulkImportEditor({
       <div className="flex items-center justify-between">
         <h3 className="font-medium">データを修正</h3>
         <div className="flex gap-2">
+          <Button onClick={handleAutoFixCommonIssues} variant="outline" size="sm">
+            <Wand2 className="w-4 h-4 mr-1" />
+            よくある不整合を自動補正
+          </Button>
           <Button onClick={onCancel} variant="outline" size="sm">
             <X className="w-4 h-4 mr-1" />
             キャンセル
           </Button>
-          <Button onClick={handleSave} size="sm" className="bg-[#5b5fff]">
+          <Button onClick={handleSave} size="sm" className="bg-[#5b5fff] hover:bg-[#4d4dff]">
             <Save className="w-4 h-4 mr-1" />
             修正を適用
           </Button>
@@ -126,9 +187,14 @@ export function BulkImportEditor({
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <p className="font-medium">{errors.length}件のエラーがあります</p>
-              <p className="text-sm">下記の項目を修正してください</p>
+              <div className="text-sm flex flex-wrap gap-3">
+                <span>案件: {errorCounts.project}件</span>
+                <span>セグメント: {errorCounts.segment}件</span>
+                <span>地点: {errorCounts.location}件</span>
+              </div>
+              <p className="text-sm">「よくある不整合を自動補正」後に「修正を適用」を押すと確認が楽になります。</p>
             </div>
           </AlertDescription>
         </Alert>
@@ -136,13 +202,13 @@ export function BulkImportEditor({
 
       {/* 案件情報編集 */}
       {editingProject && (
-        <Card className={`p-6 ${projectErrors.length > 0 ? 'border-red-500 border-2' : ''}`}>
+        <Card className={`p-6 ${projectErrors.length > 0 ? 'border-red-500 border-2' : 'border-[#5b5fff]/20'}`}>
           <div className="space-y-4">
             <h4 className="font-medium flex items-center gap-2">
               {projectErrors.length > 0 ? (
                 <AlertCircle className="w-5 h-5 text-red-600" />
               ) : (
-                <CheckCircle className="w-5 h-5 text-green-600" />
+                <CheckCircle className="w-5 h-5 text-[#5b5fff]" />
               )}
               案件情報
             </h4>
@@ -315,35 +381,49 @@ export function BulkImportEditor({
           
           <div className="space-y-4">
             {editingSegments.map((segment, segIndex) => {
-              const segmentError = getSegmentError(segIndex);
+              const segmentErrorsForRow = getSegmentErrors(segIndex);
+              const segmentError = segmentErrorsForRow[0];
               const segmentLocations = editingLocations
                 .map((loc, locIndex) => ({ ...loc, _originalIndex: locIndex }))
                 .filter(loc => loc.segment_name_ref === segment.segment_name);
               
-              const hasLocationErrors = segmentLocations.some(loc => 
-                getLocationError(loc._originalIndex)
+              const hasLocationErrors = segmentLocations.some(loc =>
+                getLocationErrors(loc._originalIndex).length > 0
               );
+              const hasSegmentErrors = segmentErrorsForRow.length > 0;
 
               return (
-                <Card key={segIndex} className={`overflow-hidden ${segmentError || hasLocationErrors ? 'border-red-500 border-2' : ''}`}>
+                <Card key={segIndex} className={`overflow-hidden ${hasSegmentErrors || hasLocationErrors ? 'border-red-500 border-2' : 'border-[#5b5fff]/20'}`}>
                   {/* セグメント編集エリア */}
-                  <div className={`p-4 ${segmentError ? 'bg-red-50' : 'bg-gradient-to-r from-purple-50 to-blue-50'}`}>
+                  <div className={`p-4 ${hasSegmentErrors ? 'bg-red-50' : 'bg-[#f8f8ff]'}`}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        {segmentError ? (
+                        {hasSegmentErrors ? (
                           <AlertCircle className="w-5 h-5 text-red-600" />
                         ) : (
-                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <CheckCircle className="w-5 h-5 text-[#5b5fff]" />
                         )}
                         <span className="font-medium">セグメント {segIndex + 1}</span>
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        <span className="text-xs bg-[#e9e9ff] text-[#5b5fff] px-2 py-1 rounded border border-[#5b5fff]/20">
                           {segmentLocations.length}地点
                         </span>
                       </div>
-                      {segmentError && (
-                        <span className="text-sm text-red-600">{segmentError.message}</span>
+                      {hasSegmentErrors && (
+                        <span className="text-sm text-red-600">{segmentError?.message}</span>
                       )}
                     </div>
+                    {hasSegmentErrors && (
+                      <ul className="mb-3 text-xs text-red-700 list-disc list-inside space-y-1">
+                        {segmentErrorsForRow.slice(0, 3).map((error, i) => (
+                          <li key={i}>
+                            {error.field ? `[${error.field}] ` : ''}{error.message}
+                          </li>
+                        ))}
+                        {segmentErrorsForRow.length > 3 && (
+                          <li>...他 {segmentErrorsForRow.length - 3} 件</li>
+                        )}
+                      </ul>
+                    )}
 
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
@@ -435,7 +515,7 @@ export function BulkImportEditor({
                           const hasConflict = hasTverCTV && (hasUniverse || hasTverSP);
                           
                           return hasConflict && (
-                            <p className="text-xs text-orange-600 mt-1">
+                            <p className="text-xs text-amber-700 mt-1">
                               ⚠️ TVer(CTV)はCTV専用セグメントを作成してください。UNIVERSEやTVer(SP)と同時に選択できません。
                             </p>
                           );
@@ -504,7 +584,7 @@ export function BulkImportEditor({
                           </SelectContent>
                         </Select>
                         {(segment.attribute === 'resident' || segment.attribute === 'worker' || segment.attribute === 'resident_and_worker') && (
-                          <p className="text-xs text-purple-600 mt-1">
+                          <p className="text-xs text-[#5b5fff] mt-1">
                             ※ 居住者・勤務者・居住者&勤務者は直近3ヶ月固定です
                           </p>
                         )}
@@ -515,7 +595,26 @@ export function BulkImportEditor({
                           value={segment.attribute || ''}
                           onValueChange={(value) => {
                             const updated = [...editingSegments];
-                            updated[segIndex] = { ...segment, attribute: value };
+                            if (value === 'resident' || value === 'worker' || value === 'resident_and_worker') {
+                              // 対象者が検知者以外の場合は、業務ルールに合わせて固定値へ自動補正
+                              updated[segIndex] = {
+                                ...segment,
+                                attribute: value,
+                                extraction_period: '3month',
+                                extraction_start_date: '',
+                                extraction_end_date: '',
+                                detection_count: 3,
+                                detection_time_start: '',
+                                detection_time_end: '',
+                                stay_time: '',
+                              };
+                            } else {
+                              updated[segIndex] = {
+                                ...segment,
+                                attribute: value,
+                                detection_count: segment.detection_count || 1,
+                              };
+                            }
                             setEditingSegments(updated);
                           }}
                         >
@@ -534,7 +633,8 @@ export function BulkImportEditor({
                       <div>
                         <Label className="text-xs">検知回数 ⭐</Label>
                         <Select
-                          value={String(segment.detection_count || '')}
+                          value={String(segment.detection_count || 1)}
+                          disabled={segment.attribute !== 'detector'}
                           onValueChange={(value) => {
                             const updated = [...editingSegments];
                             updated[segIndex] = { ...segment, detection_count: Number(value) };
@@ -545,13 +645,14 @@ export function BulkImportEditor({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">1回以上</SelectItem>
-                            <SelectItem value="2">2回以上</SelectItem>
-                            <SelectItem value="3">3回以上</SelectItem>
-                            <SelectItem value="4">4回以上</SelectItem>
-                            <SelectItem value="5">5回以上</SelectItem>
+                            {Array.from({ length: 15 }, (_, i) => i + 1).map(v => (
+                              <SelectItem key={v} value={String(v)}>{v}回以上</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
+                        {segment.attribute !== 'detector' && (
+                          <p className="text-xs text-[#5b5fff] mt-1">※ 居住者・勤務者・居住者&勤務者は3回以上固定です</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -571,11 +672,12 @@ export function BulkImportEditor({
                     {segmentLocations.length > 0 ? (
                       <div className="space-y-2 max-h-80 overflow-y-auto">
                         {segmentLocations.map((location) => {
-                          const error = getLocationError(location._originalIndex);
+                          const locationErrorsForRow = getLocationErrors(location._originalIndex);
+                          const error = locationErrorsForRow[0];
                           return (
                             <div
                               key={location._originalIndex}
-                              className={`p-3 bg-white border rounded ${error ? 'border-red-500' : 'border-gray-200'}`}
+                              className={`p-3 bg-white border rounded ${locationErrorsForRow.length > 0 ? 'border-red-500' : 'border-gray-200'}`}
                             >
                               <div className="grid grid-cols-4 gap-2 text-sm">
                                 <div>
@@ -591,7 +693,7 @@ export function BulkImportEditor({
                                   />
                                 </div>
                                 <div className="col-span-2">
-                                  <Label className="text-xs">住所</Label>
+                                  <Label className="text-xs">住所 ⭐</Label>
                                   <Input
                                     value={location.address || ''}
                                     onChange={(e) => {
@@ -639,8 +741,15 @@ export function BulkImportEditor({
                                   </div>
                                 </div>
                               </div>
-                              {error && (
-                                <p className="text-xs text-red-600 mt-2">• {error.message}</p>
+                              {locationErrorsForRow.length > 0 && (
+                                <ul className="text-xs text-red-600 mt-2 list-disc list-inside space-y-1">
+                                  {locationErrorsForRow.slice(0, 2).map((e, i) => (
+                                    <li key={i}>{e.field ? `[${e.field}] ` : ''}{e.message}</li>
+                                  ))}
+                                  {locationErrorsForRow.length > 2 && (
+                                    <li>...他 {locationErrorsForRow.length - 2} 件</li>
+                                  )}
+                                </ul>
                               )}
                             </div>
                           );

@@ -95,7 +95,7 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
   }) => {
     if (!result) return;
 
-    // 更新されたデータで再パース（再バリデーション）
+    // 更新されたデータで再バリデーション（本番登録ルールに合わせて厳密化）
     const newResult: ExcelParseResult = {
       project: updatedData.project,
       segments: updatedData.segments,
@@ -103,7 +103,7 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
       errors: []
     };
 
-    // 簡易バリデーション
+    // --- 案件バリデーション ---
     if (!newResult.project?.advertiser_name) {
       newResult.errors.push({
         section: '②案件情報',
@@ -119,6 +119,31 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
         message: '訴求内容は必須です'
       });
     }
+    if (!newResult.project?.delivery_start_date) {
+      newResult.errors.push({
+        section: '②案件情報',
+        field: '配信開始日',
+        message: '配信開始日は必須です'
+      });
+    }
+    if (!newResult.project?.delivery_end_date) {
+      newResult.errors.push({
+        section: '②案件情報',
+        field: '配信終了日',
+        message: '配信終了日は必須です'
+      });
+    }
+    if (newResult.project?.delivery_start_date && newResult.project?.delivery_end_date) {
+      const start = new Date(newResult.project.delivery_start_date);
+      const end = new Date(newResult.project.delivery_end_date);
+      if (end < start) {
+        newResult.errors.push({
+          section: '②案件情報',
+          field: '配信終了日',
+          message: '配信終了日は配信開始日以降にしてください'
+        });
+      }
+    }
 
     // セグメント名の重複チェック
     const segmentNames = newResult.segments.map(s => s.segment_name);
@@ -129,6 +154,99 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
         message: `セグメント名が重複しています: ${[...new Set(duplicates)].join(', ')}`
       });
     }
+
+    // --- セグメントバリデーション ---
+    newResult.segments = newResult.segments.map((segment, index) => {
+      const row = segment._rowNum || index + 1;
+      const normalized = { ...segment };
+
+      if (!normalized.segment_name?.trim()) {
+        newResult.errors.push({ section: '③セグメント設定', row, field: 'セグメント名', message: 'セグメント名は必須です' });
+      }
+      const mediaIds = Array.isArray(normalized.media_id)
+        ? normalized.media_id.filter(Boolean)
+        : (normalized.media_id ? [normalized.media_id] : []);
+      if (mediaIds.length === 0) {
+        newResult.errors.push({ section: '③セグメント設定', row, field: '配信先', message: '配信先は必須です' });
+      }
+      if (mediaIds.includes('tver_ctv') && mediaIds.some(id => id === 'universe' || id === 'tver_sp')) {
+        newResult.errors.push({ section: '③セグメント設定', row, field: '配信先', message: 'TVer(CTV)は他の媒体と同時選択できません' });
+      }
+
+      const radiusRaw = String(normalized.designated_radius || '').trim();
+      if (!radiusRaw) {
+        newResult.errors.push({ section: '③セグメント設定', row, field: '配信範囲', message: '配信範囲は必須です' });
+      } else {
+        const numMatch = radiusRaw.match(/^(\d+)$/);
+        const mMatch = radiusRaw.match(/^(\d+)m$/);
+        const radiusValue = numMatch ? parseInt(numMatch[1], 10) : (mMatch ? parseInt(mMatch[1], 10) : NaN);
+        if (Number.isNaN(radiusValue) || radiusValue < 0 || radiusValue > 10000) {
+          newResult.errors.push({
+            section: '③セグメント設定',
+            row,
+            field: '配信範囲',
+            message: '配信範囲は0-10000の数値、または「500m」形式で入力してください'
+          });
+        } else {
+          normalized.designated_radius = `${radiusValue}m`;
+        }
+      }
+
+      if (!normalized.attribute) {
+        newResult.errors.push({ section: '③セグメント設定', row, field: '対象者', message: '対象者は必須です' });
+      }
+
+      // 居住者/勤務者/居住者&勤務者は抽出期間・検知回数を固定化
+      if (normalized.attribute && normalized.attribute !== 'detector') {
+        normalized.extraction_period = '3month';
+        normalized.extraction_start_date = '';
+        normalized.extraction_end_date = '';
+        normalized.detection_count = 3;
+        normalized.detection_time_start = '';
+        normalized.detection_time_end = '';
+        normalized.stay_time = '';
+      } else {
+        if (!normalized.extraction_period) {
+          newResult.errors.push({ section: '③セグメント設定', row, field: '抽出期間', message: '抽出期間は必須です' });
+        }
+        if (normalized.extraction_period === 'custom') {
+          if (!normalized.extraction_start_date || !normalized.extraction_end_date) {
+            newResult.errors.push({ section: '③セグメント設定', row, field: '抽出期間', message: '期間指定の場合は開始日と終了日を入力してください' });
+          }
+        }
+        if (!normalized.detection_count || normalized.detection_count < 1 || normalized.detection_count > 15) {
+          newResult.errors.push({ section: '③セグメント設定', row, field: '検知回数', message: '検知回数は1〜15回で指定してください' });
+        }
+      }
+
+      return normalized;
+    });
+
+    // --- 地点バリデーション ---
+    const segmentNameSet = new Set(newResult.segments.map(s => s.segment_name));
+    newResult.locations.forEach((loc, index) => {
+      const row = loc._rowNum || index + 1;
+      if (!loc.poi_name?.trim()) {
+        newResult.errors.push({ section: '④地点リスト', row, field: '地点名', message: '地点名は必須です' });
+      }
+      if (!loc.address?.trim()) {
+        newResult.errors.push({ section: '④地点リスト', row, field: '住所', message: '住所は必須です' });
+      }
+      if (loc.segment_name_ref && !segmentNameSet.has(loc.segment_name_ref)) {
+        newResult.errors.push({
+          section: '④地点リスト',
+          row,
+          field: 'セグメント参照',
+          message: `セグメント「${loc.segment_name_ref}」が見つかりません`
+        });
+      }
+      if (loc.latitude !== undefined && (loc.latitude < -90 || loc.latitude > 90)) {
+        newResult.errors.push({ section: '④地点リスト', row, field: '緯度', message: '緯度は-90〜90で指定してください' });
+      }
+      if (loc.longitude !== undefined && (loc.longitude < -180 || loc.longitude > 180)) {
+        newResult.errors.push({ section: '④地点リスト', row, field: '経度', message: '経度は-180〜180で指定してください' });
+      }
+    });
 
     setResult(newResult);
     setIsEditing(false);
@@ -314,21 +432,21 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
     <div className="space-y-6 min-w-0">
 
       {/* 説明カード */}
-      <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+      <Card className="p-6 border-[#5b5fff]/20 bg-[#f8f8ff]">
         <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <Info className="w-5 h-5 text-[#5b5fff] mt-0.5 flex-shrink-0" />
           <div className="space-y-2 text-sm">
-            <p className="font-medium text-blue-900">Excelファイルの構成</p>
-            <ul className="list-disc list-inside space-y-1 text-blue-800">
+            <p className="font-medium text-[#5b5fff]">Excelファイルの構成</p>
+            <ul className="list-disc list-inside space-y-1 text-gray-700">
               <li><strong>①入力ガイド</strong>: 使い方の説明</li>
               <li><strong>②案件情報</strong>: 案件の基本情報（<span className="text-red-600 font-bold">1案件のみ登録可能</span>）</li>
               <li><strong>③セグメント・TG地点設定</strong>: セグメント＋TG地点（複数件可）</li>
               <li><strong>④来店計測地点リスト</strong>: 来店計測地点（複数件可）</li>
             </ul>
-            <p className="text-red-600 font-semibold mt-3 border-t border-red-200 pt-2">
+            <p className="text-amber-700 font-semibold mt-3 border-t border-amber-200 pt-2">
               ⚠️ 複数案件を登録する場合は、案件ごとにExcelファイルを分けてください
             </p>
-            <p className="text-blue-700 mt-2">
+            <p className="text-gray-700 mt-2">
               ※ プルダウンで簡単入力。広告主や代理店の方も入力しやすい形式です
             </p>
           </div>
@@ -348,17 +466,17 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
           <Button
             onClick={handleDownloadTemplate}
             variant="outline"
-            className="flex items-center gap-2 border border-gray-300 text-blue-600 hover:bg-gray-50"
+            className="flex items-center gap-2 border border-[#5b5fff]/40 text-[#5b5fff] hover:bg-[#f4f4ff]"
             disabled={downloading}
           >
             {downloading ? (
               <>
-                <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                <Loader2 className="w-4 h-4 text-[#5b5fff] animate-spin" />
                 ダウンロード中...
               </>
             ) : (
               <>
-                <Download className="w-4 h-4 text-blue-600" />
+                <Download className="w-4 h-4 text-[#5b5fff]" />
                 Excelテンプレートをダウンロード
               </>
             )}
@@ -432,8 +550,8 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="text-green-600">読み込み成功</span>
+                    <CheckCircle className="w-5 h-5 text-[#5b5fff]" />
+                    <span className="text-[#5b5fff]">読み込み成功</span>
                   </>
                 )}
               </h3>
@@ -476,17 +594,17 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
 
             {/* 統計情報 */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="p-4 bg-[#f8f8ff] border border-[#5b5fff]/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">案件</p>
-                <p className="text-2xl">{result.project ? 1 : 0}</p>
+                <p className="text-2xl text-[#5b5fff]">{result.project ? 1 : 0}</p>
               </div>
-              <div className="p-4 bg-purple-50 rounded-lg">
+              <div className="p-4 bg-[#f8f8ff] border border-[#5b5fff]/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">セグメント</p>
-                <p className="text-2xl">{result.segments.length}</p>
+                <p className="text-2xl text-[#5b5fff]">{result.segments.length}</p>
               </div>
-              <div className="p-4 bg-green-50 rounded-lg">
+              <div className="p-4 bg-[#f8f8ff] border border-[#5b5fff]/20 rounded-lg">
                 <p className="text-sm text-muted-foreground">地点</p>
-                <p className="text-2xl">{result.locations.length}</p>
+                <p className="text-2xl text-[#5b5fff]">{result.locations.length}</p>
               </div>
             </div>
 
@@ -538,15 +656,15 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
                     return (
                       <div key={index} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                         {/* セグメントヘッダー */}
-                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 border-b">
+                        <div className="bg-[#f8f8ff] p-4 border-b border-[#5b5fff]/20">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs bg-purple-600 text-white px-2 py-1 rounded font-medium">
+                              <span className="text-xs bg-[#5b5fff] text-white px-2 py-1 rounded font-medium">
                                 セグメント {index + 1}
                               </span>
                               <p className="font-medium">{segment.segment_name}</p>
                             </div>
-                            <span className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">
+                            <span className="text-xs bg-[#e9e9ff] text-[#5b5fff] px-3 py-1 rounded-full font-medium border border-[#5b5fff]/20">
                               📍 {segmentLocations.length}地点
                             </span>
                           </div>
@@ -606,7 +724,7 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
               <Button
                 onClick={handleImport}
                 disabled={importing}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800"
+                className="w-full bg-gradient-to-r from-[#5b5fff] to-[#7b7bff] text-white hover:from-[#5b5fff]/90 hover:to-[#7b7bff]/90"
               >
                 {importing ? (
                   <>
