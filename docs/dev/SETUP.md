@@ -16,8 +16,8 @@
 ### 1. リポジトリのクローン
 
 ```bash
-git clone https://github.com/rikuxxer/demo_GEO_admin_automation_ver1.0.git
-cd demo_GEO_admin_automation_ver1.0
+git clone https://github.com/<YOUR_ORG>/<YOUR_REPO>.git
+cd <YOUR_REPO>
 ```
 
 ### 2. 依存関係のインストール
@@ -67,5 +67,4 @@ npm run dev
 ## 関連ドキュメント
 
 - [デプロイガイド](./DEPLOYMENT.md)
-- [トラブルシューティング](./troubleshooting/)
 - [共通ドキュメント](../shared/)

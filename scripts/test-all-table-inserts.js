@@ -3,7 +3,7 @@
  * 全てのテーブルにデータ挿入が問題なく可能かを検証します。
  *
  * 使い方:
- *   node scripts/test-all-table-inserts.js https://universegeo-backend-223225164238.asia-northeast1.run.app
+ *   node scripts/test-all-table-inserts.js https://your-backend-url.run.app
  *
  * 注意: 本番で実行するとテスト用のデータが一時的に作成されます。
  *       案件が1件もない場合は一部のテストをスキップします。

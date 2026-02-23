@@ -2,7 +2,7 @@
  * スプレッドシートへの書き出し機能のテスト
  * 
  * 使い方:
- *   node scripts/test-spreadsheet-export.js https://universegeo-backend-223225164238.asia-northeast1.run.app
+ *   node scripts/test-spreadsheet-export.js https://your-backend-url.run.app
  */
 const BASE_URL = process.env.BASE_URL || process.argv[2] || 'http://localhost:8080';
 

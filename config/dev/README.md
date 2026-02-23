@@ -8,7 +8,7 @@
 
 ```env
 # GCP設定
-GCP_PROJECT_ID=univere-geo-demo-dev
+GCP_PROJECT_ID=<YOUR_DEV_PROJECT_ID>
 BQ_DATASET=universegeo_dataset_dev
 
 # バックエンド設定

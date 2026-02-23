@@ -1,0 +1,21 @@
+---
+description: バックエンドコード変更時のルール
+globs: backend/**/*.ts
+alwaysApply: false
+---
+
+# バックエンドルール
+
+## API エンドポイント
+
+- `backend/src/index.ts` にルートを追加
+- 全ハンドラーを `asyncWrapper` でラップ
+- エラーレスポンスは `{ error, type, request_id }` 形式
+
+## BigQuery
+
+- DB操作は `backend/src/bigquery-client.ts` に集約
+- パラメータ化クエリ必須 (`@param`)
+- `location: BQ_LOCATION` を常に指定
+- 日付/タイムスタンプの正規化関数を使用
+- insert 時 `{ ignoreUnknownValues: true }`

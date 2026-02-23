@@ -36,6 +36,10 @@ yarn-error.log*
 *.swo
 *~
 
+# AI Tools (個人設定は除外、共有ルールは含める)
+CLAUDE.local.md
+.claude/settings.local.json
+
 # OS
 Thumbs.db
 

@@ -1,15 +1,6 @@
 name: Deploy Frontend to Cloud Run
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'public/**'
-      - 'package.json'
-      - 'Dockerfile'
-      - '.env.example'
   workflow_dispatch:
     inputs:
       backend_url:
@@ -150,7 +141,7 @@ jobs:
               echo "💡 解決方法:"
               echo "1. GitHub Secrets（Environment secrets）に BACKEND_URL を設定する"
               echo "   https://github.com/${{ github.repository }}/settings/environments/Environment%20secrets"
-              echo "   最新のバックエンドURLを設定してください（例: https://universegeo-backend-223225164238.asia-northeast1.run.app）"
+              echo "   最新のバックエンドURLを設定してください（例: https://universegeo-backend-xxx.asia-northeast1.run.app）"
               echo "2. または、ワークフロー実行時に backend_url を手動入力する"
               echo "3. または、バックエンドサービスが正しくデプロイされているか確認する"
               exit 1

@@ -3,7 +3,7 @@
  * GET のみの test-api-endpoints.js では検知できない「POST で 500」などを検出する。
  *
  * 使い方:
- *   node scripts/test-api-write-endpoints.js https://universegeo-backend-i5xw76aisq-an.a.run.app
+ *   node scripts/test-api-write-endpoints.js https://your-backend-url.run.app
  *
  * 注意: 本番で実行するとテスト用のセグメントが一時的に作成され、直後に削除されます。
  *       案件が1件もない場合はセグメント作成テストをスキップします。

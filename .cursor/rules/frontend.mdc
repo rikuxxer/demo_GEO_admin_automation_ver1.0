@@ -1,0 +1,20 @@
+---
+description: フロントエンドコード変更時のルール
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# フロントエンドルール
+
+## コンポーネント
+
+- shadcn/ui (`src/components/ui/`) を優先利用
+- Tailwind CSS でスタイリング
+- アイコン: `lucide-react`
+- トースト: `sonner`
+- フォーム: `react-hook-form`
+
+## 型
+
+- 新しい型は `src/types/schema.ts` に追加
+- `import type { ... }` を使用

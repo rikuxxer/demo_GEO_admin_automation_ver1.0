@@ -5,11 +5,11 @@
  * 基本エクスポート・テーブル蓄積付きエクスポートの全パターンを検証します。
  *
  * 使い方:
- *   node scripts/test-all-spreadsheet-patterns.js https://universegeo-backend-223225164238.asia-northeast1.run.app
+ *   node scripts/test-all-spreadsheet-patterns.js https://your-backend-url.run.app
  *
  * PowerShell の場合（&& は使えないため）:
- *   cd c:\Users\sakamoto_riku_microa\Downloads\UNIVERSEGEO_backup
- *   node scripts/test-all-spreadsheet-patterns.js https://universegeo-backend-223225164238.asia-northeast1.run.app
+ *   cd <PROJECT_ROOT>
+ *   node scripts/test-all-spreadsheet-patterns.js https://your-backend-url.run.app
  */
 const BASE_URL = process.env.BASE_URL || process.argv[2] || 'http://localhost:8080';
 

@@ -1,0 +1,39 @@
+---
+description: UNIVERSEGEO プロジェクト全体に適用されるルール
+globs: 
+alwaysApply: true
+---
+
+# UNIVERSEGEO プロジェクトルール
+
+## 言語
+
+- 応答は日本語で行う
+- コード中の変数名・コメントは英語
+
+## 技術スタック
+
+- フロントエンド: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
+- バックエンド: Express + TypeScript + Google BigQuery
+- デプロイ: Google Cloud Run + GitHub Actions
+
+## 命名規則
+
+- コンポーネント: PascalCase (`ProjectForm.tsx`)
+- ユーティリティ: camelCase (`geocoding.ts`)
+- 関数: camelCase (`getProjects`)
+- 定数: UPPER_SNAKE_CASE (`BQ_LOCATION`)
+- 型: PascalCase (`Project`, `Segment`)
+
+## 型定義
+
+- `src/types/schema.ts` に集約
+- `import type { ... }` を使用
+- パスエイリアス `@/*` → `src/*`
+
+## 禁止事項
+
+- シークレットのハードコード
+- `any` 型の安易な使用
+- 既存 shadcn/ui コンポーネントの自作
+- BigQuery クエリへのユーザー入力の文字列結合

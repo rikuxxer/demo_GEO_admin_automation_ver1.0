@@ -10,12 +10,12 @@
 
 ```env
 # GCP設定
-GCP_PROJECT_ID=univere-geo-demo
+GCP_PROJECT_ID=<YOUR_PROJECT_ID>
 BQ_DATASET=universegeo_dataset
 
 # バックエンド設定
 PORT=8080
-FRONTEND_URL=https://universegeo-i5xw76aisq-an.a.run.app
+FRONTEND_URL=https://<YOUR_FRONTEND_URL>.run.app
 NODE_ENV=production
 
 # Google Sheets API設定（本番環境）

@@ -79,13 +79,13 @@
 # バックエンドログ
 gcloud run services logs read universegeo-backend \
   --region asia-northeast1 \
-  --project univere-geo-demo \
+  --project <YOUR_PROJECT_ID> \
   --limit 50
 
 # フロントエンドログ
 gcloud run services logs read universegeo \
   --region asia-northeast1 \
-  --project univere-geo-demo \
+  --project <YOUR_PROJECT_ID> \
   --limit 50
 ```
 
@@ -95,13 +95,13 @@ gcloud run services logs read universegeo \
 # バックエンド環境変数
 gcloud run services describe universegeo-backend \
   --region asia-northeast1 \
-  --project univere-geo-demo \
+  --project <YOUR_PROJECT_ID> \
   --format 'value(spec.template.spec.containers[0].env)'
 
 # フロントエンド環境変数
 gcloud run services describe universegeo \
   --region asia-northeast1 \
-  --project univere-geo-demo \
+  --project <YOUR_PROJECT_ID> \
   --format 'value(spec.template.spec.containers[0].env)'
 ```
 
@@ -115,5 +115,4 @@ gcloud run services describe universegeo \
 ## 関連ドキュメント
 
 - [本番環境セットアップガイド](./SETUP.md)
-- [トラブルシューティング](./troubleshooting/)
 - [共通ドキュメント](../shared/)

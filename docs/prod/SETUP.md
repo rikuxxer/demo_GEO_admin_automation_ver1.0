@@ -28,7 +28,7 @@
 gcloud config get-value project
 
 # プロジェクトの切り替え（必要に応じて）
-gcloud config set project univere-geo-demo
+gcloud config set project <YOUR_PROJECT_ID>
 ```
 
 ### 2. BigQueryデータセットの確認
@@ -62,5 +62,4 @@ GitHubリポジトリのSettings > Environments > production で以下を設定�
 ## 関連ドキュメント
 
 - [デプロイガイド](./DEPLOYMENT.md)
-- [トラブルシューティング](./troubleshooting/)
 - [共通ドキュメント](../shared/)
