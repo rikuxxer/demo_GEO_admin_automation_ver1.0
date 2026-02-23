@@ -259,7 +259,8 @@ export async function appendRowsToSheetWithAccumulation(
   projectId: string,
   segmentId?: string,
   exportedBy?: string,
-  exportedByName?: string
+  exportedByName?: string,
+  deferExport?: boolean
 ): Promise<{
   success: boolean;
   message: string;
@@ -286,6 +287,7 @@ export async function appendRowsToSheetWithAccumulation(
           segmentId,
           exportedBy,
           exportedByName,
+          deferExport,
         }),
       });
 
@@ -504,6 +506,7 @@ export async function exportPoisToSheet(
   segments: Segment[],
   options?: {
     useAccumulation?: boolean;
+    deferExport?: boolean;
     segmentId?: string;
     exportedBy?: string;
     exportedByName?: string;
@@ -553,7 +556,8 @@ export async function exportPoisToSheet(
         project.project_id,
         options.segmentId,
         options.exportedBy,
-        options.exportedByName
+        options.exportedByName,
+        options.deferExport
       );
     }
 

@@ -877,20 +877,18 @@ export function ProjectDetail({
                 segments,
                 {
                   useAccumulation: true,
+                  deferExport: true,
                   segmentId: segment.segment_id,
                   exportedBy: user?.email || user?.user_id || 'system',
                   exportedByName: user?.name || 'システム',
                 }
               );
-              
+
               if (sheetResult.success) {
-                console.log('✅ スプレッドシート出力成功:', sheetResult.message);
-                if (sheetResult.exportId) {
-                  console.log('📊 エクスポートID:', sheetResult.exportId);
-                }
+                toast.success('エクスポートキューに登録しました（月・水・金 21:30 に送信）');
               } else {
-                console.warn('⚠️ スプレッドシート出力失敗:', sheetResult.message);
-                // スプレッドシート出力失敗してもエラーにはしない（格納依頼自体は成功）
+                console.warn('⚠️ スプレッドシートキュー登録失敗:', sheetResult.message);
+                // キュー登録失敗してもエラーにはしない（格納依頼自体は成功）
               }
             }
           } catch (error) {

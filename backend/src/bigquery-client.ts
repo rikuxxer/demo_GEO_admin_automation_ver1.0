@@ -4,7 +4,7 @@ import { BigQuery } from '@google-cloud/bigquery';
 function getDatasetId(): string {
   let datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
   
-  // データセットIDにプロジェクトIDが含まれている場合（例: "univere-geo-demo.universegeo_dataset"）、削除
+  // データセットIDにプロジェクトIDが含まれている場合（例: "your-project.universegeo_dataset"）、削除
   // プロジェクトIDは通常、ドットで区切られた形式（例: "my-project-id"）
   // データセットIDは通常、アンダースコアやハイフンを含む（例: "my_dataset"）
   // もし "project.dataset" 形式の場合、データセット部分のみを取得
@@ -172,7 +172,7 @@ function initializeBigQueryClient(): BigQuery {
 
 // データセットIDをクリーンアップ（プロジェクトIDのプレフィックスを削除）
 function getCleanDatasetId(): string {
-  // データセットIDにプロジェクトIDが含まれている場合（例: "univere-geo-demo.universegeo_dataset"）、削除
+  // データセットIDにプロジェクトIDが含まれている場合（例: "your-project.universegeo_dataset"）、削除
   if (datasetId.includes('.')) {
     const parts = datasetId.split('.');
     // 最初の部分がプロジェクトIDっぽい場合（小文字、数字、ハイフンのみ）、2番目以降を結合
@@ -434,6 +434,8 @@ async function getNextIdFromCounter(counterName: string): Promise<number> {
     return getNextProjectIdFromProjectsTable();
   }
 }
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export class BigQueryService {
   // ==================== プロジェクト ====================
@@ -3087,28 +3089,37 @@ UNIVERSEGEO案件管理システム
 
       const sheets = google.sheets({ version: 'v4', auth });
       
-      const response = await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A:M`, // 列AからMまで（13列）
-        valueInputOption: 'USER_ENTERED',
-        insertDataOption: 'INSERT_ROWS',
-        resource: {
-          values,
-        },
-      });
+      const CHUNK_SIZE = 50;
+      let totalRowsAdded = 0;
+      const chunkErrors: string[] = [];
 
-      const rowsAdded = response.data.updates?.updatedRows || rows.length;
+      for (let i = 0; i < values.length; i += CHUNK_SIZE) {
+        const chunk = values.slice(i, i + CHUNK_SIZE);
+        try {
+          const response = await sheets.spreadsheets.values.append({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!A:M`,
+            valueInputOption: 'USER_ENTERED',
+            insertDataOption: 'INSERT_ROWS',
+            resource: { values: chunk },
+          });
+          totalRowsAdded += response.data.updates?.updatedRows || chunk.length;
+        } catch (chunkErr: any) {
+          chunkErrors.push(`chunk[${i}..${i + chunk.length - 1}]: ${chunkErr?.message}`);
+        }
+        if (i + CHUNK_SIZE < values.length) {
+          await sleep(200);
+        }
+      }
 
-      console.log('✅ Google Sheets API経由でデータを追加しました:', {
-        spreadsheetId: SPREADSHEET_ID,
-        sheetName: SHEET_NAME,
-        rowsAdded,
-      });
+      if (chunkErrors.length > 0 && totalRowsAdded === 0) {
+        throw new Error(chunkErrors.join('; '));
+      }
 
       return {
         success: true,
-        message: `${rowsAdded}件のデータをスプレッドシートに追加しました`,
-        rowsAdded,
+        message: `${totalRowsAdded}件のデータをスプレッドシートに追加しました`,
+        rowsAdded: totalRowsAdded,
       };
     } catch (error: any) {
       console.error('❌ Google Sheets API エラー:', error);
@@ -3186,7 +3197,8 @@ UNIVERSEGEO案件管理システム
     projectId: string,
     segmentId?: string,
     exportedBy?: string,
-    exportedByName?: string
+    exportedByName?: string,
+    deferExport: boolean = false
   ): Promise<{
     success: boolean;
     message: string;
@@ -3248,14 +3260,17 @@ UNIVERSEGEO案件管理システム
 
       await this.createSheetExportDataBulk(exportDataRecords);
 
-      console.log('✅ エクスポート履歴とデータをテーブルに保存完了:', {
-        exportId,
-        rowCount: rows.length,
-      });
+      // deferExport=true のとき: DB 保存（pending）のみ、Sheets 送信しない
+      if (deferExport) {
+        return {
+          success: true,
+          message: `エクスポートをキューに登録しました（エクスポートID: ${exportId}）`,
+          exportId,
+          rowsAdded: 0,
+        };
+      }
 
       // ========== ステップ2: スプレッドシートに書き出し ==========
-      console.log('📤 ステップ2: スプレッドシートに書き出し中...');
-      
       const exportResult = await this.exportToGoogleSheets(rows);
 
       // ========== ステップ3: ステータス更新 ==========
@@ -3568,6 +3583,71 @@ UNIVERSEGEO案件管理システム
       console.error('[BQ get sheet_export_data] error:', err?.message);
       return [];
     }
+  }
+
+  /**
+   * pending キューを一括送信（定期バッチ用）
+   */
+  async runScheduledExport(): Promise<{
+    success: boolean;
+    totalProcessed: number;
+    succeeded: number;
+    failed: number;
+    results: Array<{ exportId: string; success: boolean; rowsAdded?: number; error?: string }>;
+  }> {
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getDatasetId();
+
+    const pendingQuery = `
+      SELECT *
+      FROM \`${currentProjectId}.${cleanDatasetId}.sheet_exports\`
+      WHERE export_status = 'pending'
+      ORDER BY exported_at ASC
+    `;
+    const queryOptions: any = { query: pendingQuery };
+    if (BQ_LOCATION && BQ_LOCATION.trim()) {
+      queryOptions.location = BQ_LOCATION.trim();
+    }
+
+    const [pendingExports] = await initializeBigQueryClient().query(queryOptions);
+    const results: Array<{ exportId: string; success: boolean; rowsAdded?: number; error?: string }> = [];
+
+    for (const exportRecord of pendingExports) {
+      const exportId = exportRecord.export_id;
+      try {
+        const dataRows = await this.getSheetExportData(exportId);
+        if (dataRows.length === 0) {
+          await this.updateSheetExportStatus(exportId, 'failed', 'no data rows found');
+          results.push({ exportId, success: false, error: 'no data rows found' });
+          continue;
+        }
+
+        const exportResult = await this.exportToGoogleSheets(dataRows);
+        if (exportResult.success) {
+          await this.updateSheetExportStatus(exportId, 'completed', null);
+          results.push({ exportId, success: true, rowsAdded: exportResult.rowsAdded });
+        } else {
+          await this.updateSheetExportStatus(exportId, 'failed', exportResult.message);
+          results.push({ exportId, success: false, error: exportResult.message });
+        }
+      } catch (err: any) {
+        const errorMessage = err?.message || 'Unknown error';
+        try {
+          await this.updateSheetExportStatus(exportId, 'failed', errorMessage);
+        } catch (_) {}
+        results.push({ exportId, success: false, error: errorMessage });
+      }
+    }
+
+    const succeeded = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    return {
+      success: true,
+      totalProcessed: results.length,
+      succeeded,
+      failed,
+      results,
+    };
   }
 }
 

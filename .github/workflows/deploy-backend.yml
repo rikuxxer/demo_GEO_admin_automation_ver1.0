@@ -127,12 +127,14 @@ jobs:
             EMAIL_SERVICE=${{ secrets.EMAIL_SERVICE }}
             SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
             SENDGRID_FROM_EMAIL=${{ secrets.SENDGRID_FROM_EMAIL }}
-          
+            SCHEDULER_SECRET=${{ secrets.SCHEDULER_SECRET }}
+
           flags: >-
             --allow-unauthenticated
             --memory 512Mi
             --cpu 1
             --max-instances 10
+            --timeout=600
           
           # 手動の update-traffic を消す
           revision_traffic: 'LATEST=100'

@@ -936,7 +936,7 @@ app.post('/api/sheets/export', async (req, res) => {
 // エクスポート（テーブル蓄積付き）
 app.post('/api/sheets/export-with-accumulation', async (req, res) => {
   try {
-    const { rows, projectId, segmentId, exportedBy, exportedByName } = req.body;
+    const { rows, projectId, segmentId, exportedBy, exportedByName, deferExport } = req.body;
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return res.status(400).json({ error: 'rows配列が必要です' });
@@ -951,7 +951,8 @@ app.post('/api/sheets/export-with-accumulation', async (req, res) => {
       projectId,
       segmentId,
       exportedBy,
-      exportedByName
+      exportedByName,
+      deferExport ?? false
     );
 
     if (result.success) {
@@ -962,6 +963,27 @@ app.post('/api/sheets/export-with-accumulation', async (req, res) => {
   } catch (error: any) {
     console.error('エクスポートエラー:', error);
     res.status(500).json({ error: error.message || 'エクスポート処理中にエラーが発生しました' });
+  }
+});
+
+// 定期バッチエクスポート（Cloud Scheduler から呼び出す）
+app.post('/api/sheets/run-scheduled-export', async (req, res) => {
+  try {
+    const token = req.headers['x-scheduler-token'];
+    const expectedToken = process.env.SCHEDULER_SECRET;
+    if (!expectedToken || token !== expectedToken) {
+      return res.status(401).json({
+        error: '認証に失敗しました',
+        type: 'Unauthorized',
+        request_id: (req as any).requestId,
+      });
+    }
+
+    const result = await getBqService().runScheduledExport();
+    res.json(result);
+  } catch (error: any) {
+    console.error('定期バッチエクスポートエラー:', error);
+    res.status(500).json({ error: error.message || '定期バッチエクスポート中にエラーが発生しました' });
   }
 });
 
