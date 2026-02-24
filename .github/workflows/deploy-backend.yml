@@ -83,6 +83,13 @@ jobs:
           echo "  GOOGLE_SPREADSHEET_ID: $([ -n "${{ secrets.GOOGLE_SPREADSHEET_ID }}" ] && echo '✅ SET' || echo '⚠️ NOT SET')"
           echo "  FRONTEND_URL: $([ -n "${{ secrets.FRONTEND_URL }}" ] && echo '✅ SET' || echo '⚠️ NOT SET')"
           echo "  BACKEND_SERVICE_ACCOUNT: $([ -n "${{ secrets.BACKEND_SERVICE_ACCOUNT }}" ] && echo '✅ SET' || echo '⚠️ NOT SET (デフォルトSAが使用されます)')"
+          echo "  SCHEDULER_SECRET: $([ -n "${{ secrets.SCHEDULER_SECRET }}" ] && echo '✅ SET' || echo '❌ NOT SET')"
+
+          if [ -z "${{ secrets.SCHEDULER_SECRET }}" ]; then
+            echo "❌ SCHEDULER_SECRET is missing"
+            echo "   Settings > Environments > Environment secrets > Secrets に SCHEDULER_SECRET を追加してください"
+            exit 1
+          fi
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
