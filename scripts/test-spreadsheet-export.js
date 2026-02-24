@@ -7,20 +7,22 @@
 const BASE_URL = process.env.BASE_URL || process.argv[2] || 'http://localhost:8080';
 const SCHEDULER_SECRET = process.env.SCHEDULER_SECRET || process.argv[3] || '';
 
-// テスト用のサンプルデータ
+// フロントエンドと同じ変換ルールで生成したサンプルデータ
+// setting_flag: 2=自由入力半径(1-999m), 4=選択半径(1000m+), 5=ポリゴン, 6=都道府県
 function createTestRows() {
   const now = new Date();
   const createdDate = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-  
+
   return [
     {
+      // 手動入力 + 選択半径 1000m → setting_flag=4, category_id=空, radius=1000
       category_id: '',
       brand_id: '',
-      brand_name: 'テスト広告主',
-      poi_id: 'TEST-POI-' + Date.now(),
-      poi_name: 'テスト地点1',
-      latitude: '35.681236',
-      longitude: '139.767125',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-001',
+      poi_name: '東京駅',
+      latitude: '35.6812362',
+      longitude: '139.7671248',
       prefecture: '東京都',
       city: '千代田区',
       radius: '1000',
@@ -29,15 +31,130 @@ function createTestRows() {
       created: createdDate,
     },
     {
-      category_id: '99000050',
+      // 手動入力 + 自由入力半径 500m → setting_flag=2, category_id=99000500, radius=空
+      category_id: '99000500',
       brand_id: '',
-      brand_name: 'テスト広告主',
-      poi_id: 'TEST-POI-' + (Date.now() + 1),
-      poi_name: 'テスト地点2',
-      latitude: '35.676191',
-      longitude: '139.650310',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-001',
+      poi_name: '新宿駅',
+      latitude: '35.6896067',
+      longitude: '139.7005713',
       prefecture: '東京都',
       city: '新宿区',
+      radius: '',
+      polygon: '',
+      setting_flag: '2',
+      created: createdDate,
+    },
+    {
+      // 都道府県指定 → setting_flag=6, category_id=空, radius=空
+      category_id: '',
+      brand_id: '',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-001',
+      poi_name: '渋谷区全域',
+      latitude: '',
+      longitude: '',
+      prefecture: '東京都',
+      city: '渋谷区',
+      radius: '',
+      polygon: '',
+      setting_flag: '6',
+      created: createdDate,
+    },
+    {
+      // ポリゴン指定 → setting_flag=5, category_id=空, radius=空
+      category_id: '',
+      brand_id: '',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-001',
+      poi_name: '渋谷スクランブル交差点エリア',
+      latitude: '35.6594',
+      longitude: '139.7006',
+      prefecture: '東京都',
+      city: '渋谷区',
+      radius: '',
+      polygon: '139.6993 35.6603, 139.7018 35.6603, 139.7018 35.6585, 139.6993 35.6585, 139.6993 35.6603',
+      setting_flag: '5',
+      created: createdDate,
+    },
+    {
+      // 都道府県指定（複数都道府県の1件目）→ setting_flag=6, 東京都
+      // prefectures配列が複数ある場合、フロントエンドは1都道府県につき1行に展開して送信する
+      category_id: '',
+      brand_id: '',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-002',
+      poi_name: '関東エリア全域',
+      latitude: '',
+      longitude: '',
+      prefecture: '東京都',
+      city: '',
+      radius: '',
+      polygon: '',
+      setting_flag: '6',
+      created: createdDate,
+    },
+    {
+      // 都道府県指定（複数都道府県の2件目）→ setting_flag=6, 神奈川県
+      category_id: '',
+      brand_id: '',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-002',
+      poi_name: '関東エリア全域',
+      latitude: '',
+      longitude: '',
+      prefecture: '神奈川県',
+      city: '',
+      radius: '',
+      polygon: '',
+      setting_flag: '6',
+      created: createdDate,
+    },
+    {
+      // 都道府県指定 + 居住者 → setting_flag=7
+      category_id: '',
+      brand_id: '',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-004',
+      poi_name: '大阪府居住者エリア',
+      latitude: '',
+      longitude: '',
+      prefecture: '大阪府',
+      city: '',
+      radius: '',
+      polygon: '',
+      setting_flag: '7',
+      created: createdDate,
+    },
+    {
+      // 都道府県指定 + 勤務者 → setting_flag=8
+      category_id: '',
+      brand_id: '',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-005',
+      poi_name: '愛知県勤務者エリア',
+      latitude: '',
+      longitude: '',
+      prefecture: '愛知県',
+      city: '',
+      radius: '',
+      polygon: '',
+      setting_flag: '8',
+      created: createdDate,
+    },
+    {
+      // 住所のみで登録（lat/lng なし）→ setting_flag=2（デフォルト）, category_id=空
+      // poi.address から都道府県・市区町村を抽出した結果。ジオコーディング未実施のケース。
+      category_id: '',
+      brand_id: '',
+      brand_name: 'サンプル株式会社',
+      poi_id: 'seg-uni-006',
+      poi_name: '丸の内オフィス',
+      latitude: '',
+      longitude: '',
+      prefecture: '東京都',
+      city: '千代田区',
       radius: '',
       polygon: '',
       setting_flag: '2',
@@ -82,8 +199,8 @@ async function testBasicExport() {
 async function testExportWithAccumulation() {
   console.log('\n=== テスト2: テーブル蓄積付きスプレッドシートエクスポート ===');
   const rows = createTestRows();
-  const projectId = 'TEST-PRJ-' + Date.now();
-  
+  const projectId = 'PRJ-TEST';
+
   try {
     const response = await fetch(`${BASE_URL}/api/sheets/export-with-accumulation`, {
       method: 'POST',
@@ -93,9 +210,9 @@ async function testExportWithAccumulation() {
       body: JSON.stringify({
         rows,
         projectId,
-        segmentId: 'TEST-SEG-' + Date.now(),
-        exportedBy: 'test-user',
-        exportedByName: 'テストユーザー',
+        segmentId: 'seg-uni-001',
+        exportedBy: 'sales@example.com',
+        exportedByName: '営業担当',
       }),
     });
 
@@ -163,8 +280,8 @@ async function testExportHistory() {
 async function testDeferredExport() {
   console.log('\n=== テスト4: deferExport=true（キュー登録のみ）===');
   const rows = createTestRows();
-  const projectId = 'TEST-PRJ-DEFER-' + Date.now();
-  const segmentId = 'TEST-SEG-DEFER-' + Date.now();
+  const projectId = 'PRJ-TEST';
+  const segmentId = 'seg-uni-001';
 
   try {
     const response = await fetch(`${BASE_URL}/api/sheets/export-with-accumulation`, {

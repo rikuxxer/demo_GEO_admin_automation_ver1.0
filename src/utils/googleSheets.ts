@@ -176,10 +176,17 @@ export function convertPoiToSheetRow(
     radius = '';
     settingFlag = '5';
   } else if (poiType === 'prefecture') {
-    // 都道府県・市区町村指定（setting_flag=6）
+    // 都道府県・市区町村指定: attribute によって flag を分岐
+    // 居住者=7, 勤務者=8, 検知者（未指定含む）=6
     categoryId = '';
     radius = '';
-    settingFlag = '6';
+    if (attribute === 'resident') {
+      settingFlag = '7';
+    } else if (attribute === 'worker') {
+      settingFlag = '8';
+    } else {
+      settingFlag = '6';
+    }
   } else if (attribute === 'resident' && radiusValue > 0 && poi.latitude && poi.longitude) {
     // 緯度半径ベースでの居住者（setting_flag=7）
     categoryId = '';
