@@ -3214,110 +3214,99 @@ UNIVERSEGEO案件管理システム
     const randomNum = String(Math.floor(Math.random() * 10000)).padStart(3, '0');
     const exportId = `EXP-${dateStr}-${randomNum}`;
     
-    try {
-      // ========== ステップ1: テーブルにデータを保存 ==========
-      console.log('📊 ステップ1: エクスポート履歴をテーブルに保存中...');
-      
-      // 1-1. エクスポート履歴を保存
-      const exportRecord = {
-        export_id: exportId,
-        project_id: projectId,
-        segment_id: segmentId || null,
-        exported_by: exportedBy || 'system',
-        exported_by_name: exportedByName || 'システム',
-        export_status: 'pending',
-        spreadsheet_id: SPREADSHEET_ID,
-        sheet_name: SHEET_NAME,
-        row_count: rows.length,
-        exported_at: now.toISOString(),
-        completed_at: null,
-        error_message: null,
-      };
+    // Build export data records (needed for both deferred and immediate paths)
+    const exportDataRecords = rows.map((row, index) => ({
+      export_data_id: `${exportId}-${String(index + 1).padStart(3, '0')}`,
+      export_id: exportId,
+      project_id: projectId,
+      segment_id: segmentId || null,
+      poi_id: row.poi_id || null,
+      category_id: row.category_id || null,
+      brand_id: row.brand_id || null,
+      brand_name: row.brand_name || null,
+      poi_name: row.poi_name || null,
+      latitude: row.latitude || null,
+      longitude: row.longitude || null,
+      prefecture: row.prefecture || null,
+      city: row.city || null,
+      radius: row.radius || null,
+      polygon: row.polygon || null,
+      setting_flag: row.setting_flag || '2',
+      created: row.created || null,
+      row_index: index + 1,
+    }));
 
-      await this.createSheetExport(exportRecord);
-
-      // 1-2. エクスポートデータを保存
-      const exportDataRecords = rows.map((row, index) => ({
-        export_data_id: `${exportId}-${String(index + 1).padStart(3, '0')}`,
-        export_id: exportId,
-        project_id: projectId,
-        segment_id: segmentId || null,
-        poi_id: row.poi_id || null,
-        category_id: row.category_id || null,
-        brand_id: row.brand_id || null,
-        brand_name: row.brand_name || null,
-        poi_name: row.poi_name || null,
-        latitude: row.latitude || null,
-        longitude: row.longitude || null,
-        prefecture: row.prefecture || null,
-        city: row.city || null,
-        radius: row.radius || null,
-        polygon: row.polygon || null,
-        setting_flag: row.setting_flag || '2',
-        created: row.created || null,
-        row_index: index + 1,
-      }));
-
-      await this.createSheetExportDataBulk(exportDataRecords);
-
-      // deferExport=true のとき: DB 保存（pending）のみ、Sheets 送信しない
-      if (deferExport) {
+    if (deferExport) {
+      // Deferred: save as pending, batch job will export later
+      try {
+        const exportRecord = {
+          export_id: exportId,
+          project_id: projectId,
+          segment_id: segmentId || null,
+          exported_by: exportedBy || 'system',
+          exported_by_name: exportedByName || 'システム',
+          export_status: 'pending',
+          spreadsheet_id: SPREADSHEET_ID,
+          sheet_name: SHEET_NAME,
+          row_count: rows.length,
+          exported_at: now.toISOString(),
+          completed_at: null,
+          error_message: null,
+        };
+        await this.createSheetExport(exportRecord);
+        await this.createSheetExportDataBulk(exportDataRecords);
         return {
           success: true,
           message: `エクスポートをキューに登録しました（エクスポートID: ${exportId}）`,
           exportId,
           rowsAdded: 0,
         };
-      }
-
-      // ========== ステップ2: スプレッドシートに書き出し ==========
-      const exportResult = await this.exportToGoogleSheets(rows);
-
-      // ========== ステップ3: ステータス更新 ==========
-      if (exportResult.success) {
-        // 成功時: ステータスを'completed'に更新
-        await this.updateSheetExportStatus(exportId, 'completed', null);
-        
-        console.log('✅ エクスポート完了:', {
-          exportId,
-          rowsAdded: exportResult.rowsAdded,
-        });
-
-        return {
-          success: true,
-          message: `${exportResult.rowsAdded || rows.length}件のデータをスプレッドシートに追加しました（エクスポートID: ${exportId}）`,
-          exportId,
-          rowsAdded: exportResult.rowsAdded || rows.length,
-        };
-      } else {
-        // 失敗時: ステータスを'failed'に更新
-        await this.updateSheetExportStatus(exportId, 'failed', exportResult.message);
-        
-        console.error('❌ エクスポート失敗:', {
-          exportId,
-          error: exportResult.message,
-        });
-
+      } catch (error: any) {
         return {
           success: false,
-          message: `スプレッドシートへの書き出しに失敗しました。データはテーブルに保存されています（エクスポートID: ${exportId}）。エラー: ${exportResult.message}`,
+          message: `キュー登録中にエラーが発生しました。エラー: ${error?.message || 'Unknown error'}`,
           exportId,
         };
       }
-    } catch (error: any) {
-      // エラー時: ステータスを'failed'に更新
-      const errorMessage = error?.message || 'Unknown error';
-      try {
-        await this.updateSheetExportStatus(exportId, 'failed', errorMessage);
-      } catch (updateError) {
-        // ステータス更新に失敗しても続行
-        console.error('⚠️ ステータス更新に失敗しました:', updateError);
-      }
+    }
 
-      console.error('❌ エクスポート処理エラー:', error);
+    // Immediate: export to Sheets first, then insert with final status (avoids streaming buffer UPDATE issue)
+    const exportResult = await this.exportToGoogleSheets(rows);
+    const finalStatus = exportResult.success ? 'completed' : 'failed';
+
+    try {
+      const exportRecord = {
+        export_id: exportId,
+        project_id: projectId,
+        segment_id: segmentId || null,
+        exported_by: exportedBy || 'system',
+        exported_by_name: exportedByName || 'システム',
+        export_status: finalStatus,
+        spreadsheet_id: SPREADSHEET_ID,
+        sheet_name: SHEET_NAME,
+        row_count: rows.length,
+        exported_at: now.toISOString(),
+        completed_at: exportResult.success ? new Date().toISOString() : null,
+        error_message: exportResult.success ? null : exportResult.message,
+      };
+      await this.createSheetExport(exportRecord);
+      await this.createSheetExportDataBulk(exportDataRecords);
+    } catch (dbError: any) {
+      // BQ save failure does not affect the Sheets result
+      console.error('[BQ save after export] error:', dbError?.message);
+    }
+
+    if (exportResult.success) {
+      return {
+        success: true,
+        message: `${exportResult.rowsAdded || rows.length}件のデータをスプレッドシートに追加しました（エクスポートID: ${exportId}）`,
+        exportId,
+        rowsAdded: exportResult.rowsAdded || rows.length,
+      };
+    } else {
       return {
         success: false,
-        message: `エクスポート処理中にエラーが発生しました。エラー: ${errorMessage}`,
+        message: `スプレッドシートへの書き出しに失敗しました。エラー: ${exportResult.message}`,
         exportId,
       };
     }

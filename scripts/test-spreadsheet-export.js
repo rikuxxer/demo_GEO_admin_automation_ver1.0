@@ -5,6 +5,7 @@
  *   node scripts/test-spreadsheet-export.js https://your-backend-url.run.app
  */
 const BASE_URL = process.env.BASE_URL || process.argv[2] || 'http://localhost:8080';
+const SCHEDULER_SECRET = process.env.SCHEDULER_SECRET || process.argv[3] || '';
 
 // テスト用のサンプルデータ
 function createTestRows() {
@@ -159,6 +160,90 @@ async function testExportHistory() {
   }
 }
 
+async function testDeferredExport() {
+  console.log('\n=== テスト4: deferExport=true（キュー登録のみ）===');
+  const rows = createTestRows();
+  const projectId = 'TEST-PRJ-DEFER-' + Date.now();
+  const segmentId = 'TEST-SEG-DEFER-' + Date.now();
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/sheets/export-with-accumulation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rows,
+        projectId,
+        segmentId,
+        exportedBy: 'test-user',
+        exportedByName: 'テストユーザー',
+        deferExport: true,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      console.log('✓ キュー登録: 成功');
+      console.log(`  メッセージ: ${result.message}`);
+      console.log(`  エクスポートID: ${result.exportId || 'N/A'}`);
+      return { ok: true, exportId: result.exportId };
+    } else {
+      console.log('✗ キュー登録: 失敗');
+      console.log(`  ステータス: ${response.status}`);
+      console.log(`  エラー: ${result.error || result.message || '不明なエラー'}`);
+      return { ok: false };
+    }
+  } catch (error) {
+    console.log('✗ キュー登録: エラー');
+    console.log(`  エラー: ${error.message}`);
+    return { ok: false };
+  }
+}
+
+async function testScheduledBatch() {
+  console.log('\n=== テスト5: 定期バッチ実行（/api/sheets/run-scheduled-export）===');
+
+  if (!SCHEDULER_SECRET) {
+    console.log('⚠ SCHEDULER_SECRET が未設定のためスキップ');
+    console.log('  実行方法: SCHEDULER_SECRET=<secret> node scripts/test-spreadsheet-export.js <url>');
+    return { ok: true, skipped: true };
+  }
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/sheets/run-scheduled-export`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Scheduler-Token': SCHEDULER_SECRET,
+      },
+      body: JSON.stringify({}),
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      console.log('✓ バッチ実行: 成功');
+      console.log(`  処理件数: ${result.totalProcessed}`);
+      console.log(`  成功: ${result.succeeded} / 失敗: ${result.failed}`);
+      if (result.results && result.results.length > 0) {
+        result.results.forEach(r => {
+          console.log(`  [${r.exportId}] ${r.success ? '成功' : '失敗'} ${r.rowsAdded != null ? `(${r.rowsAdded}行)` : r.error || ''}`);
+        });
+      }
+      return { ok: true };
+    } else {
+      console.log('✗ バッチ実行: 失敗');
+      console.log(`  ステータス: ${response.status}`);
+      console.log(`  エラー: ${result.error || result.message || '不明なエラー'}`);
+      return { ok: false };
+    }
+  } catch (error) {
+    console.log('✗ バッチ実行: エラー');
+    console.log(`  エラー: ${error.message}`);
+    return { ok: false };
+  }
+}
+
 async function main() {
   console.log('=== スプレッドシート書き出し機能のテスト ===');
   console.log('BASE_URL:', BASE_URL);
@@ -191,6 +276,22 @@ async function main() {
     failed++;
   }
 
+  // テスト4: deferExport=true でキューに登録
+  const result4 = await testDeferredExport();
+  if (result4.ok) {
+    success++;
+  } else {
+    failed++;
+  }
+
+  // テスト5: バッチ実行（登録されたキューを処理）
+  const result5 = await testScheduledBatch();
+  if (result5.ok) {
+    success++;
+  } else {
+    failed++;
+  }
+
   console.log('\n=== テスト結果サマリー ===');
   console.log(`成功: ${success} 件`);
   console.log(`失敗: ${failed} 件`);
@@ -198,11 +299,11 @@ async function main() {
   console.log('');
 
   if (failed === 0) {
-    console.log('✅ 全てのスプレッドシート書き出しテストが正常に動作しました！');
-    console.log('💡 実際のスプレッドシートでデータが追加されているか確認してください。');
+    console.log('全てのスプレッドシート書き出しテストが正常に動作しました！');
+    console.log('実際のスプレッドシートでデータが追加されているか確認してください。');
     process.exit(0);
   } else {
-    console.log(`❌ ${failed} 件のテストが失敗しました。上記のエラー内容を確認してください。`);
+    console.log(`${failed} 件のテストが失敗しました。上記のエラー内容を確認してください。`);
     process.exit(1);
   }
 }
