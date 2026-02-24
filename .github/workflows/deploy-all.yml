@@ -204,6 +204,10 @@ jobs:
           else
             ENV_VARS="$ENV_VARS,FRONTEND_URL=http://localhost:5173"
           fi
+
+          if [ -n "${{ secrets.SCHEDULER_SECRET }}" ]; then
+            ENV_VARS="$ENV_VARS,SCHEDULER_SECRET=${{ secrets.SCHEDULER_SECRET }}"
+          fi
           
           echo ""
           echo "🔧 環境変数をデプロイ時に設定します（バージョン競合を回避）..."
