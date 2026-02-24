@@ -3099,7 +3099,7 @@ UNIVERSEGEO案件管理システム
           const response = await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!A:M`,
-            valueInputOption: 'USER_ENTERED',
+            valueInputOption: 'RAW',
             insertDataOption: 'INSERT_ROWS',
             resource: { values: chunk },
           });
