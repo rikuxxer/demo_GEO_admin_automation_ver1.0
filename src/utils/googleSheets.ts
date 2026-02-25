@@ -203,24 +203,19 @@ export function convertPoiToSheetRow(
     radius = '';
     settingFlag = poi.setting_flag || '2';
   } else if (isFreeInputRadius(radiusValue)) {
-    // 自由入力範囲（1-999m）の場合（setting_flag=2）
-    // category_id: 99000XXX（XXXは半径の値、4桁で0埋め）
-    // radius: 空
+    // 1-999m: category_id=9900XXXX形式で格納（カテゴリ選択扱い）
     // setting_flag: 2
     categoryId = `9900${String(radiusValue).padStart(4, '0')}`;
     radius = '';
     settingFlag = '2';
   } else if (isSelectableRadius(radiusValue)) {
-    // 選択可能な値（1000m以上）の場合（setting_flag=4）
-    // category_id: 空
-    // radius: 選択した値
+    // 1000m以上: radius列に直接格納（自由入力扱い）
     // setting_flag: 4
     categoryId = '';
     radius = String(radiusValue);
     settingFlag = '4';
   } else {
-    // その他の値（1000m超で選択可能な値以外）の場合
-    // 選択可能な値に最も近い値に丸める
+    // その他の値（1000m超で選択可能な値以外）: 最も近い値に丸める
     const closestSelectable = SELECTABLE_RADIUS_VALUES.reduce((prev, curr) => {
       return Math.abs(curr - radiusValue) < Math.abs(prev - radiusValue) ? curr : prev;
     });

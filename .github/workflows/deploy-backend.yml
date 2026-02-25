@@ -141,10 +141,16 @@ jobs:
             --cpu 1
             --max-instances 10
             --timeout=600
-            --update-env-vars=SCHEDULER_SECRET=${{ secrets.SCHEDULER_SECRET }}
-          
+
           # 手動の update-traffic を消す
           revision_traffic: 'LATEST=100'
+
+      - name: Set SCHEDULER_SECRET
+        run: |
+          gcloud run services update ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }} \
+            --update-env-vars=SCHEDULER_SECRET=${{ secrets.SCHEDULER_SECRET }}
 
       - name: Deployment Summary
         run: |

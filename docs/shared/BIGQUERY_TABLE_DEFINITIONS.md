@@ -1,7 +1,7 @@
 # BigQuery テーブル定義書
 
-**バージョン:** 2.4  
-**最終更新日:** 2026年1月28日  
+**バージョン:** 2.5
+**最終更新日:** 2026年2月24日
 **データベース:** Google BigQuery  
 **データセット:** `universegeo_dataset`  
 **備考:** 本定義書は `segments.poi_type` 追加後のテーブル定義を反映しています。本番環境におけるフロントエンドのAPI接続状況は [PRODUCTION_API_CONNECTION_STATUS.md](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) を参照してください。
@@ -271,11 +271,22 @@ OPTIONS(
 | `poi_type` | STRING | YES | 地点タイプ | `manual`, `prefecture`, `polygon` |
 | `poi_category` | STRING | YES | 地点カテゴリ | `tg`, `visit_measurement` |
 | `designated_radius` | STRING | YES | 指定半径 | `50m`, `100m` |
-| `setting_flag` | STRING | YES | 設定フラグ | - |
+| `setting_flag` | STRING | YES | 設定フラグ（値は下表参照） | `2` |
 | `visit_measurement_group_id` | STRING | YES | 来店計測地点グループID | `VMG-1` |
 | `polygon` | STRING | YES | ポリゴン座標（JSON文字列） | `"[[35.681236, 139.767125], ...]"` |
 | `created_at` | TIMESTAMP | YES | 作成日時 | `2025-01-13 10:00:00 UTC` |
 | `updated_at` | TIMESTAMP | YES | 更新日時 | `2025-01-13 10:00:00 UTC` |
+
+**setting_flag 値の定義**:
+
+| 値 | 意味 | 格納形式 |
+|----|------|----------|
+| `2` | カテゴリ選択（1-999m） | `category_id` = `9900XXXX`、`radius` は空 |
+| `4` | 自由入力半径（1000m以上） | `category_id` は空、`radius` に直接値 |
+| `5` | ポリゴン指定 | `polygon` に座標データ |
+| `6` | 都道府県・市区町村指定（検知者） | `prefecture` / `city` に値 |
+| `7` | 都道府県・市区町村指定（居住者）または緯度半径ベース居住者 | - |
+| `8` | 都道府県・市区町村指定（勤務者）または緯度半径ベース勤務者 | - |
 
 **ビジネスルール**:
 - `poi_id`は自動採番（形式: `POI-{連番}`）
@@ -643,22 +654,21 @@ OPTIONS(
 **CREATE文**:
 ```sql
 CREATE TABLE `universegeo_dataset.sheet_exports` (
-  export_id STRING NOT NULL,
-  project_id STRING NOT NULL,
-  segment_id STRING,
-  exported_by STRING NOT NULL,
-  exported_by_name STRING NOT NULL,
-  export_status STRING NOT NULL,
-  spreadsheet_id STRING,
-  sheet_name STRING,
-  row_count INTEGER,
-  exported_at TIMESTAMP NOT NULL,
-  completed_at TIMESTAMP,
-  error_message STRING,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+  export_id        STRING,
+  project_id       STRING,
+  segment_id       STRING,
+  exported_by      STRING,
+  exported_by_name STRING,
+  export_status    STRING,
+  spreadsheet_id   STRING,
+  sheet_name       STRING,
+  row_count        INT64,
+  exported_at      TIMESTAMP,
+  completed_at     TIMESTAMP,
+  error_message    STRING,
+  created_at       TIMESTAMP,
+  updated_at       TIMESTAMP
 )
-PARTITION BY DATE(exported_at)
 OPTIONS(
   description="スプレッドシートエクスポート履歴"
 );
@@ -697,28 +707,25 @@ OPTIONS(
 **CREATE文**:
 ```sql
 CREATE TABLE `universegeo_dataset.sheet_export_data` (
-  export_data_id STRING NOT NULL,
-  export_id STRING NOT NULL,
-  project_id STRING NOT NULL,
-  segment_id STRING,
-  poi_id STRING,
-  category_id STRING,
-  brand_id STRING,
-  brand_name STRING,
-  poi_name STRING,
-  latitude FLOAT64,
-  longitude FLOAT64,
-  prefecture STRING,
-  city STRING,
-  radius STRING,
-  polygon STRING,
-  setting_flag STRING,
-  created STRING,
-  row_index INTEGER,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+  export_data_id STRING,
+  export_id      STRING,
+  project_id     STRING,
+  segment_id     STRING,
+  poi_id         STRING,
+  category_id    STRING,
+  brand_id       STRING,
+  brand_name     STRING,
+  poi_name       STRING,
+  latitude       FLOAT64,
+  longitude      FLOAT64,
+  prefecture     STRING,
+  city           STRING,
+  radius         STRING,
+  polygon        STRING,
+  setting_flag   STRING,
+  created        STRING,
+  row_index      INT64
 )
-PARTITION BY DATE(created_at)
-CLUSTER BY export_id, project_id
 OPTIONS(
   description="スプレッドシートエクスポートデータ"
 );
@@ -743,10 +750,9 @@ OPTIONS(
 | `city` | STRING | YES | 市区町村 | `千代田区` |
 | `radius` | STRING | YES | 半径 | `50m` |
 | `polygon` | STRING | YES | ポリゴン（JSON文字列） | `"[[35.681236, 139.767125], ...]"` |
-| `setting_flag` | STRING | YES | 設定フラグ | `2` |
+| `setting_flag` | STRING | YES | 設定フラグ（値の定義は pois テーブルの setting_flag を参照） | `2` |
 | `created` | STRING | YES | 作成日（YYYY/MM/DD形式） | `2025/01/13` |
-| `row_index` | INTEGER | YES | 行番号（スプレッドシート内） | `1` |
-| `created_at` | TIMESTAMP | YES | 作成日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
+| `row_index` | INT64 | YES | 行番号（スプレッドシート内） | `1` |
 
 **ビジネスルール**:
 - `export_data_id`は自動採番（形式: `EXPD-{export_id}-{連番}`）
@@ -886,8 +892,6 @@ BigQueryでは外部キー制約はサポートされていませんが、アプ
 | `pois` | `created_at` | DATE | 作成日でパーティション分割 |
 | `messages` | `timestamp` | DATE | 送信日でパーティション分割 |
 | `report_requests` | `requested_at` | DATE | 依頼日でパーティション分割 |
-| `sheet_exports` | `exported_at` | DATE | エクスポート日でパーティション分割 |
-| `sheet_export_data` | `created_at` | DATE | 作成日でパーティション分割 |
 
 ### パーティションの効果
 
@@ -1017,6 +1021,7 @@ SET OPTIONS(
 - **2026-01-28**: 本番環境におけるフロントエンドAPI接続状況を概要に追加。`segment_id`の説明を拡張（`SEG-{連番}`に加え、フロント採番の`seg-uni-{3桁}`/`seg-ctv-{3桁}`を記載）。仕様書を本番環境の挙動に合わせて更新（バージョン2.4）。詳細は [PRODUCTION_API_CONNECTION_STATUS.md](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) を参照。
 - **2026-02-07**: `segments.detection_count` を STRING から INT64 に変更（アプリ・既存BQとの統一）。正スキーマを明示し、既存BQで delivery_media/media_id が STRING の場合のマイグレーション手順を [UPDATE_BIGQUERY_SCHEMA](troubleshooting/UPDATE_BIGQUERY_SCHEMA.md) に追加。
 - **2026-02-07**: `segments` に `data_link_status`, `data_link_request_date`, `data_link_scheduled_date`, `ads_account_id`, `provider_segment_id`, `segment_expire_date` を追加（バックエンド送信列と定義書の一致）。同様のケースでは「バックエンドが送る列は定義書に記載する」方針で [BQ_TABLE_DEFINITION_COMPARISON](troubleshooting/BQ_TABLE_DEFINITION_COMPARISON.md) に記載。
+- **2026-02-24**: `sheet_exports` と `sheet_export_data` を BigQuery に実際に作成（定期バッチエクスポート機能の実装に伴う）。PARTITION BY / CLUSTER BY なし・NOT NULL / DEFAULT 制約なしの最小定義で作成。CREATE 文・フィールド定義・パーティション設定表を実テーブルに合わせて更新（バージョン 2.5）。
 
 **既存の segments テーブルに poi_type を追加する場合**:
 ```sql

@@ -360,6 +360,7 @@ async function getNextProjectIdFromProjectsTable(): Promise<number> {
     FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
     WHERE project_id LIKE 'PRJ-%'
       AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
+      AND CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64) < 10000000
   `;
   const [rows] = await client.query({ query, location: BQ_LOCATION });
   const nextId = rows?.[0]?.next_id;
@@ -395,6 +396,7 @@ async function getNextIdFromCounter(counterName: string): Promise<number> {
           FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
           WHERE project_id LIKE 'PRJ-%'
             AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
+            AND CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64) < 10000000
         );
         SET next_val = max_id + 1;
 
@@ -407,8 +409,12 @@ async function getNextIdFromCounter(counterName: string): Promise<number> {
           VALUES
             (@counter_name, next_val, CURRENT_TIMESTAMP());
         ELSE
+          -- next_id がタイムスタンプ系の巨大値になっていた場合も next_val で上書きリセットする
           UPDATE \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-          SET next_id = GREATEST(next_id + 1, next_val),
+          SET next_id = GREATEST(
+                CASE WHEN next_id < 10000000 THEN next_id + 1 ELSE 1 END,
+                next_val
+              ),
               updated_at = CURRENT_TIMESTAMP()
           WHERE name = @counter_name;
         END IF;

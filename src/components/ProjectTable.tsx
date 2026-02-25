@@ -233,8 +233,9 @@ export function ProjectTable({
     // 文字列として処理
     const dateString = String(dateStr).trim();
     
-    // YYYY-MM-DD形式の文字列を直接処理（タイムゾーン問題を回避）
-    const dateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    // YYYY-MM-DD形式（日付のみ）の文字列を直接処理（タイムゾーン問題を回避）
+    // タイムスタンプ文字列（Tを含む）は後続の new Date() パスでタイムゾーン変換させる
+    const dateMatch = !dateString.includes('T') ? dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
     if (dateMatch) {
       const [, year, month, day] = dateMatch;
       const yearNum = parseInt(year, 10);
