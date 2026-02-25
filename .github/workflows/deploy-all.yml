@@ -424,6 +424,7 @@ jobs:
           echo "📋 フロントエンド用Secrets確認:"
           echo "VITE_GOOGLE_SPREADSHEET_ID: $([ -z "${{ secrets.VITE_GOOGLE_SPREADSHEET_ID }}" ] && echo "⚠️ 未設定（オプション）" || echo "✅ 設定済み")"
           echo "VITE_GOOGLE_SHEETS_API_KEY: $([ -z "${{ secrets.VITE_GOOGLE_SHEETS_API_KEY }}" ] && echo "⚠️ 未設定（オプション）" || echo "✅ 設定済み")"
+          echo "VITE_GOOGLE_MAPS_API_KEY: $([ -z "${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}" ] && echo "⚠️ 未設定（オプション）" || echo "✅ 設定済み")"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -512,6 +513,7 @@ jobs:
             --build-arg VITE_API_BASE_URL="$BACKEND_URL" \
             --build-arg VITE_GOOGLE_SPREADSHEET_ID="${{ secrets.VITE_GOOGLE_SPREADSHEET_ID || '' }}" \
             --build-arg VITE_GOOGLE_SHEETS_API_KEY="${{ secrets.VITE_GOOGLE_SHEETS_API_KEY || '' }}" \
+            --build-arg VITE_GOOGLE_MAPS_API_KEY="${{ secrets.VITE_GOOGLE_MAPS_API_KEY || '' }}" \
             -t "${IMAGE_NAME}:${{ github.sha }}" \
             -t "${IMAGE_NAME}:latest" \
             .
