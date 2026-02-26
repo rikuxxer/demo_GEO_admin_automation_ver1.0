@@ -2761,21 +2761,10 @@ export function ProjectDetail({
                       stay_time: effectiveConditions.stay_time,
                     });
 
-                    // 既存地点にも適用
-                    for (const poi of segmentPois) {
-                      if (poi.poi_id) {
-                        await onPoiUpdate(poi.poi_id, {
-                          ...effectiveConditions,
-                          designated_radius: radiusFromDraft,
-                        });
-                      }
-                    }
+                    // 抽出条件は segments テーブルに集約されており、pois テーブルには抽出条件列が存在しない
+                    // エクスポート等も segment.designated_radius を参照するため POI への個別更新は不要
 
-                    toast.success(
-                      segmentPois.length > 0
-                        ? `${segmentPois.length}件の地点に抽出条件を適用しました`
-                        : 'セグメントに抽出条件を保存しました（今後追加する地点に適用されます）'
-                    );
+                    toast.success('セグメントに抽出条件を保存しました');
                     setShowExtractionConditionsPopup(false);
                   } catch (error) {
                     console.error('Error updating extraction conditions:', error);
