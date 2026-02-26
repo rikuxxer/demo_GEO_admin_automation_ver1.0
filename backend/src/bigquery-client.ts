@@ -1639,8 +1639,33 @@ export class BigQueryService {
       }
     }
 
+    // pois テーブルに存在するカラムのみを許可（余剰フィールドによる "Unrecognized name" エラーを防止）
+    const poiAllowedFields = new Set([
+      'project_id',
+      'segment_id',
+      'location_id',
+      'poi_name',
+      'address',
+      'latitude',
+      'longitude',
+      'prefectures',
+      'cities',
+      'poi_type',
+      'poi_category',
+      'designated_radius',
+      'setting_flag',
+      'visit_measurement_group_id',
+      'polygon',
+    ]);
+    const filteredUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (poiAllowedFields.has(key)) {
+        filteredUpdates[key] = value;
+      }
+    }
+
     // ARRAY<STRING> / STRING 型に合わせて正規化（createPoi と同様）
-    const processedUpdates = { ...updates };
+    const processedUpdates = { ...filteredUpdates };
     if ('prefectures' in processedUpdates && processedUpdates.prefectures !== undefined) {
       const v = processedUpdates.prefectures;
       if (Array.isArray(v)) {
