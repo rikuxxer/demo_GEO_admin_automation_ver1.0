@@ -1681,9 +1681,21 @@ export class BigQueryService {
         SET ${setClause}, updated_at = CURRENT_TIMESTAMP()
         WHERE poi_id = @poi_id
       `;
+
+    const allPoiParams = { poi_id, ...processedUpdates };
+
+    // BigQuery cannot infer type of empty arrays, so we must explicitly specify types
+    const poiParamTypes: Record<string, string[]> = {};
+    for (const [key, value] of Object.entries(allPoiParams)) {
+      if (Array.isArray(value)) {
+        poiParamTypes[key] = ['STRING'];
+      }
+    }
+
     await initializeBigQueryClient().query({
       query,
-      params: { poi_id, ...processedUpdates },
+      params: allPoiParams,
+      ...(Object.keys(poiParamTypes).length > 0 ? { types: poiParamTypes } : {}),
       location: BQ_LOCATION,
     });
 
