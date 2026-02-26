@@ -2795,7 +2795,21 @@ UNIVERSEGEO案件管理システム
     allowed.forEach(f => { if (updates[f] !== undefined) params[f] = f === 'extraction_start_date' || f === 'extraction_end_date' ? formatDateForBigQuery(updates[f]) : f === 'detection_time_start' || f === 'detection_time_end' ? formatTimeForBigQuery(updates[f]) : f === 'extraction_dates' ? updates[f] : updates[f]; });
     params.updated_at = formatTimestampForBigQuery(new Date());
     const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\` SET ${setClause}, updated_at = @updated_at WHERE group_id = @group_id`;
-    await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
+
+    // BigQuery cannot infer type of empty arrays, so we must explicitly specify types
+    const paramTypes: Record<string, string[]> = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (Array.isArray(value)) {
+        paramTypes[key] = ['STRING'];
+      }
+    }
+
+    await initializeBigQueryClient().query({
+      query,
+      params,
+      ...(Object.keys(paramTypes).length > 0 ? { types: paramTypes } : {}),
+      location: BQ_LOCATION,
+    });
   }
 
   async deleteVisitMeasurementGroup(group_id: string): Promise<void> {
