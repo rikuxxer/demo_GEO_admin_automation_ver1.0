@@ -22,6 +22,7 @@ import { FeatureRequestList } from "./components/FeatureRequestList";
 import { UserManagement } from "./components/UserManagement";
 import { TopProgressBar } from "./components/TopProgressBar";
 import { UserApprovalManagement } from "./components/UserApprovalManagement";
+import { SimPage } from "./components/SimPage";
 import { Button } from "./components/ui/button";
 import {
   DropdownMenu,
@@ -469,18 +470,7 @@ function AppContent() {
             </div>
           )}
 
-          {currentPage === "proposals" && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-medium text-gray-900">
-                提案管理
-              </h1>
-              <div className="bg-white p-8 rounded-xl border">
-                <p className="text-gray-600 text-center">
-                  提案管理機能は準備中です
-                </p>
-              </div>
-            </div>
-          )}
+          {currentPage === "proposals" && <SimPage />}
 
           {currentPage === "notifications" && (
             <div className="space-y-6">

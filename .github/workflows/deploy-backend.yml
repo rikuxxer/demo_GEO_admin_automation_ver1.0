@@ -134,6 +134,7 @@ jobs:
             EMAIL_SERVICE=${{ secrets.EMAIL_SERVICE }}
             SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
             SENDGRID_FROM_EMAIL=${{ secrets.SENDGRID_FROM_EMAIL }}
+            SIM_SOURCE_TABLE=${{ secrets.SIM_SOURCE_TABLE }}
 
           flags: >-
             --allow-unauthenticated

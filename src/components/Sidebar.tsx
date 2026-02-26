@@ -31,7 +31,7 @@ export function Sidebar({ isCollapsed, onToggle, currentPage = 'projects', onPag
   const menuItems = [
     { icon: Users, label: '案件管理', count: null, page: 'projects', disabled: false },
     { icon: LayoutGrid, label: 'ダッシュボード', count: null, page: 'dashboard', disabled: true },
-    { icon: Presentation, label: '提案', count: 3, page: 'proposals', disabled: true },
+    { icon: Presentation, label: '提案', count: null, page: 'proposals', disabled: false },
     { icon: FileBarChart, label: 'レポート作成', count: null, page: 'report', disabled: true },
     { icon: Bell, label: 'お知らせ', count: unreadCount > 0 ? unreadCount : null, page: 'notifications', disabled: false },
     { icon: Lightbulb, label: '機能リクエスト', count: null, page: 'feature-requests', disabled: false },

@@ -355,6 +355,26 @@ export const REPORT_REQUEST_STATUS_OPTIONS = [
   { value: 'failed', label: '失敗', color: 'red' },
 ] as const;
 
+// SIM（シミュレーション）条件
+export interface SimConditions {
+  date_start: string;
+  date_end: string;
+  uid_type?: string;
+  poi_ids?: string[];
+  brand_ids?: string[];
+  prefectures?: string[];
+  cities?: string[];
+  radius_max?: number;
+  detection_count?: number;
+}
+
+export interface SimEstimateResult {
+  estimated_uu: number;
+  conditions: SimConditions;
+  executed_at: string;
+  query_duration_ms?: number;
+}
+
 // プロジェクト内メッセージ（管理部⇔営業の連絡）
 export interface ProjectMessage {
   message_id: string;

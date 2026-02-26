@@ -1218,9 +1218,20 @@ export class BigQueryService {
         WHERE segment_id = @segment_id
       `;
     
+    const allParams = { segment_id, ...processedUpdates };
+
+    // BigQuery cannot infer type of empty arrays, so we must explicitly specify types
+    const paramTypes: Record<string, string[]> = {};
+    for (const [key, value] of Object.entries(allParams)) {
+      if (Array.isArray(value)) {
+        paramTypes[key] = ['STRING'];
+      }
+    }
+
     await initializeBigQueryClient().query({
       query,
-      params: { segment_id, ...processedUpdates },
+      params: allParams,
+      ...(Object.keys(paramTypes).length > 0 ? { types: paramTypes } : {}),
       location: BQ_LOCATION,
     });
   }

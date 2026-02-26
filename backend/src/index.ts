@@ -13,6 +13,7 @@ console.log(`  BQ_DATASET: ${process.env.BQ_DATASET ? '✅ SET' : '❌ NOT SET'}
 // BigQueryサービスのインポート
 // モジュール読み込み時にエラーが発生しないように、遅延初期化を使用
 import { getBqService } from './bigquery-client';
+import simRoutes from './sim-routes';
 
 // ミドルウェアのインポート
 import { requestContext } from './middleware/request-context';
@@ -1065,6 +1066,9 @@ app.post('/api/sheets/exports/:exportId/reexport', async (req, res) => {
     res.status(500).json({ error: error.message || '再エクスポート処理中にエラーが発生しました' });
   }
 });
+
+// SIM（シミュレーション）ルート
+app.use('/api/sim', simRoutes);
 
 // エラーハンドリングミドルウェア（404ハンドラーの前に配置）
 // すべてのルートで発生したエラーをここでキャッチして統一的なレスポンスを返す
