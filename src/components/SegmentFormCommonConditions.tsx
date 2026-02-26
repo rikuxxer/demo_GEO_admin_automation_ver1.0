@@ -95,13 +95,13 @@ function SegmentFormCommonConditionsInner({ formData, onChange, onDesignatedRadi
     return date.toISOString().split('T')[0];
   };
 
-  // 日付が5日前より前かどうかをチェック
-  const isDateMoreThanFiveDaysAgo = (dateString: string): boolean => {
+  // 日付が5日前より後（新しい）かどうかをチェック
+  const isDateNewerThanFiveDaysAgo = (dateString: string): boolean => {
     if (!dateString) return false;
     const selectedDate = new Date(dateString);
     const fiveDaysAgo = new Date();
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    return selectedDate < fiveDaysAgo;
+    return selectedDate > fiveDaysAgo;
   };
 
   // 日付が6ヶ月以上前かどうかをチェック
@@ -495,38 +495,36 @@ function SegmentFormCommonConditionsInner({ formData, onChange, onDesignatedRadi
                 <Input
                   type="date"
                   value={formData.extraction_start_date || ''}
-                  min={getFiveDaysAgoDate()}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={getFiveDaysAgoDate()}
                   onChange={(e) => {
                     const selectedDate = e.target.value;
-                    if (isDateMoreThanFiveDaysAgo(selectedDate)) {
-                      toast.error('開始日は5日前以降の日付を指定してください');
+                    if (isDateNewerThanFiveDaysAgo(selectedDate)) {
+                      toast.error('開始日は5日前以前の日付を指定してください');
                       return;
                     }
                     onChange('extraction_start_date', selectedDate);
                   }}
                   className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">5日前以降の日付を指定してください</p>
+                <p className="text-xs text-gray-500 mt-1">5日前以前の日付を指定してください</p>
               </div>
               <div>
                 <Label className="text-xs mb-1 block">終了日</Label>
                 <Input
                   type="date"
                   value={formData.extraction_end_date || ''}
-                  min={getFiveDaysAgoDate()}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={getFiveDaysAgoDate()}
                   onChange={(e) => {
                     const selectedDate = e.target.value;
-                    if (isDateMoreThanFiveDaysAgo(selectedDate)) {
-                      toast.error('終了日は5日前以降の日付を指定してください');
+                    if (isDateNewerThanFiveDaysAgo(selectedDate)) {
+                      toast.error('終了日は5日前以前の日付を指定してください');
                       return;
                     }
                     onChange('extraction_end_date', selectedDate);
                   }}
                   className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">5日前以降の日付を指定してください</p>
+                <p className="text-xs text-gray-500 mt-1">5日前以前の日付を指定してください</p>
               </div>
             </div>
           )}
