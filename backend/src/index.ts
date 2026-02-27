@@ -14,6 +14,7 @@ console.log(`  BQ_DATASET: ${process.env.BQ_DATASET ? '✅ SET' : '❌ NOT SET'}
 // モジュール読み込み時にエラーが発生しないように、遅延初期化を使用
 import { getBqService } from './bigquery-client';
 import simRoutes from './sim-routes';
+import qaRoutes from './qa-routes';
 
 // ミドルウェアのインポート
 import { requestContext } from './middleware/request-context';
@@ -1069,6 +1070,9 @@ app.post('/api/sheets/exports/:exportId/reexport', async (req, res) => {
 
 // SIM（シミュレーション）ルート
 app.use('/api/sim', simRoutes);
+
+// QA（AI Q&A）ルート
+app.use('/api/qa', qaRoutes);
 
 // エラーハンドリングミドルウェア（404ハンドラーの前に配置）
 // すべてのルートで発生したエラーをここでキャッチして統一的なレスポンスを返す

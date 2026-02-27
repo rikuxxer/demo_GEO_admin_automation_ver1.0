@@ -90,7 +90,9 @@ jobs:
             NODE_ENV=production
             DEBUG=false
             LOG_LEVEL=info
-          
+            VERTEX_AI_LOCATION=${{ secrets.VERTEX_AI_LOCATION || 'us-central1' }}
+            VERTEX_AI_MODEL=${{ secrets.VERTEX_AI_MODEL || 'gemini-2.0-flash-001' }}
+
           flags: >-
             --allow-unauthenticated
             --memory 512Mi

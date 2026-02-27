@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, ExternalLink, RotateCcw } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, ExternalLink, RotateCcw, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
-import { searchFAQ, type FAQItem, type FAQLink } from '../utils/faqDatabase';
+import { searchFAQ, type FAQLink } from '../utils/faqDatabase';
+import { postQaChat, postQaFeedback, type QaMessage } from '../utils/qaApi';
 
 interface Message {
   id: string;
@@ -12,27 +13,38 @@ interface Message {
   content: string;
   timestamp: Date;
   links?: FAQLink[];
+  // AI Q&A モード専用: model メッセージの BQ log_id（フィードバック送信に使用）
+  logId?: string;
 }
+
+type Mode = 'faq' | 'ai';
 
 interface ChatBotProps {
   currentPage?: string;
   currentContext?: Record<string, any>;
+  userId?: string;
+  onNavigate?: (path: string, params?: any) => void;
+  onOpenForm?: (formType: string) => void;
 }
 
-export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }: ChatBotProps) {
+const FAQ_INITIAL_MESSAGE = 'こんにちは！アプリの使い方について何かご質問はありますか？';
+const AI_INITIAL_MESSAGE =
+  '案件の状況や配信設定について何でも聞いてください。例：「今月配信中の案件は？」';
+
+export function ChatBot({ currentPage, currentContext, userId, onNavigate, onOpenForm }: ChatBotProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>('faq');
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'bot',
-      content: 'こんにちは！アプリの使い方について何かご質問はありますか？',
-      timestamp: new Date(),
-    },
+    { id: '1', role: 'bot', content: FAQ_INITIAL_MESSAGE, timestamp: new Date() },
   ]);
+  const [aiHistory, setAiHistory] = useState<QaMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  // フィードバック送信済みの log_id を管理（重複送信防止）
+  const [feedbackSent, setFeedbackSent] = useState<Record<string, 'good' | 'bad'>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sessionIdRef = useRef<string>(crypto.randomUUID());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -48,48 +60,132 @@ export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }:
     }
   }, [isOpen]);
 
+  const resetFaq = () => {
+    setMessages([{ id: '1', role: 'bot', content: FAQ_INITIAL_MESSAGE, timestamp: new Date() }]);
+  };
+
+  const resetAi = () => {
+    setAiHistory([]);
+    setFeedbackSent({});
+    sessionIdRef.current = crypto.randomUUID();
+    setMessages([{ id: '1', role: 'bot', content: AI_INITIAL_MESSAGE, timestamp: new Date() }]);
+  };
+
+  const handleModeChange = (newMode: Mode) => {
+    if (newMode === mode) return;
+    setMode(newMode);
+    setInputValue('');
+    if (newMode === 'faq') {
+      resetFaq();
+    } else {
+      resetAi();
+    }
+  };
+
+  const handleReset = () => {
+    if (mode === 'faq') {
+      resetFaq();
+    } else {
+      resetAi();
+    }
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    handleReset();
+  };
+
+  const handleFeedback = async (logId: string, feedback: 'good' | 'bad') => {
+    if (feedbackSent[logId]) return;
+    setFeedbackSent((prev) => ({ ...prev, [logId]: feedback }));
+    try {
+      await postQaFeedback(logId, feedback);
+    } catch {
+      // フィードバック送信失敗は UI に反映しない（ベストエフォート）
+    }
+  };
+
+  const handleSendFaq = async (text: string) => {
+    try {
+      const result = await searchFAQ(text, currentPage, currentContext);
+      const answer = typeof result === 'string' ? result : result.answer;
+      const links = typeof result === 'string' ? [] : (result.links || []);
+
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'bot',
+            content: answer,
+            timestamp: new Date(),
+            links,
+          },
+        ]);
+        setIsTyping(false);
+      }, 500);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'bot',
+          content: '申し訳ございません。エラーが発生しました。もう一度お試しください。',
+          timestamp: new Date(),
+        },
+      ]);
+      setIsTyping(false);
+    }
+  };
+
+  const handleSendAi = async (text: string) => {
+    const newUserMsg: QaMessage = { role: 'user', content: text };
+    const nextHistory = [...aiHistory, newUserMsg];
+
+    try {
+      const { reply, log_id } = await postQaChat(nextHistory, sessionIdRef.current, userId || '');
+      const modelMsg: QaMessage = { role: 'model', content: reply };
+      setAiHistory([...nextHistory, modelMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'bot',
+          content: reply,
+          timestamp: new Date(),
+          logId: log_id,
+        },
+      ]);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'bot',
+          content: `エラーが発生しました: ${err?.message || '不明なエラー'}`,
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   const handleSend = async () => {
     if (!inputValue.trim() || isTyping) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputValue.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
+    const text = inputValue.trim();
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() },
+    ]);
     setInputValue('');
     setIsTyping(true);
 
-    // FAQ検索と回答生成
-    try {
-      const result = await searchFAQ(inputValue.trim(), currentPage, currentContext);
-      const answer = typeof result === 'string' ? result : result.answer;
-      const links = typeof result === 'string' ? [] : (result.links || []);
-      
-      // タイピングアニメーションのための遅延
-      setTimeout(() => {
-        const botMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'bot',
-          content: answer,
-          timestamp: new Date(),
-          links: links,
-        };
-        setMessages((prev) => [...prev, botMessage]);
-        setIsTyping(false);
-      }, 500);
-    } catch (error) {
-      console.error('Error searching FAQ:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'bot',
-        content: '申し訳ございません。エラーが発生しました。もう一度お試しください。',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-      setIsTyping(false);
+    if (mode === 'faq') {
+      await handleSendFaq(text);
+    } else {
+      await handleSendAi(text);
     }
   };
 
@@ -100,26 +196,19 @@ export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }:
     }
   };
 
-  const handleReset = () => {
-    setMessages([
-      {
-        id: '1',
-        role: 'bot',
-        content: 'こんにちは！アプリの使い方について何かご質問はありますか？',
-        timestamp: new Date(),
-      },
-    ]);
-  };
-
-  const handleClose = () => {
-    setIsOpen(false);
-    // 閉じたときに履歴をリセット
-    handleReset();
+  const formatTime = (timestamp: Date) => {
+    if (!timestamp) return '-';
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    if (isNaN(date.getTime())) return '-';
+    try {
+      return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '-';
+    }
   };
 
   return (
     <>
-      {/* チャットBOTボタン */}
       {!isOpen && (
         <Button
           onClick={() => setIsOpen(true)}
@@ -130,16 +219,8 @@ export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }:
         </Button>
       )}
 
-      {/* チャットウィンドウ */}
       {isOpen && (
-        <Card 
-          className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col border border-gray-200"
-          onOpenChange={(open) => {
-            if (!open) {
-              handleReset();
-            }
-          }}
-        >
+        <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col border border-gray-200">
           {/* ヘッダー */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-[#5b5fff] text-white rounded-t-lg">
             <div className="flex items-center gap-2">
@@ -167,70 +248,115 @@ export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }:
             </div>
           </div>
 
+          {/* モード切替タブ */}
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => handleModeChange('faq')}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                mode === 'faq'
+                  ? 'text-[#5b5fff] border-b-2 border-[#5b5fff]'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              FAQ
+            </button>
+            <button
+              onClick={() => handleModeChange('ai')}
+              className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                mode === 'ai'
+                  ? 'text-[#5b5fff] border-b-2 border-[#5b5fff]'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              AI Q&A
+            </button>
+          </div>
+
           {/* メッセージエリア */}
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-3 ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
+                  className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {message.role === 'bot' && (
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#5b5fff] flex items-center justify-center">
                       <Bot className="w-5 h-5 text-white" />
                     </div>
                   )}
-                  <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                      message.role === 'user'
-                        ? 'bg-[#5b5fff] text-white'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    {message.links && message.links.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {message.links.map((link, index) => (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              if (link.action.startsWith('navigate:')) {
-                                const [, ...actionParts] = link.action.split(':');
-                                onNavigate?.(actionParts.join(':'), link.params);
-                              } else if (link.action.startsWith('open:')) {
-                                const [, formType] = link.action.split(':');
-                                onOpenForm?.(formType);
-                              }
-                            }}
-                            className={`text-xs px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
-                              message.role === 'user'
-                                ? 'bg-white/20 hover:bg-white/30 text-white'
-                                : 'bg-[#5b5fff] hover:bg-[#4949dd] text-white'
-                            }`}
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            {link.text}
-                          </button>
-                        ))}
+                  <div className="flex flex-col gap-1 max-w-[80%]">
+                    <div
+                      className={`rounded-lg px-4 py-2 ${
+                        message.role === 'user'
+                          ? 'bg-[#5b5fff] text-white'
+                          : 'bg-gray-100 text-gray-900'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      {message.links && message.links.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {message.links.map((link, index) => (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                if (link.action.startsWith('navigate:')) {
+                                  const [, ...parts] = link.action.split(':');
+                                  onNavigate?.(parts.join(':'), link.params);
+                                } else if (link.action.startsWith('open:')) {
+                                  const [, formType] = link.action.split(':');
+                                  onOpenForm?.(formType);
+                                }
+                              }}
+                              className={`text-xs px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                                message.role === 'user'
+                                  ? 'bg-white/20 hover:bg-white/30 text-white'
+                                  : 'bg-[#5b5fff] hover:bg-[#4949dd] text-white'
+                              }`}
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              {link.text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-xs mt-1 opacity-70">{formatTime(message.timestamp)}</p>
+                    </div>
+
+                    {/* AI Q&A モードの bot メッセージにフィードバックボタンを表示 */}
+                    {mode === 'ai' && message.role === 'bot' && message.logId && (
+                      <div className="flex items-center gap-1 pl-1">
+                        <span className="text-xs text-gray-400">役に立ちましたか？</span>
+                        <button
+                          onClick={() => handleFeedback(message.logId!, 'good')}
+                          disabled={!!feedbackSent[message.logId]}
+                          title="役に立った"
+                          className={`p-1 rounded transition-colors ${
+                            feedbackSent[message.logId] === 'good'
+                              ? 'text-green-600'
+                              : feedbackSent[message.logId] === 'bad'
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-gray-400 hover:text-green-600'
+                          }`}
+                        >
+                          <ThumbsUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(message.logId!, 'bad')}
+                          disabled={!!feedbackSent[message.logId]}
+                          title="役に立たなかった"
+                          className={`p-1 rounded transition-colors ${
+                            feedbackSent[message.logId] === 'bad'
+                              ? 'text-red-500'
+                              : feedbackSent[message.logId] === 'good'
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-gray-400 hover:text-red-500'
+                          }`}
+                        >
+                          <ThumbsDown className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     )}
-                    <p className="text-xs mt-1 opacity-70">
-                      {(() => {
-                        if (!message.timestamp) return '-';
-                        const date = message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp);
-                        if (isNaN(date.getTime())) return '-';
-                        try {
-                          return date.toLocaleTimeString('ja-JP', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          });
-                        } catch (e) {
-                          return '-';
-                        }
-                      })()}
-                    </p>
                   </div>
                   {message.role === 'user' && (
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
@@ -265,7 +391,7 @@ export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }:
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="質問を入力してください..."
+                placeholder={mode === 'faq' ? '質問を入力してください...' : '案件について質問してください...'}
                 disabled={isTyping}
                 className="flex-1"
               />
@@ -284,4 +410,3 @@ export function ChatBot({ currentPage, currentContext, onNavigate, onOpenForm }:
     </>
   );
 }
-

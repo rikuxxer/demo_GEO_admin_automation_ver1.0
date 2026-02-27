@@ -1,7 +1,7 @@
 # BigQuery テーブル定義書
 
-**バージョン:** 2.5
-**最終更新日:** 2026年2月24日
+**バージョン:** 2.7
+**最終更新日:** 2026年2月27日
 **データベース:** Google BigQuery  
 **データセット:** `universegeo_dataset`  
 **備考:** 本定義書は `segments.poi_type` 追加後のテーブル定義を反映しています。本番環境におけるフロントエンドのAPI接続状況は [PRODUCTION_API_CONNECTION_STATUS.md](troubleshooting/PRODUCTION_API_CONNECTION_STATUS.md) を参照してください。
@@ -67,6 +67,7 @@ UNIVERSEGEOシステムで使用するBigQueryテーブルの包括的な定義�
 | 11 | `sheet_exports` | スプレッドシートエクスポート履歴 | スプレッドシートへのエクスポート履歴 | `export_id` | `exported_at` | `projects`, `segments` |
 | 12 | `sheet_export_data` | スプレッドシートエクスポートデータ | エクスポートされたデータの詳細 | `export_data_id` | `created_at` | `sheet_exports`, `projects`, `segments`, `pois` |
 | 13 | `report_requests` | レポート作成依頼 | レポート作成依頼を管理するテーブル | `request_id` | `requested_at` | `projects` |
+| 14 | `qa_logs` | AI Q&Aログ | AI Q&Aのやり取りを蓄積。外部ログ取り込み拡張用 `source` フィールド付き | `log_id` | `created_at` | - |
 
 ---
 
@@ -827,6 +828,71 @@ OPTIONS(
 - `project_id`は必須（`projects`テーブルに存在する必要がある）
 - `end_date`は`start_date`より後である必要がある
 - `segment_ids`はJSON配列形式の文字列として保存（例: `["SEG-1", "SEG-2"]`）
+
+---
+
+### 14. qa_logs（AI Q&Aログテーブル）
+
+**説明**: AI Q&Aのやり取りを蓄積するテーブル。`source` フィールドにより将来的に外部チャットアプリ（Slack/Teams等）のログも同一テーブルで管理可能。
+
+**CREATE文**:
+```sql
+CREATE TABLE IF NOT EXISTS `universegeo_dataset.qa_logs` (
+  log_id        STRING    NOT NULL,
+  session_id    STRING    NOT NULL,
+  user_id       STRING,
+  role          STRING    NOT NULL,
+  content       STRING    NOT NULL,
+  created_at    TIMESTAMP NOT NULL,
+  source        STRING    NOT NULL,
+  feedback      STRING,
+  latency_ms    INT64,
+  context_chars INT64,
+  model_id      STRING
+)
+PARTITION BY DATE(created_at)
+OPTIONS (require_partition_filter = false);
+```
+
+**フィールド定義**:
+
+| フィールド名 | データ型 | NULL | 説明 | 例 |
+|------------|---------|------|------|-----|
+| `log_id` | STRING | NO | ログID（主キー、UUID） | `550e8400-e29b-41d4-a716-446655440000` |
+| `session_id` | STRING | NO | チャットセッション単位のグループID | `a1b2c3d4-...` |
+| `user_id` | STRING | YES | ユーザーID（メール等） | `user@example.com` |
+| `role` | STRING | NO | メッセージの送信者 | `user` or `model` |
+| `content` | STRING | NO | メッセージ本文 | `今月配信中の案件は？` |
+| `created_at` | TIMESTAMP | NO | 保存日時（パーティションキー） | `2026-02-27 10:00:00 UTC` |
+| `source` | STRING | NO | ログの発生元（拡張用） | `ai_qa`, `slack`, `teams` |
+| `feedback` | STRING | YES | ユーザー評価（精度検証用） | `good`, `bad`, NULL |
+| `latency_ms` | INT64 | YES | Gemini API 応答時間（ms）。model ロールのみ設定 | `1240` |
+| `context_chars` | INT64 | YES | RAG コンテキストの文字数。model ロールのみ設定 | `8432` |
+| `model_id` | STRING | YES | 使用した Gemini モデル ID。model ロールのみ設定 | `gemini-2.0-flash-001` |
+
+**ビジネスルール**:
+- `log_id` は UUID v4 形式
+- `role` は `user` または `model` のみ
+- `source` は `ai_qa`（システム内 AI Q&A）または外部ツール識別子
+- `feedback`, `latency_ms`, `context_chars`, `model_id` は model ロールのレコードのみ設定（user ロールは NULL）
+- `feedback` は `POST /api/qa/feedback` で後から BQ UPDATE で書き込む
+- RAG コンテキスト取得時は `source = 'ai_qa'` かつ直近90日を対象とする
+
+**精度分析クエリ例**:
+```sql
+-- フィードバック集計（モデル別・日別）
+SELECT
+  DATE(created_at) AS date,
+  model_id,
+  COUNTIF(feedback = 'good') AS good_count,
+  COUNTIF(feedback = 'bad')  AS bad_count,
+  AVG(latency_ms)            AS avg_latency_ms,
+  AVG(context_chars)         AS avg_context_chars
+FROM `universegeo_dataset.qa_logs`
+WHERE role = 'model' AND source = 'ai_qa'
+GROUP BY 1, 2
+ORDER BY 1 DESC;
+```
 
 ---
 
