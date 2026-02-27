@@ -1,19 +1,9 @@
 import { BigQuery } from '@google-cloud/bigquery';
-import { VertexAI } from '@google-cloud/vertexai';
+import { VertexAI, FunctionDeclarationSchemaType } from '@google-cloud/vertexai';
+import type { Tool, Part } from '@google-cloud/vertexai';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-
-// knowledge-base.md を起動時に1回だけ読み込む（__dirname は dev=src/ prod=dist/ どちらでも ../knowledge-base.md で到達）
-function loadKnowledgeBase(): string {
-  try {
-    return readFileSync(join(__dirname, '../knowledge-base.md'), 'utf-8');
-  } catch {
-    return '';
-  }
-}
-
-const KNOWLEDGE_BASE = loadKnowledgeBase();
 
 export interface QaMessage {
   role: 'user' | 'model';
@@ -26,7 +16,7 @@ export interface ChatResult {
   context_chars: number;
 }
 
-const BQ_LOCATION: string = (process.env.BQ_LOCATION?.trim()) || 'asia-northeast1';
+const BQ_LOCATION: string = process.env.BQ_LOCATION?.trim() || 'asia-northeast1';
 const VERTEX_AI_LOCATION = process.env.VERTEX_AI_LOCATION || 'us-central1';
 const VERTEX_AI_MODEL = process.env.VERTEX_AI_MODEL || 'gemini-2.0-flash-001';
 
@@ -48,208 +38,303 @@ function getProjectId(): string {
   return id;
 }
 
-// bigquery-client.ts の getDatasetId() と同じ正規化ロジック
 function getDatasetId(): string {
   let datasetId = (process.env.BQ_DATASET || 'universegeo_dataset').trim();
   if (datasetId.includes('.')) {
     const parts = datasetId.split('.');
-    if (parts.length > 1) {
-      const firstPart = parts[0];
-      if (/^[a-z0-9-]+$/.test(firstPart) && firstPart.length > 5) {
-        datasetId = parts.slice(1).join('.');
-      }
+    if (parts.length > 1 && /^[a-z0-9-]+$/.test(parts[0]) && parts[0].length > 5) {
+      datasetId = parts.slice(1).join('.');
     }
   }
   return datasetId;
 }
 
+function loadKnowledgeBase(): string {
+  try {
+    return readFileSync(join(__dirname, '../knowledge-base.md'), 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
+const KNOWLEDGE_BASE = loadKnowledgeBase();
+
 export function isQaConfigured(): boolean {
   return !!(process.env.GCP_PROJECT_ID?.trim());
 }
 
-async function buildContext(): Promise<string> {
-  const projectId = getProjectId();
-  const datasetId = getDatasetId();
+// ==================== Tool definitions ====================
+
+const TOOLS: Tool[] = [
+  {
+    functionDeclarations: [
+      {
+        name: 'search_projects',
+        description: '案件を検索する。ステータス・広告主名・配信期間で絞り込み可能。引数を省略すると全件取得（最大200件）',
+        parameters: {
+          type: FunctionDeclarationSchemaType.OBJECT,
+          properties: {
+            status: {
+              type: FunctionDeclarationSchemaType.STRING,
+              description: 'ステータスで絞り込み。例: draft, in_progress, completed, cancelled',
+            },
+            advertiser_name: {
+              type: FunctionDeclarationSchemaType.STRING,
+              description: '広告主名の部分一致検索',
+            },
+            delivery_from: {
+              type: FunctionDeclarationSchemaType.STRING,
+              description: '配信開始日以降で絞り込み（YYYY-MM-DD）',
+            },
+            delivery_to: {
+              type: FunctionDeclarationSchemaType.STRING,
+              description: '配信終了日以前で絞り込み（YYYY-MM-DD）',
+            },
+          },
+        },
+      },
+      {
+        name: 'get_segments',
+        description: '指定した案件のセグメント一覧を取得する。データ連携ステータス・連携依頼日・連携予定日を含む',
+        parameters: {
+          type: FunctionDeclarationSchemaType.OBJECT,
+          properties: {
+            project_id: {
+              type: FunctionDeclarationSchemaType.STRING,
+              description: '取得対象の案件ID',
+            },
+          },
+          required: ['project_id'],
+        },
+      },
+      {
+        name: 'search_messages',
+        description: 'プロジェクトメッセージを検索する',
+        parameters: {
+          type: FunctionDeclarationSchemaType.OBJECT,
+          properties: {
+            project_id: {
+              type: FunctionDeclarationSchemaType.STRING,
+              description: '案件IDで絞り込み（省略可）',
+            },
+            keyword: {
+              type: FunctionDeclarationSchemaType.STRING,
+              description: 'メッセージ本文のキーワード検索（省略可）',
+            },
+            limit: {
+              type: FunctionDeclarationSchemaType.NUMBER,
+              description: '取得件数上限（デフォルト50、最大200）',
+            },
+          },
+        },
+      },
+      {
+        name: 'get_change_history',
+        description: '変更履歴を取得する',
+        parameters: {
+          type: FunctionDeclarationSchemaType.OBJECT,
+          properties: {
+            project_id: {
+              type: FunctionDeclarationSchemaType.STRING,
+              description: '案件IDで絞り込み（省略すると全案件）',
+            },
+            days: {
+              type: FunctionDeclarationSchemaType.NUMBER,
+              description: '直近N日分を取得（デフォルト90）',
+            },
+          },
+        },
+      },
+    ],
+  },
+];
+
+// ==================== Tool execution ====================
+
+async function execSearchProjects(args: Record<string, any>): Promise<string> {
+  const pid = getProjectId();
+  const did = getDatasetId();
   const bq = getClient();
-  const today = new Date().toISOString().split('T')[0];
 
-  const sections: string[] = [`# UNIVERSEGEO 案件データ（${today} 時点）`];
+  const conditions: string[] = [];
+  const params: Record<string, any> = {};
 
-  // 1. 案件一覧（セグメント件数付き）
-  try {
-    const [projectRows] = await bq.query({
-      query: `
-        SELECT
-          p.project_id,
-          p.advertiser_name,
-          p.status,
-          p.delivery_start,
-          p.delivery_end,
-          p.sales_person,
-          COUNT(s.segment_id) AS segment_count
-        FROM \`${projectId}.${datasetId}.projects\` p
-        LEFT JOIN \`${projectId}.${datasetId}.segments\` s ON p.project_id = s.project_id
-        GROUP BY p.project_id, p.advertiser_name, p.status, p.delivery_start, p.delivery_end, p.sales_person
-        ORDER BY p._register_datetime DESC
-        LIMIT 200
-      `,
-      location: BQ_LOCATION,
-    });
-
-    if (projectRows.length > 0) {
-      sections.push('\n## 案件一覧');
-      sections.push('| project_id | 広告主名 | ステータス | 配信開始 | 配信終了 | 担当者 | セグメント数 |');
-      sections.push('|-----------|---------|----------|---------|---------|-------|------------|');
-      for (const r of projectRows) {
-        const start = r.delivery_start ? String(r.delivery_start).split('T')[0] : '-';
-        const end = r.delivery_end ? String(r.delivery_end).split('T')[0] : '-';
-        sections.push(
-          `| ${r.project_id} | ${r.advertiser_name || '-'} | ${r.status || '-'} | ${start} | ${end} | ${r.sales_person || '-'} | ${r.segment_count ?? 0} |`
-        );
-      }
-    }
-  } catch (_) {
-    // テーブル未作成等は無視
+  if (args.status) {
+    conditions.push('p.status = @status');
+    params.status = args.status;
+  }
+  if (args.advertiser_name) {
+    conditions.push('LOWER(p.advertiser_name) LIKE LOWER(@advertiser_name)');
+    params.advertiser_name = `%${args.advertiser_name}%`;
+  }
+  if (args.delivery_from) {
+    conditions.push('p.delivery_start >= @delivery_from');
+    params.delivery_from = args.delivery_from;
+  }
+  if (args.delivery_to) {
+    conditions.push('p.delivery_end <= @delivery_to');
+    params.delivery_to = args.delivery_to;
   }
 
-  // 2. セグメント詳細（連携ステータス・連携日付含む）
-  try {
-    const [segRows] = await bq.query({
-      query: `
-        SELECT
-          segment_id,
-          project_id,
-          segment_name,
-          data_link_status,
-          data_link_request_date,
-          data_link_scheduled_date,
-          segment_registered_at
-        FROM \`${projectId}.${datasetId}.segments\`
-        ORDER BY segment_registered_at DESC
-        LIMIT 500
-      `,
-      location: BQ_LOCATION,
-    });
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const [rows] = await bq.query({
+    query: `
+      SELECT p.project_id, p.advertiser_name, p.status,
+             p.delivery_start, p.delivery_end, p.sales_person,
+             COUNT(s.segment_id) AS segment_count
+      FROM \`${pid}.${did}.projects\` p
+      LEFT JOIN \`${pid}.${did}.segments\` s ON p.project_id = s.project_id
+      ${where}
+      GROUP BY p.project_id, p.advertiser_name, p.status, p.delivery_start, p.delivery_end, p.sales_person
+      ORDER BY p._register_datetime DESC
+      LIMIT 200
+    `,
+    params: Object.keys(params).length ? params : undefined,
+    location: BQ_LOCATION,
+  });
 
-    if (segRows.length > 0) {
-      sections.push('\n## セグメント一覧（連携情報含む）');
-      sections.push('| segment_id | project_id | セグメント名 | 連携ステータス | 連携依頼日 | 連携予定日 |');
-      sections.push('|-----------|-----------|------------|-------------|---------|---------|');
-      for (const r of segRows) {
-        const reqDate = r.data_link_request_date ? String(r.data_link_request_date).split('T')[0] : '-';
-        const schDate = r.data_link_scheduled_date ? String(r.data_link_scheduled_date).split('T')[0] : '-';
-        sections.push(
-          `| ${r.segment_id} | ${r.project_id} | ${r.segment_name || '-'} | ${r.data_link_status || '-'} | ${reqDate} | ${schDate} |`
-        );
-      }
-    }
-  } catch (_) {
-    // ignore
+  if (rows.length === 0) return '該当する案件はありません。';
+
+  const lines = ['| project_id | 広告主名 | ステータス | 配信開始 | 配信終了 | 担当者 | セグメント数 |',
+                 '|-----------|---------|----------|---------|---------|-------|------------|'];
+  for (const r of rows) {
+    const start = r.delivery_start ? String(r.delivery_start).split('T')[0] : '-';
+    const end   = r.delivery_end   ? String(r.delivery_end).split('T')[0]   : '-';
+    lines.push(`| ${r.project_id} | ${r.advertiser_name || '-'} | ${r.status || '-'} | ${start} | ${end} | ${r.sales_person || '-'} | ${r.segment_count ?? 0} |`);
   }
-
-  // 3. プロジェクトメッセージ履歴（全件）
-  try {
-    const [msgRows] = await bq.query({
-      query: `
-        SELECT
-          m.project_id,
-          m.sender_name,
-          m.sender_role,
-          m.content,
-          m.timestamp
-        FROM \`${projectId}.${datasetId}.messages\` m
-        ORDER BY m.timestamp ASC
-        LIMIT 500
-      `,
-      location: BQ_LOCATION,
-    });
-
-    if (msgRows.length > 0) {
-      sections.push('\n## プロジェクトメッセージ履歴（全件）');
-      for (const r of msgRows) {
-        const ts = r.timestamp ? String(r.timestamp).replace('T', ' ').substring(0, 16) : '-';
-        sections.push(
-          `[${ts}] ${r.project_id} / ${r.sender_name || '-'}（${r.sender_role || '-'}）: ${r.content || ''}`
-        );
-      }
-    }
-  } catch (_) {
-    // ignore
-  }
-
-  // 4. 変更履歴（直近90日）
-  try {
-    const [histRows] = await bq.query({
-      query: `
-        SELECT
-          project_id,
-          entity_type,
-          entity_id,
-          action,
-          changed_by,
-          changed_at
-        FROM \`${projectId}.${datasetId}.change_history\`
-        WHERE changed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
-        ORDER BY changed_at ASC
-        LIMIT 300
-      `,
-      location: BQ_LOCATION,
-    });
-
-    if (histRows.length > 0) {
-      sections.push('\n## 変更履歴（直近90日）');
-      for (const r of histRows) {
-        const ts = r.changed_at ? String(r.changed_at).split('T')[0] : '-';
-        sections.push(
-          `[${ts}] ${r.project_id} ${r.entity_type}(${r.entity_id}) ${r.action} by ${r.changed_by || '-'}`
-        );
-      }
-    }
-  } catch (_) {
-    // ignore
-  }
-
-  // 5. 過去のQ&A履歴（直近90日・最大200件）
-  try {
-    const [qaRows] = await bq.query({
-      query: `
-        SELECT role, content, created_at
-        FROM \`${projectId}.${datasetId}.qa_logs\`
-        WHERE source = 'ai_qa'
-          AND created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 90 DAY)
-        ORDER BY created_at ASC
-        LIMIT 200
-      `,
-      location: BQ_LOCATION,
-    });
-
-    if (qaRows.length > 0) {
-      sections.push('\n## 過去のQ&A履歴（直近90日）');
-      for (const r of qaRows) {
-        const ts = r.created_at ? String(r.created_at).replace('T', ' ').substring(0, 16) : '-';
-        sections.push(`[${ts}] ${r.role}: ${r.content}`);
-      }
-    }
-  } catch (_) {
-    // qa_logs テーブル未作成の場合は無視
-  }
-
-  return sections.join('\n');
+  return lines.join('\n');
 }
+
+async function execGetSegments(args: Record<string, any>): Promise<string> {
+  const pid = getProjectId();
+  const did = getDatasetId();
+  const bq = getClient();
+
+  const [rows] = await bq.query({
+    query: `
+      SELECT segment_id, segment_name, data_link_status,
+             data_link_request_date, data_link_scheduled_date, segment_registered_at
+      FROM \`${pid}.${did}.segments\`
+      WHERE project_id = @project_id
+      ORDER BY segment_registered_at DESC
+    `,
+    params: { project_id: args.project_id },
+    location: BQ_LOCATION,
+  });
+
+  if (rows.length === 0) return `案件 ${args.project_id} にセグメントはありません。`;
+
+  const lines = ['| segment_id | セグメント名 | 連携ステータス | 連携依頼日 | 連携予定日 |',
+                 '|-----------|------------|-------------|---------|---------|'];
+  for (const r of rows) {
+    const req = r.data_link_request_date   ? String(r.data_link_request_date).split('T')[0]   : '-';
+    const sch = r.data_link_scheduled_date ? String(r.data_link_scheduled_date).split('T')[0] : '-';
+    lines.push(`| ${r.segment_id} | ${r.segment_name || '-'} | ${r.data_link_status || '-'} | ${req} | ${sch} |`);
+  }
+  return lines.join('\n');
+}
+
+async function execSearchMessages(args: Record<string, any>): Promise<string> {
+  const pid = getProjectId();
+  const did = getDatasetId();
+  const bq = getClient();
+  const limit = Math.min(Number(args.limit) || 50, 200);
+
+  const conditions: string[] = [];
+  const params: Record<string, any> = {};
+
+  if (args.project_id) {
+    conditions.push('project_id = @project_id');
+    params.project_id = args.project_id;
+  }
+  if (args.keyword) {
+    conditions.push('LOWER(content) LIKE LOWER(@keyword)');
+    params.keyword = `%${args.keyword}%`;
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const [rows] = await bq.query({
+    query: `
+      SELECT project_id, sender_name, sender_role, content, timestamp
+      FROM \`${pid}.${did}.messages\`
+      ${where}
+      ORDER BY timestamp DESC
+      LIMIT ${limit}
+    `,
+    params: Object.keys(params).length ? params : undefined,
+    location: BQ_LOCATION,
+  });
+
+  if (rows.length === 0) return '該当するメッセージはありません。';
+
+  return rows.map((r: any) => {
+    const ts = r.timestamp ? String(r.timestamp).replace('T', ' ').substring(0, 16) : '-';
+    return `[${ts}] ${r.project_id} / ${r.sender_name || '-'}（${r.sender_role || '-'}）: ${r.content || ''}`;
+  }).join('\n');
+}
+
+async function execGetChangeHistory(args: Record<string, any>): Promise<string> {
+  const pid = getProjectId();
+  const did = getDatasetId();
+  const bq = getClient();
+  const days = Number(args.days) || 90;
+
+  const conditions: string[] = [`changed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)`];
+  const params: Record<string, any> = {};
+
+  if (args.project_id) {
+    conditions.push('project_id = @project_id');
+    params.project_id = args.project_id;
+  }
+
+  const [rows] = await bq.query({
+    query: `
+      SELECT project_id, entity_type, entity_id, action, changed_by, changed_at
+      FROM \`${pid}.${did}.change_history\`
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY changed_at DESC
+      LIMIT 300
+    `,
+    params: Object.keys(params).length ? params : undefined,
+    location: BQ_LOCATION,
+  });
+
+  if (rows.length === 0) return '該当する変更履歴はありません。';
+
+  return rows.map((r: any) => {
+    const ts = r.changed_at ? String(r.changed_at).split('T')[0] : '-';
+    return `[${ts}] ${r.project_id} ${r.entity_type}(${r.entity_id}) ${r.action} by ${r.changed_by || '-'}`;
+  }).join('\n');
+}
+
+async function executeTool(name: string, args: Record<string, any>): Promise<string> {
+  try {
+    switch (name) {
+      case 'search_projects':   return await execSearchProjects(args);
+      case 'get_segments':      return await execGetSegments(args);
+      case 'search_messages':   return await execSearchMessages(args);
+      case 'get_change_history': return await execGetChangeHistory(args);
+      default: return `未知のツール: ${name}`;
+    }
+  } catch (err: any) {
+    return `ツール実行エラー（${name}）: ${err?.message}`;
+  }
+}
+
+// ==================== Chat ====================
 
 export async function chatWithContext(messages: QaMessage[]): Promise<ChatResult> {
   const projectId = getProjectId();
-  const context = await buildContext();
 
   const vertexai = new VertexAI({ project: projectId, location: VERTEX_AI_LOCATION });
   const model = vertexai.getGenerativeModel({
     model: VERTEX_AI_MODEL,
     systemInstruction: {
       role: 'system',
-      parts: [
-        {
-          text: `あなたは UNIVERSEGEO（位置情報広告配信管理システム）のアシスタントです。
+      parts: [{
+        text: `あなたは UNIVERSEGEO（位置情報広告配信管理システム）のアシスタントです。
 案件状況・配信設定・アプリの操作方法など、どんな質問にも日本語で答えてください。
+データが必要なときはツールを呼び出して取得してください。
 回答する際は、根拠となる案件ID・広告主名・日付など具体的なデータを引用してください。
 データに存在しない情報は「確認できません」と答えてください。
 
@@ -273,28 +358,24 @@ export async function chatWithContext(messages: QaMessage[]): Promise<ChatResult
 - **手動登録**: 地点名と住所または緯度経度を個別に入力
 - **CSV一括登録**: Excelファイルをアップロードして一括登録（1行目ヘッダー、UTF-8形式）
 - **表形式コピペ**: ExcelやGoogleスプレッドシートからコピーして貼り付け
-- 住所から「緯度経度取得」ボタンで座標を自動取得可能
 
 ### TG地点と来店計測地点の違い
 - **TG地点**: セグメントごとに管理。地点格納依頼後は編集不可
-- **来店計測地点**: セグメントに従属しない。地点格納依頼後も編集可能。計測地点グループでグループ分け可能
+- **来店計測地点**: セグメントに従属しない。地点格納依頼後も編集可能
 
 ### ステータス管理
-- **地点格納依頼**: セグメント詳細の「地点格納依頼」ボタン → ステータスが「格納対応中」に変わる。TG地点は以後編集不可
-- **データ連携依頼**: 「データ連携依頼」ボタン → ステータスが「連携依頼済」に変わる。その後管理部が連携を実行
+- **地点格納依頼**: 「地点格納依頼」ボタン → ステータスが「格納対応中」に変わる
+- **データ連携依頼**: 「データ連携依頼」ボタン → ステータスが「連携依頼済」に変わる
 
 ### よくあるトラブル
 - **地点が表示されない**: TG地点/来店計測地点タブの切り替え、グループフィルター、ページネーションを確認
-- **編集できない**: TG地点で格納依頼済みの場合は修正依頼が必要。来店計測地点は格納依頼後も編集可能
-- **CSVエラー**: ファイル形式（.xlsx/.csv）・必須項目（地点名＋住所 or 緯度経度）・文字コード（UTF-8）を確認
+- **編集できない**: TG地点で格納依頼済みの場合は修正依頼が必要
+- **CSVエラー**: ファイル形式（.xlsx/.csv）・必須項目・文字コード（UTF-8）を確認
 
 ---
 
-${KNOWLEDGE_BASE ? `## 追加ナレッジ\n\n${KNOWLEDGE_BASE}\n\n---\n\n` : ''}## 最新の案件データ
-
-${context}`,
-        },
-      ],
+${KNOWLEDGE_BASE ? `## 追加ナレッジ\n\n${KNOWLEDGE_BASE}\n\n---\n\n` : ''}`,
+      }],
     },
   });
 
@@ -304,21 +385,43 @@ ${context}`,
   }));
 
   const lastMessage = messages[messages.length - 1];
-  const chat = model.startChat({ history });
+  const chat = model.startChat({ history, tools: TOOLS });
 
   const t0 = Date.now();
-  const result = await chat.sendMessage(lastMessage.content);
+  let result = await chat.sendMessage(lastMessage.content);
+  let totalToolChars = 0;
+
+  // Function calling ループ（Gemini がツール呼び出しを止めるまで繰り返す）
+  for (let i = 0; i < 10; i++) {
+    const parts = result.response.candidates?.[0]?.content?.parts ?? [];
+    const callParts = parts.filter((p: any) => p.functionCall);
+    if (callParts.length === 0) break;
+
+    const responseParts: Part[] = await Promise.all(
+      callParts.map(async (p: any) => {
+        const output = await executeTool(p.functionCall.name, p.functionCall.args ?? {});
+        totalToolChars += output.length;
+        return {
+          functionResponse: {
+            name: p.functionCall.name,
+            response: { result: output },
+          },
+        } as Part;
+      })
+    );
+
+    result = await chat.sendMessage(responseParts);
+  }
+
   const latency_ms = Date.now() - t0;
+  const parts = result.response.candidates?.[0]?.content?.parts ?? [];
+  const reply = parts.filter((p: any) => p.text).map((p: any) => p.text).join('') || '回答を取得できませんでした。';
 
-  const response = await result.response;
-  const reply =
-    response.candidates?.[0]?.content?.parts?.[0]?.text ?? '回答を取得できませんでした。';
-
-  return { reply, latency_ms, context_chars: context.length };
+  return { reply, latency_ms, context_chars: totalToolChars };
 }
 
-// 直前の user/model ペアを qa_logs に保存する
-// modelLogId はルート側で事前生成して渡す（レスポンスと DB を同一 ID に保つため）
+// ==================== Logging ====================
+
 export async function saveQaLogs(
   sessionId: string,
   userId: string,
