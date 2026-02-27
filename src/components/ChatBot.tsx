@@ -18,7 +18,7 @@ interface ChatBotProps {
 }
 
 const INITIAL_MESSAGE =
-  '案件の状況・配信設定・アプリの使い方について何でも聞いてください。\n例：「今月配信中の案件は？」「地点の一括登録方法は？」';
+  '案件の状況・配信設定・アプリの使い方・GEOプロダクトについて何でも聞いてください。\n\n【案件・データ】\n・今月配信中の案件は？\n・○○社のデータ連携日はいつ？\n\n【アプリ操作】\n・地点の一括登録方法は？\n・TG地点と来店計測地点の違いは？\n\n【GEOプロダクト】\n・UNIVERSE GEOと他社のジオターゲティングの違いは？\n・来店計測のレギュレーションを教えて';
 
 export function ChatBot({ userId }: ChatBotProps) {
   const [isOpen, setIsOpen] = useState(false);
