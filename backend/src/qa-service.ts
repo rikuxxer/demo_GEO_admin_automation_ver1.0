@@ -1,6 +1,19 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { VertexAI } from '@google-cloud/vertexai';
 import { randomUUID } from 'crypto';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+// knowledge-base.md を起動時に1回だけ読み込む（__dirname は dev=src/ prod=dist/ どちらでも ../knowledge-base.md で到達）
+function loadKnowledgeBase(): string {
+  try {
+    return readFileSync(join(__dirname, '../knowledge-base.md'), 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
+const KNOWLEDGE_BASE = loadKnowledgeBase();
 
 export interface QaMessage {
   role: 'user' | 'model';
@@ -99,7 +112,42 @@ async function buildContext(): Promise<string> {
     // テーブル未作成等は無視
   }
 
-  // 2. プロジェクトメッセージ履歴（全件）
+  // 2. セグメント詳細（連携ステータス・連携日付含む）
+  try {
+    const [segRows] = await bq.query({
+      query: `
+        SELECT
+          segment_id,
+          project_id,
+          segment_name,
+          data_link_status,
+          data_link_request_date,
+          data_link_scheduled_date,
+          segment_registered_at
+        FROM \`${projectId}.${datasetId}.segments\`
+        ORDER BY segment_registered_at DESC
+        LIMIT 500
+      `,
+      location: BQ_LOCATION,
+    });
+
+    if (segRows.length > 0) {
+      sections.push('\n## セグメント一覧（連携情報含む）');
+      sections.push('| segment_id | project_id | セグメント名 | 連携ステータス | 連携依頼日 | 連携予定日 |');
+      sections.push('|-----------|-----------|------------|-------------|---------|---------|');
+      for (const r of segRows) {
+        const reqDate = r.data_link_request_date ? String(r.data_link_request_date).split('T')[0] : '-';
+        const schDate = r.data_link_scheduled_date ? String(r.data_link_scheduled_date).split('T')[0] : '-';
+        sections.push(
+          `| ${r.segment_id} | ${r.project_id} | ${r.segment_name || '-'} | ${r.data_link_status || '-'} | ${reqDate} | ${schDate} |`
+        );
+      }
+    }
+  } catch (_) {
+    // ignore
+  }
+
+  // 3. プロジェクトメッセージ履歴（全件）
   try {
     const [msgRows] = await bq.query({
       query: `
@@ -129,7 +177,7 @@ async function buildContext(): Promise<string> {
     // ignore
   }
 
-  // 3. 変更履歴（直近90日）
+  // 4. 変更履歴（直近90日）
   try {
     const [histRows] = await bq.query({
       query: `
@@ -161,7 +209,7 @@ async function buildContext(): Promise<string> {
     // ignore
   }
 
-  // 4. 過去のQ&A履歴（直近90日・最大200件）
+  // 5. 過去のQ&A履歴（直近90日・最大200件）
   try {
     const [qaRows] = await bq.query({
       query: `
@@ -242,7 +290,7 @@ export async function chatWithContext(messages: QaMessage[]): Promise<ChatResult
 
 ---
 
-## 最新の案件データ
+${KNOWLEDGE_BASE ? `## 追加ナレッジ\n\n${KNOWLEDGE_BASE}\n\n---\n\n` : ''}## 最新の案件データ
 
 ${context}`,
         },

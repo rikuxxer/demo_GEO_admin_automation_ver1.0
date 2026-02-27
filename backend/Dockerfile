@@ -43,6 +43,9 @@ RUN npm ci --omit=dev || npm install --production
 # ビルド済みファイルをコピー
 COPY --from=builder /app/dist ./dist
 
+# ナレッジベースファイルをコピー（AI アシスタントが参照する静的知識）
+COPY knowledge-base.md ./
+
 # ポートを公開
 EXPOSE 8080
 
