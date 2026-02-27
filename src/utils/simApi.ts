@@ -1,6 +1,6 @@
 import type { SimConditions, SimEstimateResult } from '@/types/schema';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function getSimStatus(): Promise<{ configured: boolean }> {
   const res = await fetch(`${API_BASE}/api/sim/status`);
