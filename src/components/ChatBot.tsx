@@ -148,7 +148,7 @@ export function ChatBot({ userId }: ChatBotProps) {
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-[#5b5fff] text-white rounded-t-lg">
             <div className="flex items-center gap-2">
               <Bot className="w-5 h-5" />
-              <h3 className="font-semibold">AIアシスタント</h3>
+              <h3 className="font-semibold">AIGEO アシスタント</h3>
             </div>
             <div className="flex items-center gap-2">
               <Button
