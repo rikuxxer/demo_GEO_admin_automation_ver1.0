@@ -3,7 +3,6 @@ import { MessageCircle, X, Send, Bot, User, ExternalLink, RotateCcw, ThumbsUp, T
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
-import { ScrollArea } from './ui/scroll-area';
 import { searchFAQ, type FAQLink } from '../utils/faqDatabase';
 import { postQaChat, postQaFeedback, type QaMessage } from '../utils/qaApi';
 
@@ -42,12 +41,14 @@ export function ChatBot({ currentPage, currentContext, userId, onNavigate, onOpe
   const [isTyping, setIsTyping] = useState(false);
   // フィードバック送信済みの log_id を管理（重複送信防止）
   const [feedbackSent, setFeedbackSent] = useState<Record<string, 'good' | 'bad'>>({});
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sessionIdRef = useRef<string>(crypto.randomUUID());
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -273,7 +274,7 @@ export function ChatBot({ currentPage, currentContext, userId, onNavigate, onOpe
           </div>
 
           {/* メッセージエリア */}
-          <ScrollArea className="flex-1 p-4">
+          <div ref={scrollAreaRef} className="flex-1 p-4 overflow-y-auto">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div
@@ -379,9 +380,8 @@ export function ChatBot({ currentPage, currentContext, userId, onNavigate, onOpe
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
+          </div>
 
           {/* 入力エリア */}
           <div className="p-4 border-t border-gray-200">
