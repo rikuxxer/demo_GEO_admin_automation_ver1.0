@@ -458,7 +458,18 @@ export async function createProject(project: any): Promise<void> {
 
 export async function updateProject(project_id: string, updates: any): Promise<void> {
   const currentProjectId = validateProjectId();
-  const setClause = Object.keys(updates)
+
+  const processedUpdates = { ...updates };
+  const dateFields = ['delivery_start_date', 'delivery_end_date'];
+  for (const field of dateFields) {
+    if (field in processedUpdates) {
+      processedUpdates[field] = processedUpdates[field]
+        ? formatDateForBigQuery(processedUpdates[field])
+        : null;
+    }
+  }
+
+  const setClause = Object.keys(processedUpdates)
     .map(key => `${key} = @${key}`)
     .join(', ');
 
@@ -469,9 +480,16 @@ export async function updateProject(project_id: string, updates: any): Promise<v
     WHERE project_id = @project_id
   `;
 
+  const allParams = { project_id, ...processedUpdates };
+  const paramTypes: Record<string, string | string[]> = {};
+  for (const field of dateFields) {
+    if (field in allParams) paramTypes[field] = 'DATE';
+  }
+
   await initializeBigQueryClient().query({
     query,
-    params: { project_id, ...updates },
+    params: allParams,
+    ...(Object.keys(paramTypes).length > 0 ? { types: paramTypes } : {}),
     location: BQ_LOCATION,
   });
 }

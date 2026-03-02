@@ -208,7 +208,16 @@ export async function updateEditRequest(request_id: string, updates: any): Promi
   if (updates.changes != null) { setParts.push('changes = @changes'); params.changes = typeof updates.changes === 'string' ? updates.changes : JSON.stringify(updates.changes); }
   if (setParts.length === 0) return;
   const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.edit_requests\` SET ${setParts.join(', ')} WHERE request_id = @request_id`;
-  await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
+
+  const paramTypes: Record<string, string> = {};
+  if ('reviewed_at' in params) paramTypes.reviewed_at = 'TIMESTAMP';
+
+  await initializeBigQueryClient().query({
+    query,
+    params,
+    ...(Object.keys(paramTypes).length > 0 ? { types: paramTypes } : {}),
+    location: BQ_LOCATION,
+  });
 }
 
 export async function deleteEditRequest(request_id: string): Promise<void> {
@@ -274,12 +283,16 @@ export async function updateVisitMeasurementGroup(group_id: string, updates: any
   params.updated_at = formatTimestampForBigQuery(new Date());
   const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\` SET ${setClause}, updated_at = @updated_at WHERE group_id = @group_id`;
 
-  const paramTypes: Record<string, string[]> = {};
+  const paramTypes: Record<string, string | string[]> = {};
   for (const [key, value] of Object.entries(params)) {
     if (Array.isArray(value)) {
       paramTypes[key] = ['STRING'];
     }
   }
+  if ('extraction_start_date' in params) paramTypes.extraction_start_date = 'DATE';
+  if ('extraction_end_date' in params) paramTypes.extraction_end_date = 'DATE';
+  if ('detection_time_start' in params) paramTypes.detection_time_start = 'TIME';
+  if ('detection_time_end' in params) paramTypes.detection_time_end = 'TIME';
 
   await initializeBigQueryClient().query({
     query,
@@ -470,7 +483,19 @@ export async function updateReportRequest(request_id: string, updates: any): Pro
   if (setParts.length === 0) return;
 
   const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.report_requests\` SET ${setParts.join(', ')}, updated_at = CURRENT_TIMESTAMP() WHERE request_id = @request_id`;
-  await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
+
+  const paramTypes: Record<string, string | string[]> = {};
+  if ('start_date' in params) paramTypes.start_date = 'DATE';
+  if ('end_date' in params) paramTypes.end_date = 'DATE';
+  if ('reviewed_at' in params) paramTypes.reviewed_at = 'TIMESTAMP';
+  if ('completed_at' in params) paramTypes.completed_at = 'TIMESTAMP';
+
+  await initializeBigQueryClient().query({
+    query,
+    params,
+    ...(Object.keys(paramTypes).length > 0 ? { types: paramTypes } : {}),
+    location: BQ_LOCATION,
+  });
 }
 
 // ==================== 変更履歴 (change_history) ====================

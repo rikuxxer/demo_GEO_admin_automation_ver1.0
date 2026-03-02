@@ -133,7 +133,15 @@ export async function createUser(user: any): Promise<void> {
 
 export async function updateUser(user_id: string, updates: any): Promise<void> {
   const currentProjectId = validateProjectId();
-  const setClause = Object.keys(updates)
+
+  const processedUpdates = { ...updates };
+  if ('last_login' in processedUpdates) {
+    processedUpdates.last_login = processedUpdates.last_login
+      ? formatTimestampForBigQuery(processedUpdates.last_login)
+      : null;
+  }
+
+  const setClause = Object.keys(processedUpdates)
     .map(key => `${key} = @${key}`)
     .join(', ');
 
@@ -144,9 +152,14 @@ export async function updateUser(user_id: string, updates: any): Promise<void> {
     WHERE user_id = @user_id
   `;
 
+  const allParams = { user_id, ...processedUpdates };
+  const paramTypes: Record<string, string | string[]> = {};
+  if ('last_login' in allParams) paramTypes.last_login = 'TIMESTAMP';
+
   await initializeBigQueryClient().query({
     query,
-    params: { user_id, ...updates },
+    params: allParams,
+    ...(Object.keys(paramTypes).length > 0 ? { types: paramTypes } : {}),
     location: BQ_LOCATION,
   });
 }
