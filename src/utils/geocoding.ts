@@ -198,6 +198,10 @@ const GOOGLE_MAPS_API_KEY =
   'YOUR_API_KEY_HERE';
 const USE_MOCK_DATA = !GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'YOUR_API_KEY_HERE';
 
+export function isGeocodingConfigured(): boolean {
+  return !USE_MOCK_DATA;
+}
+
 // ジオコーディング結果のキャッシュ（メモリ内）
 // APIコストを削減するため、同じ住所に対するリクエストを避ける
 // 注意: ブラウザをリロードするとキャッシュはクリアされます
@@ -238,9 +242,7 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
 
   // モックデータを使用
   if (USE_MOCK_DATA) {
-    const result = await geocodeAddressMock(normalizedAddress);
-    geocodeCache.set(normalizedAddress, result);
-    return result;
+    throw new Error('Google Maps APIキーが設定されていないため、緯度経度を取得できません。管理者に連絡してください。');
   }
 
   // Google Maps Geocoding API を使用
@@ -249,7 +251,12 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GOOGLE_MAPS_API_KEY}&language=ja`;
     
     console.log(`🌐 Geocoding API request: "${normalizedAddress}"`);
-    const response = await fetch(url);
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch {
+      throw new Error('ネットワークエラーが発生しました。インターネット接続を確認してください');
+    }
     const data = await response.json();
 
     if (data.status === 'OK' && data.results && data.results.length > 0) {
@@ -281,8 +288,14 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
       throw new Error('住所が見つかりませんでした');
     } else if (data.status === 'OVER_QUERY_LIMIT') {
       throw new Error('API利用制限に達しました。しばらくしてから再度お試しください');
+    } else if (data.status === 'REQUEST_DENIED') {
+      throw new Error('APIキーが無効または制限されています。管理者に連絡してください');
+    } else if (data.status === 'INVALID_REQUEST') {
+      throw new Error('住所の形式が正しくありません');
+    } else if (data.status === 'UNKNOWN_ERROR') {
+      throw new Error('サーバーエラーが発生しました。しばらくしてから再度お試しください');
     } else {
-      throw new Error(`Geocoding エラー: ${data.status}`);
+      throw new Error('緯度経度の取得に失敗しました');
     }
   } catch (error) {
     console.error('Geocoding error:', error);
