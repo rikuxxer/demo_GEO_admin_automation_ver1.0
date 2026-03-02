@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Label } from './ui/label';
@@ -297,11 +298,19 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
         console.log('✅ セグメント登録完了:', createdSegment);
       }
 
-      // 2.5. 来店計測地点グループを読み込み（グループ名とIDのマップを作成）
+      // 2.5. 来店計測グループを自動作成（グループ番号とIDのマップ）
       const groupMap = new Map<string, string>();
-      const existingGroups = await bigQueryService.getVisitMeasurementGroups(createdProject.project_id);
-      for (const group of existingGroups) {
-        groupMap.set(group.group_name, group.group_id);
+      const visitMeasurementLocations = result.locations.filter(
+        loc => loc.poi_category === 'visit_measurement' && loc.group_name_ref
+      );
+      const uniqueGroupNums = [...new Set(visitMeasurementLocations.map(loc => loc.group_name_ref!))];
+      uniqueGroupNums.sort((a, b) => parseInt(a) - parseInt(b));
+      for (const groupNum of uniqueGroupNums) {
+        const createdGroup = await bigQueryService.createVisitMeasurementGroup({
+          project_id: createdProject.project_id,
+          group_name: `来店計測グループ${groupNum}`,
+        });
+        groupMap.set(groupNum, createdGroup.group_id);
       }
 
       // 3. 地点を登録
@@ -323,7 +332,7 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
           if (location.group_name_ref) {
             visitMeasurementGroupId = groupMap.get(location.group_name_ref);
             if (!visitMeasurementGroupId) {
-              console.error(`❌ グループ「${location.group_name_ref}」が見つかりません。先にグループを作成してください。`);
+              toast.error(`グループ番号「${location.group_name_ref}」に対応するグループが作成されませんでした`);
               continue;
             }
           } else {
@@ -633,7 +642,7 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
                 <div className="space-y-3">
                   <p className="text-sm font-medium">📊 セグメント＋地点 ({result.segments.length}セグメント / {result.locations.length}地点)</p>
                   {result.segments.map((segment, index) => {
-                    const segmentLocations = result.locations.filter(loc => loc.segment_name_ref === segment.segment_name);
+                    const segmentLocations = result.locations.filter(loc => loc.poi_category !== 'visit_measurement' && loc.segment_name_ref === segment.segment_name);
                     
                     // 配信媒体名を取得（複数対応）
                     const mediaIds = Array.isArray(segment.media_id) ? segment.media_id : (segment.media_id ? [segment.media_id] : []);
@@ -716,6 +725,41 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
                     );
                   })}
                 </div>
+
+                {/* 来店計測地点 */}
+                {(() => {
+                  const visitLocs = result.locations.filter(loc => loc.poi_category === 'visit_measurement');
+                  if (visitLocs.length === 0) return null;
+                  const groups = [...new Set(visitLocs.map(loc => loc.group_name_ref))].sort(
+                    (a, b) => parseInt(a || '0') - parseInt(b || '0')
+                  );
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium">🏪 来店計測地点 ({visitLocs.length}地点)</p>
+                      {groups.map(groupNum => {
+                        const groupLocs = visitLocs.filter(loc => loc.group_name_ref === groupNum);
+                        return (
+                          <div key={groupNum} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            <div className="bg-[#f0fdf4] p-3 border-b border-green-200">
+                              <span className="text-xs bg-green-600 text-white px-2 py-1 rounded font-medium">
+                                来店計測グループ{groupNum}
+                              </span>
+                              <span className="text-xs text-muted-foreground ml-2">{groupLocs.length}地点</span>
+                            </div>
+                            <div className="p-3 space-y-2 max-h-40 overflow-y-auto">
+                              {groupLocs.map((loc, i) => (
+                                <div key={i} className="text-xs border border-gray-100 rounded p-2">
+                                  <p className="font-medium">{loc.poi_name}</p>
+                                  {loc.address && <p className="text-muted-foreground">{loc.address}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

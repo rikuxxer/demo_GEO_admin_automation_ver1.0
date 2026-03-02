@@ -662,12 +662,15 @@ function parseVisitMeasurementLocationSheet(
       _rowNum: rowNum
     };
 
-    // B列: グループ名（必須）
-    const groupName = row[1];
-    if (!groupName || String(groupName).trim() === '') {
-      errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '来訪計測グループ名', message: '来訪計測グループ名は必須です' });
+    // B列: グループ番号（必須）
+    const groupNum = row[1];
+    const groupNumInt = typeof groupNum === 'number'
+      ? Math.round(groupNum)
+      : parseInt(String(groupNum ?? ''), 10);
+    if (!groupNum || isNaN(groupNumInt) || groupNumInt < 1) {
+      errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: 'グループ番号', message: 'グループ番号は1以上の整数を入力してください' });
     } else {
-      loc.group_name_ref = String(groupName).trim();
+      loc.group_name_ref = String(groupNumInt);
     }
 
     // C列: 住所
