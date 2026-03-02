@@ -251,14 +251,11 @@ export function useProjectDetail({
       }
 
       if (inconsistencies.length > 0) {
-        console.log(`🔧 ${inconsistencies.length}件の来店計測地点の矛盾を検出しました。修正を開始します...`);
-
         const fixedIds: string[] = [];
         for (const { poi, fixes } of inconsistencies) {
           try {
             await onPoiUpdate(poi.poi_id!, fixes);
             fixedIds.push(poi.poi_id!);
-            console.log(`✅ 地点「${poi.poi_name}」の矛盾を修正しました。`);
           } catch (error) {
             console.error(`❌ 地点「${poi.poi_name}」の矛盾修正に失敗しました:`, error);
           }
@@ -441,8 +438,6 @@ export function useProjectDetail({
   const handlePoiFormBulkSubmit = async (poisData: Partial<PoiInfo>[]) => {
     if (!selectedSegmentForPoi) return;
 
-    console.log(`🔄 一括登録開始: ${poisData.length}件の地点`);
-
     try {
       const poisWithCategory = poisData.map(poi => ({
         ...poi,
@@ -459,8 +454,6 @@ export function useProjectDetail({
         }
         toast.success(`${poisData.length}件の地点が登録されました`);
       }
-
-      console.log(`✅ 一括登録完了: ${poisData.length}件`);
 
       setShowPoiForm(false);
       setEditingPoi(null);
@@ -499,7 +492,6 @@ export function useProjectDetail({
     try {
       const freshPois = await bigQueryService.getPoisByProject(project.project_id);
       latestPois = freshPois;
-      console.log(`🔄 最新の地点データを取得: ${freshPois.length}件（元の地点数: ${pois.length}件）`);
     } catch (error) {
       console.warn('最新の地点データの取得に失敗しました。既存のデータを使用します:', error);
     }
@@ -534,24 +526,12 @@ export function useProjectDetail({
       }
     }
 
-    console.log(`📍 セグメントPOI詳細:`, segmentPois.map(poi => ({
-      poi_id: poi.poi_id,
-      poi_name: poi.poi_name,
-      address: poi.address,
-      latitude: poi.latitude,
-      longitude: poi.longitude,
-      poi_type: poi.poi_type,
-      hasAddress: !!(poi.address && poi.address.trim() !== ''),
-      hasPrefecture: !!(poi.prefectures && poi.prefectures.length > 0),
-    })));
-
     const hasPolygonPois = segmentPois.some(poi =>
       poi.poi_type === 'polygon' || (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)
     );
 
     const needsGeocoding = segmentPois.filter(poi => {
       if (poi.poi_type === 'polygon' || (poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0)) {
-        console.log(`🔵 POI ${poi.poi_id} (${poi.poi_name}): ポリゴン地点（ジオコーディング不要）`);
         return false;
       }
 
@@ -559,21 +539,17 @@ export function useProjectDetail({
                         poi.longitude !== undefined && poi.longitude !== null &&
                         poi.latitude !== 0 && poi.longitude !== 0;
       if (hasCoords) {
-        console.log(`✅ POI ${poi.poi_id} (${poi.poi_name}): 既に緯度経度あり (${poi.latitude}, ${poi.longitude})`);
         return false;
       }
 
       if (poi.address && poi.address.trim() !== '') {
-        console.log(`🔍 POI ${poi.poi_id} (${poi.poi_name}): ジオコーディング必要（住所: ${poi.address}）`);
         return true;
       }
 
       if (poi.prefectures && poi.prefectures.length > 0) {
-        console.log(`🔍 POI ${poi.poi_id} (${poi.poi_name}): ジオコーディング必要（都道府県: ${poi.prefectures.join(', ')}）`);
         return true;
       }
 
-      console.log(`⚠️ POI ${poi.poi_id} (${poi.poi_name}): ジオコーディング対象外（住所も都道府県もなし）`);
       return false;
     });
 
@@ -584,8 +560,6 @@ export function useProjectDetail({
     }
 
     if (needsGeocoding.length === 0 && hasPolygonPois) {
-      console.log('🔵 ポリゴン地点のみのため、ジオコーディングをスキップして格納依頼を実行します');
-
       const requestDateTime = new Date().toISOString();
       const coordinationDate = calculateDataCoordinationDate(requestDateTime);
 
@@ -593,10 +567,6 @@ export function useProjectDetail({
         location_request_status: 'storing',
         data_coordination_date: coordinationDate,
       });
-
-      if (user?.role === 'sales') {
-        console.log('⚠️ ポリゴン地点はスプレッドシート出力対象外のため、スキップします');
-      }
 
       if (user) {
         const messageContent = `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n地点数: ${segmentPois.length}件（ポリゴン地点）\n\n${dataLinkNote}`;
@@ -656,8 +626,6 @@ export function useProjectDetail({
           return hasAddress || hasPrefecture;
         });
 
-        console.log(`🚀 executeGeocoding開始: セグメント=${segment.segment_id}, 総地点数=${segmentPois.length}, ジオコーディング必要=${poisToGeocode.length}`);
-
         const { enriched, errors } = await enrichPOIsWithGeocode(
           segmentPois,
           (current, total) => {
@@ -665,8 +633,6 @@ export function useProjectDetail({
             setGeocodeTotal(total);
           }
         );
-
-        console.log(`📊 enrichPOIsWithGeocode結果: enriched=${enriched.length}, errors=${errors.length}, 元の地点数=${segmentPois.length}`);
 
         if (enriched.length !== segmentPois.length) {
           console.warn(`⚠️ enriched配列の数が元の地点数と一致しません: enriched=${enriched.length}, 元=${segmentPois.length}`);
@@ -682,8 +648,6 @@ export function useProjectDetail({
           return hasNewCoords;
         }).length;
         const errorCount = errors.length;
-
-        console.log(`✅ 成功件数=${successCount}, エラー件数=${errorCount}`);
 
         setGeocodeSuccessCount(successCount);
         setGeocodeErrorCount(errorCount);
@@ -704,15 +668,12 @@ export function useProjectDetail({
                 });
                 updatedPoiIds.add(poi.poi_id);
                 updateCount++;
-                console.log(`🔄 POI更新: ${poi.poi_id} -> (${poi.latitude}, ${poi.longitude})`);
               } catch (error) {
                 console.error(`❌ POI更新エラー: ${poi.poi_id}`, error);
               }
             }
           }
         }
-        console.log(`📝 地点更新完了: ${updateCount}件`);
-
         const missingPois = segmentPois.filter(poi =>
           !enriched.some(e => e.poi_id === poi.poi_id)
         );
@@ -730,15 +691,9 @@ export function useProjectDetail({
 
         if (user?.role === 'sales') {
           try {
-            console.log('📊 スプレッドシートに出力中...');
-
             const allPois = segmentPois;
 
-            console.log(`📊 出力対象: 全地点=${allPois.length}件（TG地点・来店計測地点・ポリゴン地点を含む）`);
-
-            if (allPois.length === 0) {
-              console.log('⚠️ 地点が存在しないため、スプレッドシート出力をスキップします');
-            } else {
+            if (allPois.length > 0) {
               const sheetResult = await exportPoisToSheet(
                 allPois,
                 project,

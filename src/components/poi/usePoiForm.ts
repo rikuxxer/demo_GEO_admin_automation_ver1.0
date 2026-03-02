@@ -847,8 +847,6 @@ export function usePoiForm({
         return;
       }
 
-      console.log(`📋 表形式コピペ - 一括登録: ${parsedPastePois.length}件`);
-
       const isVisitMeasurementCat = defaultCategory === 'visit_measurement' || bulkPoiCategory === 'visit_measurement';
       if (isVisitMeasurementCat) {
         if (visitMeasurementGroups.length === 0) {
@@ -934,7 +932,6 @@ export function usePoiForm({
               latitude: result.latitude,
               longitude: result.longitude,
             }));
-            console.log('自動ジオコーディング成功:', result);
           } catch (error) {
             console.error('自動ジオコーディングエラー:', error);
           }
@@ -1285,16 +1282,6 @@ export function usePoiForm({
     }
 
     submitData.designated_radius = designatedRadiusRef.current || submitData.designated_radius || '';
-
-    if (submitData.poi_type === 'polygon' || (submitData.polygon && Array.isArray(submitData.polygon) && submitData.polygon.length > 0)) {
-      console.log('📤 ポリゴン指定地点を送信:', {
-        poi_type: submitData.poi_type,
-        poi_name: submitData.poi_name,
-        polygon: submitData.polygon,
-        polygon_length: Array.isArray(submitData.polygon) ? submitData.polygon.length : 'N/A',
-        entryMethod: entryMethod
-      });
-    }
 
     onSubmit(submitData);
   };
