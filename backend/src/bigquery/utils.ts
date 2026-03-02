@@ -295,8 +295,15 @@ export async function getNextProjectIdFromProjectsTable(): Promise<number> {
       AND CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64) < 10000000
   `;
   const [rows] = await client.query({ query, location: BQ_LOCATION });
-  const nextId = rows?.[0]?.next_id;
-  if (typeof nextId !== 'number') {
+  // BigQuery v7+ returns INT64 as BigQueryInt object ({ value: "N" }), BigInt, or number
+  const rawId = rows?.[0]?.next_id;
+  const nextId =
+    typeof rawId === 'number' ? rawId
+    : typeof rawId === 'bigint' ? Number(rawId)
+    : rawId !== null && rawId !== undefined
+      ? parseInt(String(rawId?.value ?? rawId), 10)
+      : NaN;
+  if (!Number.isInteger(nextId) || nextId <= 0) {
     throw new Error('Failed to get next_id from projects table');
   }
   return nextId;
@@ -310,64 +317,62 @@ export async function getNextIdFromCounter(counterName: string): Promise<number>
   try {
     await ensureCountersTable();
   } catch (err: any) {
-    console.warn('⚠️ id_counters テーブル確保に失敗、projects から採番します:', err?.message || err);
+    console.warn('id_counters table setup failed, falling back to projects table:', err?.message || err);
     return getNextProjectIdFromProjectsTable();
   }
 
   try {
-    const query = `
-      BEGIN TRANSACTION;
-        DECLARE max_id INT64;
-        DECLARE next_val INT64;
-
-        SET max_id = (
-          SELECT IFNULL(
-            MAX(CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64)),
-            0
-          )
-          FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
-          WHERE project_id LIKE 'PRJ-%'
-            AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
-            AND CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64) < 10000000
-        );
-        SET next_val = max_id + 1;
-
-        IF NOT EXISTS (
-          SELECT 1 FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-          WHERE name = @counter_name
-        ) THEN
-          INSERT INTO \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-            (name, next_id, updated_at)
-          VALUES
-            (@counter_name, next_val, CURRENT_TIMESTAMP());
-        ELSE
-          UPDATE \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-          SET next_id = GREATEST(
-                CASE WHEN next_id < 10000000 THEN next_id + 1 ELSE 1 END,
-                next_val
-              ),
-              updated_at = CURRENT_TIMESTAMP()
-          WHERE name = @counter_name;
-        END IF;
-
-        SELECT next_id FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-        WHERE name = @counter_name;
-      COMMIT TRANSACTION;
+    // MERGE atomically upserts and increments the counter.
+    // client.query() cannot return rows from multi-statement scripts (SCRIPT jobs return
+    // empty rows from getQueryResults on the parent job), so we use a single MERGE DML
+    // statement followed by a separate SELECT to read back the committed value.
+    const mergeQuery = `
+      MERGE \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\` AS T
+      USING (
+        SELECT
+          @counter_name AS name,
+          GREATEST(
+            IFNULL(
+              (SELECT CASE WHEN next_id < 10000000 THEN next_id + 1 ELSE 1 END
+               FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+               WHERE name = @counter_name),
+              1
+            ),
+            (SELECT IFNULL(MAX(CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64)), 0) + 1
+             FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
+             WHERE project_id LIKE 'PRJ-%'
+               AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
+               AND CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64) < 10000000)
+          ) AS new_next_id
+      ) AS S ON T.name = S.name
+      WHEN MATCHED THEN
+        UPDATE SET T.next_id = S.new_next_id, T.updated_at = CURRENT_TIMESTAMP()
+      WHEN NOT MATCHED THEN
+        INSERT (name, next_id, updated_at)
+        VALUES (S.name, S.new_next_id, CURRENT_TIMESTAMP())
     `;
+    await client.query({ query: mergeQuery, params: { counter_name: counterName }, location: BQ_LOCATION });
 
-    const [rows] = await client.query({
-      query,
-      params: { counter_name: counterName },
-      location: BQ_LOCATION,
-    });
+    const selectQuery = `
+      SELECT next_id
+      FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
+      WHERE name = @counter_name
+    `;
+    const [rows] = await client.query({ query: selectQuery, params: { counter_name: counterName }, location: BQ_LOCATION });
 
-    const nextId = rows?.[0]?.next_id;
-    if (typeof nextId !== 'number') {
-      throw new Error(`Failed to allocate next_id for counter: ${counterName}`);
+    const rawId = rows?.[0]?.next_id;
+    const nextId =
+      typeof rawId === 'number' ? rawId
+      : typeof rawId === 'bigint' ? Number(rawId)
+      : rawId !== null && rawId !== undefined
+        ? parseInt(String(rawId?.value ?? rawId), 10)
+        : NaN;
+    if (!Number.isInteger(nextId) || nextId <= 0) {
+      throw new Error(`Failed to read next_id for counter: ${counterName}`);
     }
     return nextId;
   } catch (err: any) {
-    console.warn('⚠️ カウンタースクリプトが失敗したため、projects テーブルから採番します:', err?.message || err);
+    console.warn('Counter MERGE failed, falling back to projects table:', err?.message || err);
     return getNextProjectIdFromProjectsTable();
   }
 }

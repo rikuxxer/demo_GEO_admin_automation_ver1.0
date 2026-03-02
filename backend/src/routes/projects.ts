@@ -55,21 +55,10 @@ router.post('/', async (req, res) => {
     const MAX_ID_GENERATION_RETRIES = 5;
 
     if (!isProjectIdProvided) {
-      let lastError: any = null;
-
-      for (let attempt = 1; attempt <= MAX_ID_GENERATION_RETRIES; attempt++) {
-        const generatedProjectId = await getBqService().generateNextProjectId();
-        projectData.project_id = generatedProjectId;
-
-        try {
-          break;
-        } catch (e) {
-          lastError = e;
-        }
-      }
+      projectData.project_id = await getBqService().generateNextProjectId();
 
       if (!projectData.project_id || typeof projectData.project_id !== 'string' || projectData.project_id.trim() === '') {
-        throw lastError || new Error('Failed to generate project_id');
+        throw new Error('Failed to generate project_id');
       }
     }
 
@@ -84,7 +73,8 @@ router.post('/', async (req, res) => {
       for (let attempt = 1; attempt <= MAX_ID_GENERATION_RETRIES; attempt++) {
         try {
           if (attempt > 1) {
-            const regeneratedProjectId = await getBqService().generateNextProjectId({ mode: 'timestamp' });
+            // Re-generate a new sequential ID on duplicate conflict
+            const regeneratedProjectId = await getBqService().generateNextProjectId();
             projectData.project_id = regeneratedProjectId;
           }
 
