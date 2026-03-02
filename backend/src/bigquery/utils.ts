@@ -326,30 +326,33 @@ export async function getNextIdFromCounter(counterName: string): Promise<number>
     // client.query() cannot return rows from multi-statement scripts (SCRIPT jobs return
     // empty rows from getQueryResults on the parent job), so we use a single MERGE DML
     // statement followed by a separate SELECT to read back the committed value.
+    //
+    // NOTE: BigQuery does not allow the USING clause to reference the target table.
+    // The increment logic (T.next_id + 1) must live in the UPDATE SET clause where
+    // T.column references are permitted.
     const mergeQuery = `
       MERGE \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\` AS T
       USING (
         SELECT
           @counter_name AS name,
-          GREATEST(
-            IFNULL(
-              (SELECT CASE WHEN next_id < 10000000 THEN next_id + 1 ELSE 1 END
-               FROM \`${currentProjectId}.${cleanDatasetId}.${COUNTERS_TABLE}\`
-               WHERE name = @counter_name),
-              1
-            ),
-            (SELECT IFNULL(MAX(CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64)), 0) + 1
-             FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
-             WHERE project_id LIKE 'PRJ-%'
-               AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
-               AND CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64) < 10000000)
-          ) AS new_next_id
+          (
+            SELECT IFNULL(MAX(CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64)), 0) + 1
+            FROM \`${currentProjectId}.${cleanDatasetId}.projects\`
+            WHERE project_id LIKE 'PRJ-%'
+              AND REGEXP_CONTAINS(project_id, r'^PRJ-\\d+$')
+              AND CAST(REGEXP_EXTRACT(project_id, r'PRJ-(\\d+)') AS INT64) < 10000000
+          ) AS projects_next_id
       ) AS S ON T.name = S.name
       WHEN MATCHED THEN
-        UPDATE SET T.next_id = S.new_next_id, T.updated_at = CURRENT_TIMESTAMP()
+        UPDATE SET
+          T.next_id = GREATEST(
+            CASE WHEN T.next_id < 10000000 THEN T.next_id + 1 ELSE 1 END,
+            S.projects_next_id
+          ),
+          T.updated_at = CURRENT_TIMESTAMP()
       WHEN NOT MATCHED THEN
         INSERT (name, next_id, updated_at)
-        VALUES (S.name, S.new_next_id, CURRENT_TIMESTAMP())
+        VALUES (S.name, S.projects_next_id, CURRENT_TIMESTAMP())
     `;
     await client.query({ query: mergeQuery, params: { counter_name: counterName }, location: BQ_LOCATION });
 
