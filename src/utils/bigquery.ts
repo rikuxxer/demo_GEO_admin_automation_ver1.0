@@ -15,9 +15,7 @@ const USE_API = !!API_BASE_URL;
 
 // デバッグ: API接続設定をログ出力
 if (USE_API) {
-  console.log('🔗 バックエンドAPI接続:', API_BASE_URL);
 } else {
-  console.log('📦 ローカルストレージモード（API未設定）');
 }
 
 // Mock implementation using localStorage
@@ -69,7 +67,6 @@ class BigQueryService {
         };
         projects.push(demoProject);
         localStorage.setItem(this.projectStorageKey, JSON.stringify(projects));
-        console.log('🌱 Demo project seeded:', demoProject);
       }
 
       const projectId = projects[0].project_id;
@@ -124,10 +121,8 @@ class BigQueryService {
         ];
         
         localStorage.setItem(this.messageStorageKey, JSON.stringify(demoMessages));
-        console.log('🌱 Demo messages seeded');
       }
     } catch (error) {
-      console.error('Error seeding demo data:', error);
     }
   }
 
@@ -172,10 +167,8 @@ class BigQueryService {
           localStorage.setItem(this.poiStorageKey, JSON.stringify(migratedPois));
         }
         
-        console.log('✅ セグメントIDのマイグレーションが完了しました');
       }
     } catch (error) {
-      console.error('セグメントIDのマイグレーション中にエラーが発生しました:', error);
     }
   }
 
@@ -185,7 +178,6 @@ class BigQueryService {
     // バックエンドAPIを使用する場合
     if (USE_API) {
       try {
-        console.log('🔗 API呼び出し:', `${API_BASE_URL}/api/projects`);
         const response = await fetch(`${API_BASE_URL}/api/projects`, {
           method: 'GET',
           headers: {
@@ -193,7 +185,6 @@ class BigQueryService {
           },
         });
 
-        console.log('📡 レスポンスステータス:', response.status, response.statusText);
 
         if (!response.ok) {
           const contentType = response.headers.get('content-type');
@@ -205,14 +196,11 @@ class BigQueryService {
               const error = await response.json();
               errorMessage = error.error || error.message || errorMessage;
               errorDetails = error;
-              console.error('❌ APIエラーレスポンス:', error);
             } else {
               const errorText = await response.text();
               errorMessage = errorText || errorMessage;
-              console.error('❌ APIエラーテキスト:', errorText);
             }
           } catch (parseError) {
-            console.error('❌ エラーレスポンスのパースに失敗:', parseError);
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
           
@@ -225,7 +213,6 @@ class BigQueryService {
         }
 
         const data = await response.json();
-        console.log('✅ プロジェクト取得成功:', data.length, '件');
         
         // 日付フィールドを正規化（オブジェクトやDateオブジェクトをYYYY-MM-DD形式の文字列に変換）
         const normalizedData = data.map((project: any) => {
@@ -246,11 +233,9 @@ class BigQueryService {
                   if (!isNaN(date.getTime())) {
                     normalized.delivery_start_date = date.toISOString().split('T')[0];
                   } else {
-                    console.warn('⚠️ delivery_start_dateの変換に失敗:', normalized.delivery_start_date);
                     normalized.delivery_start_date = null;
                   }
                 } catch (e) {
-                  console.warn('⚠️ delivery_start_dateの変換エラー:', normalized.delivery_start_date, e);
                   normalized.delivery_start_date = null;
                 }
               }
@@ -281,11 +266,9 @@ class BigQueryService {
                   if (!isNaN(date.getTime())) {
                     normalized.delivery_end_date = date.toISOString().split('T')[0];
                   } else {
-                    console.warn('⚠️ delivery_end_dateの変換に失敗:', normalized.delivery_end_date);
                     normalized.delivery_end_date = null;
                   }
                 } catch (e) {
-                  console.warn('⚠️ delivery_end_dateの変換エラー:', normalized.delivery_end_date, e);
                   normalized.delivery_end_date = null;
                 }
               }
@@ -304,21 +287,8 @@ class BigQueryService {
           return normalized;
         });
         
-        // デバッグ: 最初のプロジェクトの日付フィールドを確認
-        if (normalizedData.length > 0) {
-          const firstProject = normalizedData[0];
-          console.log('🔍 正規化後の最初のプロジェクトの日付フィールド:', {
-            project_id: firstProject.project_id,
-            delivery_start_date: firstProject.delivery_start_date,
-            delivery_start_date_type: typeof firstProject.delivery_start_date,
-            delivery_end_date: firstProject.delivery_end_date,
-            delivery_end_date_type: typeof firstProject.delivery_end_date,
-          });
-        }
-        
         return normalizedData;
       } catch (error) {
-        console.error('❌ プロジェクト取得APIエラー:', error);
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
         }
@@ -331,7 +301,6 @@ class BigQueryService {
       const data = localStorage.getItem(this.projectStorageKey);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error fetching projects:', error);
       return [];
     }
   }
@@ -341,19 +310,12 @@ class BigQueryService {
       const projects = await this.getProjects();
       return projects.find(p => p.project_id === projectId) || null;
     } catch (error) {
-      console.error('Error fetching project:', error);
       return null;
     }
   }
 
   async createProject(project: Omit<Project, 'project_id' | '_register_datetime' | 'person_in_charge'>, userName?: string): Promise<Project> {
     // デバッグ: 受信したプロジェクトデータをログ出力
-    console.log('🔍 createProject 呼び出し:');
-    console.log('  USE_API:', USE_API);
-    console.log('  API_BASE_URL:', API_BASE_URL);
-    console.log('  受信したproject:', project);
-    console.log('  project keys:', Object.keys(project || {}));
-    console.log('  userName:', userName);
     
     // バックエンドAPIを使用する場合
     if (USE_API) {
@@ -365,16 +327,6 @@ class BigQueryService {
           // project_idはバックエンドで連番形式で自動生成される
           person_in_charge: userName || '営業A', // 主担当者を設定
         };
-        
-        console.log('📤 プロジェクト作成リクエスト:', {
-          advertiser_name: projectData.advertiser_name,
-          delivery_start_date: projectData.delivery_start_date,
-          delivery_end_date: projectData.delivery_end_date,
-          person_in_charge: projectData.person_in_charge,
-          allKeys: Object.keys(projectData),
-        });
-        console.log('📤 project_idはバックエンドで自動生成されます');
-        console.log('📤 送信する完全なデータ:', JSON.stringify(projectData, null, 2));
         
         // バックエンドにリトライが未デプロイでも、「already exists」の500時は再送で通ることがあるためリトライする
         const MAX_CREATE_RETRIES = 3;
@@ -401,9 +353,6 @@ class BigQueryService {
             errorDetails = error;
             errorMessage = error.error || error.message || errorMessage;
 
-            console.error(`❌ プロジェクト作成APIエラー (attempt ${attempt}/${MAX_CREATE_RETRIES}):`, errorMessage);
-            if (error.details) console.error('  Details:', error.details);
-            if (error.errors) console.error('  BigQuery errors:', error.errors);
 
             const isDuplicate =
               response.status === 500 &&
@@ -411,7 +360,6 @@ class BigQueryService {
               (errorMessage.includes('already exists') || (errorMessage.includes('project_id') && errorMessage.includes('exists')));
 
             if (isDuplicate && attempt < MAX_CREATE_RETRIES) {
-              console.warn(`⚠️ project_id重複のため再送します (attempt ${attempt + 1}/${MAX_CREATE_RETRIES})`);
               lastError = new Error(errorMessage);
               (lastError as any).details = errorDetails;
               (lastError as any).status = response.status;
@@ -426,7 +374,6 @@ class BigQueryService {
           } else {
             const errorText = await response.text();
             errorMessage = errorText || errorMessage;
-            console.error('❌ プロジェクト作成APIエラー（非JSON）:', response.status, errorText);
             lastError = new Error(errorMessage);
             (lastError as any).status = response.status;
             throw lastError;
@@ -439,7 +386,6 @@ class BigQueryService {
 
         // レスポンスからプロジェクト情報を取得（バックエンドが返す場合）
         const result = await response.json();
-        console.log('✅ プロジェクト作成APIレスポンス:', result);
         
         // バックエンドから返されたプロジェクトを返す
         if (result.project) {
@@ -458,7 +404,6 @@ class BigQueryService {
         const projects = await this.getProjects();
         return projects[0] || project as Project;
       } catch (error) {
-        console.error('プロジェクト作成APIエラー:', error);
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
         }
@@ -496,9 +441,7 @@ class BigQueryService {
       
       // デバッグ: 登録開始時点が含まれているか確認
       if (newProject.project_registration_started_at) {
-        console.log('✅ 案件登録開始時点が記録されています:', newProject.project_registration_started_at);
       } else {
-        console.warn('⚠️ 案件登録開始時点が記録されていません');
       }
       
       projects.unshift(newProject);
@@ -509,7 +452,6 @@ class BigQueryService {
       
       return newProject;
     } catch (error) {
-      console.error('Error creating project:', error);
       throw error;
     }
   }
@@ -529,7 +471,6 @@ class BigQueryService {
         const updated = await this.getProject(projectId);
         return updated;
       } catch (error) {
-        console.error('Error updating project:', error);
         throw error;
       }
     }
@@ -542,7 +483,6 @@ class BigQueryService {
       localStorage.setItem(this.projectStorageKey, JSON.stringify(projects));
       return projects[index];
     } catch (error) {
-      console.error('Error updating project:', error);
       throw error;
     }
   }
@@ -559,7 +499,6 @@ class BigQueryService {
         }
         return true;
       } catch (error) {
-        console.error('Error deleting project:', error);
         throw error;
       }
     }
@@ -574,7 +513,6 @@ class BigQueryService {
       
       return true;
     } catch (error) {
-      console.error('Error deleting project:', error);
       return false;
     }
   }
@@ -597,7 +535,6 @@ class BigQueryService {
           registerd_provider_segment: s.registerd_provider_segment ?? false,
         }));
       } catch (error) {
-        console.error('Error fetching segments:', error);
         return [];
       }
     }
@@ -610,7 +547,6 @@ class BigQueryService {
         registerd_provider_segment: segment.registerd_provider_segment ?? false,
       }));
     } catch (error) {
-      console.error('Error fetching segments:', error);
       return [];
     }
   }
@@ -635,7 +571,6 @@ class BigQueryService {
           registerd_provider_segment: s.registerd_provider_segment ?? false,
         }));
       } catch (error) {
-        console.error('Error fetching segments by project:', error);
         return [];
       }
     }
@@ -643,7 +578,6 @@ class BigQueryService {
       const segments = await this.getSegments();
       return segments.filter(s => s.project_id === projectId);
     } catch (error) {
-      console.error('Error fetching segments:', error);
       return [];
     }
   }
@@ -689,20 +623,16 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || 'セグメントの作成に失敗しました');
         }
-        console.log(`✅ セグメント作成(API): ${segmentId}`);
         return newSegment;
       } catch (error) {
-        console.error('Error creating segment:', error);
         throw error;
       }
     }
     try {
       segments.unshift(newSegment);
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));
-      console.log(`✅ セグメント作成: ${segmentId}`);
       return newSegment;
     } catch (error) {
-      console.error('Error creating segment:', error);
       throw error;
     }
   }
@@ -722,7 +652,6 @@ class BigQueryService {
         const all = await this.getSegments();
         return all.find(s => s.segment_id === segmentId) || null;
       } catch (error) {
-        console.error('Error updating segment:', error);
         throw error;
       }
     }
@@ -734,7 +663,6 @@ class BigQueryService {
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));
       return segments[index];
     } catch (error) {
-      console.error('Error updating segment:', error);
       throw error;
     }
   }
@@ -751,7 +679,6 @@ class BigQueryService {
         }
         return true;
       } catch (error) {
-        console.error('Error deleting segment:', error);
         throw error;
       }
     }
@@ -762,7 +689,6 @@ class BigQueryService {
       await this.deletePoiBySegment(segmentId);
       return true;
     } catch (error) {
-      console.error('Error deleting segment:', error);
       return false;
     }
   }
@@ -787,10 +713,8 @@ class BigQueryService {
       const updatedSegment: Segment = { ...segments[index], ...updates };
       segments[index] = updatedSegment;
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(segments));
-      console.log('📊 [BigQuery Mock] Segment edit request submitted:', segmentId);
       return updatedSegment;
     } catch (error) {
-      console.error('Error requesting segment edit:', error);
       throw error;
     }
   }
@@ -813,13 +737,11 @@ class BigQueryService {
     
     // 安全にISO文字列に変換
     if (isNaN(date.getTime())) {
-      console.warn('⚠️ Invalid date in calculateScheduledDate, using current date');
       return new Date().toISOString().split('T')[0];
     }
     try {
       return date.toISOString().split('T')[0];
     } catch (e) {
-      console.warn('⚠️ toISOString() failed in calculateScheduledDate:', e);
       return new Date().toISOString().split('T')[0];
     }
   }
@@ -835,7 +757,6 @@ class BigQueryService {
         }
         return true;
       } catch (error) {
-        console.error('Error deleting segments by project:', error);
         return false;
       }
     }
@@ -845,7 +766,6 @@ class BigQueryService {
       localStorage.setItem(this.segmentStorageKey, JSON.stringify(filtered));
       return true;
     } catch (error) {
-      console.error('Error deleting segments by project:', error);
       return false;
     }
   }
@@ -864,7 +784,6 @@ class BigQueryService {
             if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') updatedPoi.poi_type = 'polygon';
           }
         } catch (e) {
-          console.warn('Failed to parse polygon JSON:', e);
         }
       } else if (Array.isArray(poi.polygon) && poi.polygon.length > 0) {
         if (!updatedPoi.poi_type || updatedPoi.poi_type !== 'polygon') updatedPoi.poi_type = 'polygon';
@@ -885,7 +804,6 @@ class BigQueryService {
         const pois: PoiInfo[] = Array.isArray(data) ? data : [];
         return pois.map(p => this.normalizePoiForDisplay(p));
       } catch (error) {
-        console.error('Error fetching POI info:', error);
         return [];
       }
     }
@@ -894,7 +812,6 @@ class BigQueryService {
       const pois: PoiInfo[] = data ? JSON.parse(data) : [];
       return pois.map((poi: PoiInfo) => this.normalizePoiForDisplay(poi));
     } catch (error) {
-      console.error('Error fetching POI info:', error);
       return [];
     }
   }
@@ -915,7 +832,6 @@ class BigQueryService {
         const pois: PoiInfo[] = Array.isArray(data) ? data : [];
         return pois.map(p => this.normalizePoiForDisplay(p));
       } catch (error) {
-        console.error('Error fetching POIs by project:', error);
         return [];
       }
     }
@@ -923,7 +839,6 @@ class BigQueryService {
       const pois = await this.getPoiInfos();
       return pois.filter(p => p.project_id === projectId);
     } catch (error) {
-      console.error('Error fetching POIs by project:', error);
       return [];
     }
   }
@@ -933,7 +848,6 @@ class BigQueryService {
       const pois = await this.getPoiInfos();
       return pois.filter(p => p.segment_id === segmentId);
     } catch (error) {
-      console.error('Error fetching POI by segment:', error);
       return [];
     }
   }
@@ -995,20 +909,16 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || '地点の作成に失敗しました');
         }
-        console.log('📍 POI created (API):', newPoi.poi_id);
         return newPoi;
       } catch (error) {
-        console.error('Error creating POI:', error);
         throw error;
       }
     }
     try {
       pois.unshift(newPoi);
       localStorage.setItem(this.poiStorageKey, JSON.stringify(pois));
-      console.log('📍 POI created:', newPoi.poi_id);
       return newPoi;
     } catch (error) {
-      console.error('Error creating POI:', error);
       throw error;
     }
   }
@@ -1131,19 +1041,15 @@ class BigQueryService {
             const err = await response.json().catch(() => ({}));
             throw new Error(err.error || response.statusText || '地点の一括登録に失敗しました');
           }
-          console.log(`📍 ${newPois.length}件のPOIを一括登録(API)しました`);
           return newPois;
         } catch (error) {
-          console.error('Error creating POIs in bulk:', error);
           throw error;
         }
       }
       const updatedPois = [...newPois, ...existingPois];
       localStorage.setItem(this.poiStorageKey, JSON.stringify(updatedPois));
-      console.log(`📍 ${newPois.length}件のPOIを一括登録しました`);
       return newPois;
     } catch (error) {
-      console.error('Error creating POIs in bulk:', error);
       throw error;
     }
   }
@@ -1166,7 +1072,6 @@ class BigQueryService {
         }
         return newPoi;
       } catch (error) {
-        console.error('Error creating POI info:', error);
         throw error;
       }
     }
@@ -1176,7 +1081,6 @@ class BigQueryService {
       localStorage.setItem(this.poiStorageKey, JSON.stringify(pois));
       return newPoi;
     } catch (error) {
-      console.error('Error creating POI info:', error);
       throw error;
     }
   }
@@ -1196,7 +1100,6 @@ class BigQueryService {
         const pois = await this.getPoiInfos();
         return pois.find(p => p.poi_id === poiId) || null;
       } catch (error) {
-        console.error('Error updating POI:', error);
         throw error;
       }
     }
@@ -1208,7 +1111,6 @@ class BigQueryService {
       localStorage.setItem(this.poiStorageKey, JSON.stringify(pois));
       return pois[index];
     } catch (error) {
-      console.error('Error updating POI:', error);
       return null;
     }
   }
@@ -1225,7 +1127,6 @@ class BigQueryService {
         }
         return true;
       } catch (error) {
-        console.error('Error deleting POI:', error);
         throw error;
       }
     }
@@ -1235,7 +1136,6 @@ class BigQueryService {
       localStorage.setItem(this.poiStorageKey, JSON.stringify(filteredPois));
       return true;
     } catch (error) {
-      console.error('Error deleting POI:', error);
       return false;
     }
   }
@@ -1251,7 +1151,6 @@ class BigQueryService {
         }
         return true;
       } catch (error) {
-        console.error('Error deleting POI by segment:', error);
         return false;
       }
     }
@@ -1261,7 +1160,6 @@ class BigQueryService {
       localStorage.setItem(this.poiStorageKey, JSON.stringify(filtered));
       return true;
     } catch (error) {
-      console.error('Error deleting POI by segment:', error);
       return false;
     }
   }
@@ -1277,7 +1175,6 @@ class BigQueryService {
         }
         return true;
       } catch (error) {
-        console.error('Error deleting POI by project:', error);
         return false;
       }
     }
@@ -1287,7 +1184,6 @@ class BigQueryService {
       localStorage.setItem(this.poiStorageKey, JSON.stringify(filtered));
       return true;
     } catch (error) {
-      console.error('Error deleting POI by project:', error);
       return false;
     }
   }
@@ -1305,7 +1201,6 @@ class BigQueryService {
         const data = await response.json();
         return Array.isArray(data) ? data : [];
       } catch (error) {
-        console.error('Error fetching edit requests:', error);
         return [];
       }
     }
@@ -1313,7 +1208,6 @@ class BigQueryService {
       const data = localStorage.getItem(this.editRequestStorageKey);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error fetching edit requests:', error);
       return [];
     }
   }
@@ -1330,10 +1224,8 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || '編集依頼の作成に失敗しました');
         }
-        console.log('📝 Edit request created (API):', request.request_id);
         return request;
       } catch (error) {
-        console.error('Error creating edit request:', error);
         throw error;
       }
     }
@@ -1341,10 +1233,8 @@ class BigQueryService {
       const requests = await this.getEditRequests();
       requests.unshift(request);
       localStorage.setItem(this.editRequestStorageKey, JSON.stringify(requests));
-      console.log('📝 Edit request created:', request.request_id);
       return request;
     } catch (error) {
-      console.error('Error creating edit request:', error);
       throw error;
     }
   }
@@ -1364,7 +1254,6 @@ class BigQueryService {
         const list = await this.getEditRequests();
         return list.find(r => r.request_id === requestId) || null;
       } catch (error) {
-        console.error('Error updating edit request:', error);
         throw error;
       }
     }
@@ -1376,7 +1265,6 @@ class BigQueryService {
       localStorage.setItem(this.editRequestStorageKey, JSON.stringify(requests));
       return requests[index];
     } catch (error) {
-      console.error('Error updating edit request:', error);
       throw error;
     }
   }
@@ -1393,7 +1281,6 @@ class BigQueryService {
         }
         return true;
       } catch (error) {
-        console.error('Error deleting edit request:', error);
         throw error;
       }
     }
@@ -1403,7 +1290,6 @@ class BigQueryService {
       localStorage.setItem(this.editRequestStorageKey, JSON.stringify(filtered));
       return true;
     } catch (error) {
-      console.error('Error deleting edit request:', error);
       return false;
     }
   }
@@ -1434,7 +1320,6 @@ class BigQueryService {
           return timeA - timeB;
         });
       } catch (error) {
-        console.error('Error fetching project messages:', error);
         return [];
       }
     }
@@ -1449,7 +1334,6 @@ class BigQueryService {
           return timeA - timeB;
         });
     } catch (error) {
-      console.error('Error fetching project messages:', error);
       return [];
     }
   }
@@ -1465,7 +1349,6 @@ class BigQueryService {
         const data = await response.json();
         return (Array.isArray(data) ? data : []).map((m: any) => this.normalizeMessage(m));
       } catch (error) {
-        console.error('Error fetching all messages:', error);
         return [];
       }
     }
@@ -1473,7 +1356,6 @@ class BigQueryService {
       const data = localStorage.getItem(this.messageStorageKey);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error fetching all messages:', error);
       return [];
     }
   }
@@ -1500,10 +1382,8 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || 'メッセージの送信に失敗しました');
         }
-        console.log('💬 Message sent (API):', newMessage.message_id);
         return newMessage;
       } catch (error) {
-        console.error('Error sending message:', error);
         throw error;
       }
     }
@@ -1512,10 +1392,8 @@ class BigQueryService {
       const messages: ProjectMessage[] = data ? JSON.parse(data) : [];
       messages.push(newMessage);
       localStorage.setItem(this.messageStorageKey, JSON.stringify(messages));
-      console.log('💬 Message sent:', newMessage.message_id);
       return newMessage;
     } catch (error) {
-      console.error('Error sending message:', error);
       throw error;
     }
   }
@@ -1537,7 +1415,6 @@ class BigQueryService {
         });
         if (!response.ok) throw new Error('既読の更新に失敗しました');
       } catch (error) {
-        console.error('Error marking messages as read:', error);
       }
       return;
     }
@@ -1559,10 +1436,8 @@ class BigQueryService {
       
       if (hasChanges) {
         localStorage.setItem(this.messageStorageKey, JSON.stringify(messages));
-        console.log('👁️ Messages marked as read for project:', projectId);
       }
     } catch (error) {
-      console.error('Error marking messages as read:', error);
     }
   }
 
@@ -1595,10 +1470,8 @@ class BigQueryService {
           body: JSON.stringify(newHistory),
         });
         if (!response.ok) {
-          console.error('Error recording change history (API):', await response.text());
         }
       } catch (error) {
-        console.error('Error recording change history:', error);
       }
       return;
     }
@@ -1608,7 +1481,6 @@ class BigQueryService {
       this.cleanupOldHistory();
       localStorage.setItem(this.changeHistoryStorageKey, JSON.stringify(histories));
     } catch (error) {
-      console.error('Error recording change history:', error);
     }
   }
 
@@ -1627,7 +1499,6 @@ class BigQueryService {
         const data = await response.json();
         return Array.isArray(data) ? data : [];
       } catch (error) {
-        console.error('Error getting change histories:', error);
         return [];
       }
     }
@@ -1636,7 +1507,6 @@ class BigQueryService {
       if (!data) return [];
       return JSON.parse(data);
     } catch (error) {
-      console.error('Error getting change histories:', error);
       return [];
     }
   }
@@ -1651,10 +1521,8 @@ class BigQueryService {
       const filtered = histories.filter(history => new Date(history.changed_at) >= sixMonthsAgo);
       if (filtered.length !== histories.length) {
         localStorage.setItem(this.changeHistoryStorageKey, JSON.stringify(filtered));
-        console.log(`🗑️ 古い変更履歴を削除しました: ${histories.length - filtered.length}件`);
       }
     } catch (error) {
-      console.error('Error cleaning up old history:', error);
     }
   }
 
@@ -1670,7 +1538,6 @@ class BigQueryService {
         const data = await response.json();
         return Array.isArray(data) ? data : [];
       } catch (error) {
-        console.error('Error fetching visit measurement groups:', error);
         return [];
       }
     }
@@ -1679,7 +1546,6 @@ class BigQueryService {
       const groups: VisitMeasurementGroup[] = data ? JSON.parse(data) : [];
       return groups.filter(g => g.project_id === projectId);
     } catch (error) {
-      console.error('Error fetching visit measurement groups:', error);
       return [];
     }
   }
@@ -1701,10 +1567,8 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || '来店計測グループの作成に失敗しました');
         }
-        console.log('📍 Visit Measurement Group created (API):', newGroup.group_id);
         return newGroup;
       } catch (error) {
-        console.error('Error creating visit measurement group:', error);
         throw error;
       }
     }
@@ -1712,10 +1576,8 @@ class BigQueryService {
       const groups = await this.getAllVisitMeasurementGroups();
       groups.unshift(newGroup);
       localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(groups));
-      console.log('📍 Visit Measurement Group created:', newGroup.group_id);
       return newGroup;
     } catch (error) {
-      console.error('Error creating visit measurement group:', error);
       throw error;
     }
   }
@@ -1735,7 +1597,6 @@ class BigQueryService {
         const groups = await this.getVisitMeasurementGroups((updates as any).project_id || '');
         return groups.find(g => g.group_id === groupId) || { ...updates, group_id: groupId } as VisitMeasurementGroup;
       } catch (error) {
-        console.error('Error updating visit measurement group:', error);
         throw error;
       }
     }
@@ -1747,7 +1608,6 @@ class BigQueryService {
       localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(groups));
       return groups[index];
     } catch (error) {
-      console.error('Error updating visit measurement group:', error);
       throw error;
     }
   }
@@ -1762,10 +1622,8 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || '来店計測グループの削除に失敗しました');
         }
-        console.log('📍 Visit Measurement Group deleted (API):', groupId);
         return;
       } catch (error) {
-        console.error('Error deleting visit measurement group:', error);
         throw error;
       }
     }
@@ -1774,7 +1632,6 @@ class BigQueryService {
       const filtered = groups.filter(g => g.group_id !== groupId);
       localStorage.setItem(this.visitMeasurementGroupStorageKey, JSON.stringify(filtered));
     } catch (error) {
-      console.error('Error deleting visit measurement group:', error);
       throw error;
     }
   }
@@ -1792,7 +1649,6 @@ class BigQueryService {
         }
         return all;
       } catch (error) {
-        console.error('Error fetching all visit measurement groups:', error);
         return [];
       }
     }
@@ -1800,7 +1656,6 @@ class BigQueryService {
       const data = localStorage.getItem(this.visitMeasurementGroupStorageKey);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error fetching all visit measurement groups:', error);
       return [];
     }
   }
@@ -1817,7 +1672,6 @@ class BigQueryService {
         const data = await response.json();
         return Array.isArray(data) ? data : [];
       } catch (error) {
-        console.error('Error fetching feature requests:', error);
         return [];
       }
     }
@@ -1825,7 +1679,6 @@ class BigQueryService {
       const data = localStorage.getItem(this.featureRequestStorageKey);
       return data ? JSON.parse(data) : [];
     } catch (error) {
-      console.error('Error fetching feature requests:', error);
       return [];
     }
   }
@@ -1848,10 +1701,8 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || '機能リクエストの作成に失敗しました');
         }
-        console.log('💡 Feature request created (API):', newRequest.request_id);
         return newRequest;
       } catch (error) {
-        console.error('Error creating feature request:', error);
         throw error;
       }
     }
@@ -1859,10 +1710,8 @@ class BigQueryService {
       const requests = await this.getFeatureRequests();
       requests.unshift(newRequest);
       localStorage.setItem(this.featureRequestStorageKey, JSON.stringify(requests));
-      console.log('💡 Feature request created:', newRequest.request_id);
       return newRequest;
     } catch (error) {
-      console.error('Error creating feature request:', error);
       throw error;
     }
   }
@@ -1884,7 +1733,6 @@ class BigQueryService {
         if (updated) return updated;
         throw new Error(`Feature request not found: ${requestId}`);
       } catch (error) {
-        console.error('Error updating feature request:', error);
         throw error;
       }
     }
@@ -1896,7 +1744,6 @@ class BigQueryService {
       localStorage.setItem(this.featureRequestStorageKey, JSON.stringify(requests));
       return requests[index];
     } catch (error) {
-      console.error('Error updating feature request:', error);
       throw error;
     }
   }
@@ -1916,7 +1763,6 @@ class BigQueryService {
         const data = await response.json();
         return Array.isArray(data) ? data : [];
       } catch (error) {
-        console.error('Error fetching report requests:', error);
         return [];
       }
     }
@@ -1928,7 +1774,6 @@ class BigQueryService {
       if (status) filtered = filtered.filter((r: ReportRequest) => r.status === status);
       return filtered;
     } catch (error) {
-      console.error('Error fetching report requests:', error);
       return [];
     }
   }
@@ -1951,10 +1796,8 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || 'レポート作成依頼の作成に失敗しました');
         }
-        console.log('💡 Report request created (API):', newRequest.request_id);
         return newRequest;
       } catch (error) {
-        console.error('Error creating report request:', error);
         throw error;
       }
     }
@@ -1962,10 +1805,8 @@ class BigQueryService {
       const requests = await this.getReportRequests();
       requests.unshift(newRequest);
       localStorage.setItem(this.reportRequestStorageKey, JSON.stringify(requests));
-      console.log('💡 Report request created:', newRequest.request_id);
       return newRequest;
     } catch (error) {
-      console.error('Error creating report request:', error);
       throw error;
     }
   }
@@ -1987,7 +1828,6 @@ class BigQueryService {
         if (updated) return updated;
         throw new Error(`Report request not found: ${requestId}`);
       } catch (error) {
-        console.error('Error updating report request:', error);
         throw error;
       }
     }
@@ -1999,7 +1839,6 @@ class BigQueryService {
       localStorage.setItem(this.reportRequestStorageKey, JSON.stringify(requests));
       return requests[index];
     } catch (error) {
-      console.error('Error updating report request:', error);
       throw error;
     }
   }
@@ -2017,7 +1856,6 @@ class BigQueryService {
           throw new Error(err.error || response.statusText || 'レポート作成依頼の承認に失敗しました');
         }
       } catch (error) {
-        console.error('Error approving report request:', error);
         throw error;
       }
     } else {
@@ -2043,7 +1881,6 @@ class BigQueryService {
           throw new Error(err.error || response.statusText || 'レポート作成依頼の却下に失敗しました');
         }
       } catch (error) {
-        console.error('Error rejecting report request:', error);
         throw error;
       }
     } else {
@@ -2073,10 +1910,8 @@ class BigQueryService {
         }
 
         const users = await response.json();
-        console.log('📥 APIからユーザーを取得:', users.length, '件');
         return users || [];
       } catch (error) {
-        console.error('ユーザー取得APIエラー:', error);
         throw error;
       }
     }
@@ -2130,17 +1965,14 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || 'ユーザーの作成に失敗しました');
         }
-        console.log('✅ ユーザー作成(API):', newUser.user_id);
         const { password_hash: _, ...userWithoutPassword } = newUser;
         return userWithoutPassword;
       } catch (error) {
-        console.error('Error creating user:', error);
         throw error;
       }
     }
     users.push(newUser);
     localStorage.setItem(this.userStorageKey, JSON.stringify(users));
-    console.log('✅ ユーザー作成:', newUser.user_id);
     const { password_hash: _, ...userWithoutPassword } = newUser;
     return userWithoutPassword;
   }
@@ -2165,7 +1997,6 @@ class BigQueryService {
         }
         return updates;
       } catch (error) {
-        console.error('Error updating user:', error);
         throw error;
       }
     }
@@ -2188,10 +2019,8 @@ class BigQueryService {
           const err = await response.json().catch(() => ({}));
           throw new Error(err.error || response.statusText || 'ユーザーの削除に失敗しました');
         }
-        console.log('✅ ユーザー削除(API):', userId);
         return;
       } catch (error) {
-        console.error('Error deleting user:', error);
         throw error;
       }
     }
@@ -2199,7 +2028,6 @@ class BigQueryService {
     const filtered = users.filter(u => u.user_id !== userId);
     if (filtered.length === users.length) throw new Error('ユーザーが見つかりません');
     localStorage.setItem(this.userStorageKey, JSON.stringify(filtered));
-    console.log('✅ ユーザー削除:', userId);
   }
 
   // ユーザー登録申請管理
@@ -2227,7 +2055,6 @@ class BigQueryService {
               errorMessage = errorText || errorMessage;
             }
           } catch (parseError) {
-            console.error('エラーレスポンスのパースに失敗:', parseError);
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
           throw new Error(errorMessage);
@@ -2237,11 +2064,9 @@ class BigQueryService {
         try {
           return await response.json();
         } catch (parseError) {
-          console.error('レスポンスのパースに失敗:', parseError);
           throw new Error('サーバーからの応答を解析できませんでした');
         }
       } catch (error) {
-        console.error('ユーザー登録申請取得APIエラー:', error);
         // ネットワークエラーの場合、より分かりやすいメッセージを提供
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
@@ -2287,16 +2112,12 @@ class BigQueryService {
               
               // missingColumnsがある場合は詳細をログ出力
               if (error.missingColumns && Array.isArray(error.missingColumns)) {
-                console.error('❌ BigQueryスキーマに欠けている列:', error.missingColumns);
-                console.error('💡 ヒント:', error.hint || 'UPDATE_BIGQUERY_SCHEMA.mdのaddfieldコマンドで追加してください');
-                console.error('📋 エラー詳細:', JSON.stringify(error, null, 2));
               }
             } else {
               const errorText = await response.text();
               errorMessage = errorText || errorMessage;
             }
           } catch (parseError) {
-            console.error('エラーレスポンスのパースに失敗:', parseError);
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
           
@@ -2305,16 +2126,6 @@ class BigQueryService {
             errorMessage = `${errorMessage}\n\nBigQueryスキーマに以下の列が欠けています: ${errorDetails.missingColumns.join(', ')}\n\n解決方法: UPDATE_BIGQUERY_SCHEMA.mdのaddfieldコマンドで追加してください。`;
           }
           
-          // エラーの詳細情報をコンソールに出力（デバッグ用）
-          console.error('📋 エラー詳細:', {
-            status: response.status,
-            statusText: response.statusText,
-            errorDetails: errorDetails,
-            missingColumns: errorDetails?.missingColumns,
-            hint: errorDetails?.hint,
-            errors: errorDetails?.errors,
-          });
-          
           throw new Error(errorMessage);
         }
 
@@ -2322,11 +2133,9 @@ class BigQueryService {
         try {
           return await response.json();
         } catch (parseError) {
-          console.error('レスポンスのパースに失敗:', parseError);
           throw new Error('サーバーからの応答を解析できませんでした');
         }
       } catch (error) {
-        console.error('ユーザー登録申請APIエラー:', error);
         // ネットワークエラーの場合、より分かりやすいメッセージを提供
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
@@ -2372,7 +2181,6 @@ class BigQueryService {
 
     requests.push(newRequest);
     localStorage.setItem(this.userRequestStorageKey, JSON.stringify(requests));
-    console.log('✅ ユーザー登録申請作成:', newRequest.user_id);
     
     const { password_hash, ...requestWithoutPassword } = newRequest;
     return requestWithoutPassword;
@@ -2403,7 +2211,6 @@ class BigQueryService {
               errorMessage = errorText || errorMessage;
             }
           } catch (parseError) {
-            console.error('エラーレスポンスのパースに失敗:', parseError);
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
           throw new Error(errorMessage);
@@ -2417,11 +2224,9 @@ class BigQueryService {
           if (response.status === 200 || response.status === 201) {
             return;
           }
-          console.error('レスポンスのパースに失敗:', parseError);
           throw new Error('サーバーからの応答を解析できませんでした');
         }
       } catch (error) {
-        console.error('ユーザー登録申請承認APIエラー:', error);
         // ネットワークエラーの場合、より分かりやすいメッセージを提供
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
@@ -2471,7 +2276,6 @@ class BigQueryService {
     };
 
     localStorage.setItem(this.userRequestStorageKey, JSON.stringify(requests));
-    console.log('✅ ユーザー登録申請承認:', requestId, '-> ユーザー作成:', newUser.user_id);
   }
 
   async rejectUserRequest(requestId: string, reviewedBy: string, comment: string): Promise<void> {
@@ -2499,7 +2303,6 @@ class BigQueryService {
               errorMessage = errorText || errorMessage;
             }
           } catch (parseError) {
-            console.error('エラーレスポンスのパースに失敗:', parseError);
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
           throw new Error(errorMessage);
@@ -2513,11 +2316,9 @@ class BigQueryService {
           if (response.status === 200 || response.status === 201) {
             return;
           }
-          console.error('レスポンスのパースに失敗:', parseError);
           throw new Error('サーバーからの応答を解析できませんでした');
         }
       } catch (error) {
-        console.error('ユーザー登録申請却下APIエラー:', error);
         // ネットワークエラーの場合、より分かりやすいメッセージを提供
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
@@ -2549,7 +2350,6 @@ class BigQueryService {
     };
 
     localStorage.setItem(this.userRequestStorageKey, JSON.stringify(requests));
-    console.log('✅ ユーザー登録申請却下:', requestId);
   }
 
   // パスワードリセット機能
@@ -2577,16 +2377,13 @@ class BigQueryService {
               errorMessage = errorText || errorMessage;
             }
           } catch (parseError) {
-            console.error('エラーレスポンスのパースに失敗:', parseError);
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
           throw new Error(errorMessage);
         }
 
         await response.json();
-        console.log('✅ パスワードリセット申請を送信しました');
       } catch (error) {
-        console.error('パスワードリセット申請APIエラー:', error);
         throw error;
       }
       return;
@@ -2603,7 +2400,6 @@ class BigQueryService {
 
     if (!user) {
       // セキュリティ上の理由で、ユーザーが存在しない場合でも成功メッセージを返す
-      console.log('⚠️ ユーザーが見つかりませんでした（セキュリティ上の理由で成功メッセージを返します）');
       return;
     }
 
@@ -2624,13 +2420,6 @@ class BigQueryService {
     });
     localStorage.setItem('password_reset_tokens', JSON.stringify(resetTokens));
 
-    // 実際の実装では、ここでメールを送信する（登録されているメールアドレスに送信）
-    console.log('📧 パスワードリセットトークンを生成しました（モック）:', {
-      inputEmail: inputEmail,
-      registeredEmail: registeredEmail, // 登録されているメールアドレス
-      token: resetToken,
-      resetUrl: `${window.location.origin}?token=${resetToken}`
-    });
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
@@ -2657,16 +2446,13 @@ class BigQueryService {
               errorMessage = errorText || errorMessage;
             }
           } catch (parseError) {
-            console.error('エラーレスポンスのパースに失敗:', parseError);
             errorMessage = `HTTP ${response.status}: ${response.statusText}`;
           }
           throw new Error(errorMessage);
         }
 
         await response.json();
-        console.log('✅ パスワードをリセットしました');
       } catch (error) {
-        console.error('パスワードリセットAPIエラー:', error);
         throw error;
       }
       return;
@@ -2704,10 +2490,6 @@ class BigQueryService {
     const updatedTokens = resetTokens.filter((r: any) => r.token !== token);
     localStorage.setItem('password_reset_tokens', JSON.stringify(updatedTokens));
 
-    console.log('✅ パスワードをリセットしました:', {
-      email: registeredEmail,
-      user_id: users[userIndex].user_id
-    });
   }
 }
 
