@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react';
-import { X, FileEdit, History, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, FileEdit, History, AlertCircle, CheckCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { EditRequestList } from './EditRequestList';
 import { isDirectEditField } from '../utils/editRequest';
+import { format } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import type { Project, EditRequest } from '../types/schema';
 
 interface ProjectEditRequestDialogProps {
@@ -66,6 +73,16 @@ export function ProjectEditRequestDialog({
     if (editedProject.universe_service_id && !/^\d{5,}$/.test(editedProject.universe_service_id)) {
       alert('UNIVERSEサービスIDは半角数字のみ5桁以上で入力してください');
       return;
+    }
+
+    // 配信期間の整合性チェック（変更した場合のみ）
+    if (editedProject.delivery_start_date && editedProject.delivery_end_date) {
+      const start = new Date(editedProject.delivery_start_date);
+      const end = new Date(editedProject.delivery_end_date);
+      if (start.getTime() > end.getTime()) {
+        alert('配信終了日は配信開始日以降の日付を指定してください');
+        return;
+      }
     }
 
     // 変更内容を計算し、承認必要/不要に分ける
@@ -217,50 +234,104 @@ export function ProjectEditRequestDialog({
                     <h3 className="text-sm text-gray-900">承認が必要な項目（管理部承認後に反映）</h3>
                   </div>
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-4">
-                    <div>
-                      <label className="block text-sm text-gray-700 mb-2">広告主法人名</label>
-                      <input
-                        type="text"
+                    <div className="space-y-2">
+                      <Label>広告主法人名</Label>
+                      <Input
                         value={editedProject.advertiser_name || ''}
                         onChange={(e) => setEditedProject(prev => ({ ...prev, advertiser_name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                        className="border-orange-300 bg-white focus-visible:ring-orange-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm text-gray-700 mb-2">代理店名（任意）</label>
-                      <input
-                        type="text"
+                    <div className="space-y-2">
+                      <Label>代理店名（任意）</Label>
+                      <Input
                         value={editedProject.agency_name || ''}
                         onChange={(e) => setEditedProject(prev => ({ ...prev, agency_name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                        className="border-orange-300 bg-white focus-visible:ring-orange-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm text-gray-700 mb-2">訴求内容</label>
-                      <textarea
+                    <div className="space-y-2">
+                      <Label>訴求内容</Label>
+                      <Textarea
                         value={editedProject.appeal_point || ''}
                         onChange={(e) => setEditedProject(prev => ({ ...prev, appeal_point: e.target.value }))}
                         rows={3}
-                        className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                        className="border-orange-300 bg-white focus-visible:ring-orange-500"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-2">主担当者</label>
-                        <input
-                          type="text"
+                      <div className="space-y-2">
+                        <Label>配信開始日</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              type="button"
+                              className="w-full justify-start text-left font-normal bg-white hover:bg-orange-50 border-orange-300"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {editedProject.delivery_start_date ? (
+                                format(new Date(editedProject.delivery_start_date), 'yyyy年MM月dd日', { locale: ja })
+                              ) : (
+                                <span className="text-muted-foreground">開始日を選択</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={editedProject.delivery_start_date ? new Date(editedProject.delivery_start_date) : undefined}
+                              onSelect={(date) => setEditedProject(prev => ({ ...prev, delivery_start_date: date ? format(date, 'yyyy-MM-dd') : '' }))}
+                              locale={ja}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>配信終了日</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              type="button"
+                              className="w-full justify-start text-left font-normal bg-white hover:bg-orange-50 border-orange-300"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {editedProject.delivery_end_date ? (
+                                format(new Date(editedProject.delivery_end_date), 'yyyy年MM月dd日', { locale: ja })
+                              ) : (
+                                <span className="text-muted-foreground">終了日を選択</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={editedProject.delivery_end_date ? new Date(editedProject.delivery_end_date) : undefined}
+                              onSelect={(date) => setEditedProject(prev => ({ ...prev, delivery_end_date: date ? format(date, 'yyyy-MM-dd') : '' }))}
+                              locale={ja}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>主担当者</Label>
+                        <Input
                           value={editedProject.person_in_charge || ''}
                           onChange={(e) => setEditedProject(prev => ({ ...prev, person_in_charge: e.target.value }))}
-                          className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                          className="border-orange-300 bg-white focus-visible:ring-orange-500"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-2">副担当者（任意）</label>
-                        <input
-                          type="text"
+                      <div className="space-y-2">
+                        <Label>副担当者（任意）</Label>
+                        <Input
                           value={editedProject.sub_person_in_charge || ''}
                           onChange={(e) => setEditedProject(prev => ({ ...prev, sub_person_in_charge: e.target.value }))}
-                          className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                          className="border-orange-300 bg-white focus-visible:ring-orange-500"
                         />
                       </div>
                     </div>
@@ -275,49 +346,46 @@ export function ProjectEditRequestDialog({
                   </div>
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-2">UNIVERSEサービスID（任意）</label>
-                        <input
-                          type="text"
+                      <div className="space-y-2">
+                        <Label>UNIVERSEサービスID（任意）</Label>
+                        <Input
                           value={editedProject.universe_service_id || ''}
                           onChange={(e) => setEditedProject(prev => ({ ...prev, universe_service_id: e.target.value }))}
-                          className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                          className="border-green-300 bg-white focus-visible:ring-green-500"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm text-gray-700 mb-2">UNIVERSEサービス名（任意）</label>
-                        <input
-                          type="text"
+                      <div className="space-y-2">
+                        <Label>UNIVERSEサービス名（任意）</Label>
+                        <Input
                           value={editedProject.universe_service_name || ''}
                           onChange={(e) => setEditedProject(prev => ({ ...prev, universe_service_name: e.target.value }))}
-                          className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                          className="border-green-300 bg-white focus-visible:ring-green-500"
                         />
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm text-gray-700 mb-2">備考（任意）</label>
-                      <textarea
+                    <div className="space-y-2">
+                      <Label>備考（任意）</Label>
+                      <Textarea
                         value={editedProject.remarks || ''}
                         onChange={(e) => setEditedProject(prev => ({ ...prev, remarks: e.target.value }))}
                         rows={3}
                         placeholder="その他の補足情報を入力してください"
-                        className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                        className="border-green-300 bg-white focus-visible:ring-green-500"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* 修正理由（承認が必要な項目を変更する場合のみ必須） */}
-                <div>
-                  <label className="block text-sm text-gray-700 mb-2">
+                <div className="space-y-2">
+                  <Label>
                     修正理由 <span className="text-orange-500 text-xs">（承認が必要な項目を変更する場合は必須）</span>
-                  </label>
-                  <textarea
+                  </Label>
+                  <Textarea
                     value={editReason}
                     onChange={(e) => setEditReason(e.target.value)}
                     placeholder="承認が必要な項目を変更する場合、修正が必要な理由を入力してください"
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5b5fff]"
                   />
                 </div>
 
