@@ -213,6 +213,27 @@ export async function updateSegment(segment_id: string, updates: any): Promise<v
     processedUpdates.registerd_provider_segment = formatBoolForBigQuery(processedUpdates.registerd_provider_segment);
   }
 
+  const dateFields = [
+    'extraction_start_date',
+    'extraction_end_date',
+    'data_link_request_date',
+    'data_link_scheduled_date',
+    'segment_expire_date',
+    'data_coordination_date',
+  ];
+  for (const field of dateFields) {
+    if (field in processedUpdates) {
+      processedUpdates[field] = formatDateForBigQuery(processedUpdates[field]);
+    }
+  }
+
+  const timeFields = ['detection_time_start', 'detection_time_end'];
+  for (const field of timeFields) {
+    if (field in processedUpdates) {
+      processedUpdates[field] = formatTimeForBigQuery(processedUpdates[field]);
+    }
+  }
+
   const setClause = Object.keys(processedUpdates)
     .map(key => `${key} = @${key}`)
     .join(', ');
