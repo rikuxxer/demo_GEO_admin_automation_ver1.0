@@ -247,11 +247,17 @@ export async function updateSegment(segment_id: string, updates: any): Promise<v
 
   const allParams = { segment_id, ...processedUpdates };
 
-  const paramTypes: Record<string, string[]> = {};
+  const paramTypes: Record<string, string | string[]> = {};
   for (const [key, value] of Object.entries(allParams)) {
     if (Array.isArray(value)) {
       paramTypes[key] = ['STRING'];
     }
+  }
+  for (const field of dateFields) {
+    if (field in allParams) paramTypes[field] = 'DATE';
+  }
+  for (const field of timeFields) {
+    if (field in allParams) paramTypes[field] = 'TIME';
   }
 
   await initializeBigQueryClient().query({
