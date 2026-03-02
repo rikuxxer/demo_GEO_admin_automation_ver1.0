@@ -3,7 +3,6 @@ import {
   getCleanDatasetId,
   initializeBigQueryClient,
   BQ_LOCATION,
-  getDataset,
   formatTimestampForBigQuery,
   formatDateForBigQuery,
   formatTimeForBigQuery,
@@ -160,29 +159,39 @@ export async function createSegment(segment: any): Promise<void> {
     cleanedSegment.created_at = formatTimestampForBigQuery(segment.created_at || now);
     cleanedSegment.updated_at = formatTimestampForBigQuery(segment.updated_at || now);
 
-    console.log('📋 Cleaned segment data for BigQuery:', {
-      segment_id: cleanedSegment.segment_id,
-      project_id: cleanedSegment.project_id,
-      extraction_start_date: cleanedSegment.extraction_start_date,
-      extraction_end_date: cleanedSegment.extraction_end_date,
-      allFields: Object.keys(cleanedSegment),
-    });
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const columns = Object.keys(cleanedSegment);
+    const insertQuery = `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.segments\`
+      (${columns.join(', ')})
+      VALUES (${columns.map(c => `@${c}`).join(', ')})
+    `;
 
-    await getDataset().table('segments').insert([cleanedSegment], { ignoreUnknownValues: true });
-  } catch (err: any) {
-    console.error('[BQ insert segments] message:', err?.message);
-    console.error('[BQ insert segments] errors:', JSON.stringify(err?.errors, null, 2));
-
-    if (err.errors && Array.isArray(err.errors)) {
-      err.errors.forEach((error: any, index: number) => {
-        console.error(`[BQ insert segments] error[${index}]:`, {
-          message: error.message,
-          reason: error.reason,
-          location: error.location,
-        });
-      });
+    const insertParamTypes: Record<string, string | string[]> = {};
+    for (const f of ['segment_registered_at', 'created_at', 'updated_at']) {
+      if (f in cleanedSegment) insertParamTypes[f] = 'TIMESTAMP';
+    }
+    for (const f of ['extraction_start_date', 'extraction_end_date', 'data_coordination_date',
+                     'data_link_request_date', 'data_link_scheduled_date', 'segment_expire_date']) {
+      if (f in cleanedSegment) insertParamTypes[f] = 'DATE';
+    }
+    for (const f of ['detection_time_start', 'detection_time_end']) {
+      if (f in cleanedSegment) insertParamTypes[f] = 'TIME';
+    }
+    for (const f of ['media_id', 'delivery_media', 'extraction_dates']) {
+      if (f in cleanedSegment && Array.isArray(cleanedSegment[f])) {
+        insertParamTypes[f] = ['STRING'];
+      }
     }
 
+    await initializeBigQueryClient().query({
+      query: insertQuery,
+      params: cleanedSegment,
+      ...(Object.keys(insertParamTypes).length > 0 ? { types: insertParamTypes } : {}),
+      location: BQ_LOCATION,
+    });
+  } catch (err: any) {
     throw err;
   }
 }
