@@ -382,42 +382,25 @@ export async function createProject(project: any): Promise<void> {
       allFields: Object.keys(cleanedProject),
     });
 
-    const dataset = bq.dataset(cleanDatasetId, { projectId: currentProjectId });
-    const table = dataset.table('projects');
-    const rows = [cleanedProject];
-
-    try {
-      await table.insert(rows, { ignoreUnknownValues: true });
-      console.log('✅ Project created successfully in BigQuery.');
-    } catch (err: any) {
-      console.error('[BQ insert] message:', err?.message);
-      console.error('[BQ insert] name:', err?.name);
-      console.error('[BQ insert] errors:', JSON.stringify(err?.errors, null, 2));
-
-      if (err.errors && Array.isArray(err.errors)) {
-        err.errors.forEach((error: any, index: number) => {
-          console.error(`[BQ insert] error[${index}]:`, {
-            message: error.message,
-            reason: error.reason,
-            location: error.location,
-            debugInfo: error.debugInfo,
-          });
-        });
-      }
-
-      console.error('[BQ insert] response:', JSON.stringify(err?.response?.body ?? err?.response, null, 2));
-      console.error('[BQ insert] code:', err?.code);
-      console.error('[BQ insert] config:', {
-        projectId: currentProjectId,
-        datasetId: cleanDatasetId,
-        rawDatasetId: datasetId,
-        location: BQ_LOCATION,
-        clientProjectId: bq.projectId || 'NOT SET',
-      });
-      console.error('[BQ insert] attempted data:', JSON.stringify(cleanedProject, null, 2));
-
-      throw err;
+    const columns = Object.keys(cleanedProject);
+    const insertQuery = `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.projects\`
+      (${columns.join(', ')})
+      VALUES (${columns.map(c => `@${c}`).join(', ')})
+    `;
+    const insertParamTypes: Record<string, string | string[]> = {};
+    for (const f of ['delivery_start_date', 'delivery_end_date']) {
+      if (f in cleanedProject) insertParamTypes[f] = 'DATE';
     }
+    for (const f of ['project_registration_started_at', '_register_datetime', 'created_at', 'updated_at']) {
+      if (f in cleanedProject) insertParamTypes[f] = 'TIMESTAMP';
+    }
+    await bq.query({
+      query: insertQuery,
+      params: cleanedProject,
+      ...(Object.keys(insertParamTypes).length > 0 ? { types: insertParamTypes } : {}),
+      location: BQ_LOCATION,
+    });
   } catch (error: any) {
     console.error('❌ BigQuery createProject error:', error);
     console.error('Error details:', {

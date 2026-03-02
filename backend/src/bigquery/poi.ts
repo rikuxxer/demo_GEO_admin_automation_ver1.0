@@ -3,7 +3,6 @@ import {
   getCleanDatasetId,
   initializeBigQueryClient,
   BQ_LOCATION,
-  getDataset,
   formatTimestampForBigQuery,
 } from './utils';
 import { updateSegment } from './segment';
@@ -178,7 +177,29 @@ export async function createPoi(poi: any): Promise<void> {
       allFields: Object.keys(cleanedPoi),
     });
 
-    await getDataset().table('pois').insert([cleanedPoi], { ignoreUnknownValues: true });
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const poiColumns = Object.keys(cleanedPoi);
+    const poiInsertQuery = `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.pois\`
+      (${poiColumns.join(', ')})
+      VALUES (${poiColumns.map(c => `@${c}`).join(', ')})
+    `;
+    const insertParamTypes: Record<string, string | string[]> = {};
+    for (const f of ['created_at', 'updated_at']) {
+      if (f in cleanedPoi) insertParamTypes[f] = 'TIMESTAMP';
+    }
+    for (const f of ['prefectures', 'cities']) {
+      if (f in cleanedPoi && Array.isArray(cleanedPoi[f])) {
+        insertParamTypes[f] = ['STRING'];
+      }
+    }
+    await initializeBigQueryClient().query({
+      query: poiInsertQuery,
+      params: cleanedPoi,
+      ...(Object.keys(insertParamTypes).length > 0 ? { types: insertParamTypes } : {}),
+      location: BQ_LOCATION,
+    });
 
     if (cleanedPoi.segment_id && String(cleanedPoi.segment_id).trim()) {
       const segmentId = String(cleanedPoi.segment_id).trim();
@@ -306,7 +327,31 @@ export async function createPoisBulk(pois: any[]): Promise<void> {
 
     console.log(`📋 Cleaned ${cleanedPois.length} POIs for BigQuery bulk insert`);
 
-    await getDataset().table('pois').insert(cleanedPois, { ignoreUnknownValues: true });
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    for (const cleanedPoi of cleanedPois) {
+      const poiColumns = Object.keys(cleanedPoi);
+      const poiInsertQuery = `
+        INSERT INTO \`${currentProjectId}.${cleanDatasetId}.pois\`
+        (${poiColumns.join(', ')})
+        VALUES (${poiColumns.map(c => `@${c}`).join(', ')})
+      `;
+      const insertParamTypes: Record<string, string | string[]> = {};
+      for (const f of ['created_at', 'updated_at']) {
+        if (f in cleanedPoi) insertParamTypes[f] = 'TIMESTAMP';
+      }
+      for (const f of ['prefectures', 'cities']) {
+        if (f in cleanedPoi && Array.isArray((cleanedPoi as any)[f])) {
+          insertParamTypes[f] = ['STRING'];
+        }
+      }
+      await initializeBigQueryClient().query({
+        query: poiInsertQuery,
+        params: cleanedPoi,
+        ...(Object.keys(insertParamTypes).length > 0 ? { types: insertParamTypes } : {}),
+        location: BQ_LOCATION,
+      });
+    }
 
     for (const [segId, types] of segmentToTypes) {
       const poiType = [...types][0];

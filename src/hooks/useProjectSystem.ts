@@ -285,9 +285,13 @@ export function useProjectSystem() {
         toast.success("セグメントが更新されました");
         return updatedSegment;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating segment:", error);
-      toast.error("セグメントの更新に失敗しました");
+      if (error?.message?.includes('再試行してください')) {
+        toast.error(error.message);
+      } else {
+        toast.error("セグメントの更新に失敗しました");
+      }
       throw error;
     }
   };

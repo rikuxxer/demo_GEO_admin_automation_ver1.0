@@ -49,6 +49,12 @@ router.put('/:segment_id', async (req, res) => {
     await getBqService().updateSegment(req.params.segment_id, req.body);
     res.json({ message: 'Segment updated successfully' });
   } catch (error: any) {
+    if (error?.message?.includes('streaming buffer')) {
+      return res.status(409).json({
+        error: 'このセグメントは作成直後のため更新できません。数分後に再試行してください。',
+        type: 'StreamingBufferConflict',
+      });
+    }
     res.status(500).json({ error: error.message });
   }
 });
