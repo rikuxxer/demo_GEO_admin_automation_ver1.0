@@ -221,7 +221,7 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
     { name: 'セグメント名（必須）', group: 'seg', required: true }, { name: '配信先（必須）', group: 'seg', required: true }, { name: '指定半径（必須）', group: 'seg', required: true },
     { name: '抽出期間', group: 'seg', required: false }, { name: '抽出開始日', group: 'seg', required: false }, { name: '抽出終了日', group: 'seg', required: false },
     { name: '対象者（必須）', group: 'seg', required: true }, { name: '検知回数（検知者のみ）', group: 'seg', required: false }, { name: '検知時間開始', group: 'seg', required: false },
-    { name: '検知時間終了', group: 'seg', required: false }, { name: '滞在時間', group: 'seg', required: false },
+    { name: '検知時間終了', group: 'seg', required: false },
     { name: '地点の名前（必須）', group: 'loc', required: true }, { name: '住所（必須）', group: 'loc', required: true }, { name: '緯度（任意）', group: 'loc', required: false },
     { name: '経度（任意）', group: 'loc', required: false }
   ];
@@ -237,32 +237,31 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
   // 列幅・numFmt をループ前に設定（sheet.columns = [...] はセルスタイルをリセットするため使用禁止）
   sheet.getColumn(1).width = 25;   // A: セグメント名
   sheet.getColumn(2).width = 20;   // B: 配信先
-  sheet.getColumn(3).width = 14;   // C: 配信範囲
+  sheet.getColumn(3).width = 20;   // C: 指定半径（必須）
   sheet.getColumn(4).width = 15;   // D: 抽出期間
   sheet.getColumn(5).width = 15;   // E: 抽出開始日
   sheet.getColumn(5).numFmt = 'yyyy-mm-dd';
   sheet.getColumn(6).width = 15;   // F: 抽出終了日
   sheet.getColumn(6).numFmt = 'yyyy-mm-dd';
-  sheet.getColumn(7).width = 15;   // G: 対象者
-  sheet.getColumn(8).width = 18;   // H: 検知回数（検知者のみ）
+  sheet.getColumn(7).width = 18;   // G: 対象者
+  sheet.getColumn(8).width = 24;   // H: 検知回数（検知者のみ）
   sheet.getColumn(9).width = 14;   // I: 検知時間開始
   sheet.getColumn(10).width = 14;  // J: 検知時間終了
-  sheet.getColumn(11).width = 12;  // K: 滞在時間
-  sheet.getColumn(12).width = 30;  // L: 地点の名前
-  sheet.getColumn(13).width = 40;  // M: 住所
-  sheet.getColumn(14).width = 15;  // N: 緯度
-  sheet.getColumn(15).width = 15;  // O: 経度
+  sheet.getColumn(11).width = 30;  // K: 地点の名前
+  sheet.getColumn(12).width = 40;  // L: 住所
+  sheet.getColumn(13).width = 15;  // M: 緯度
+  sheet.getColumn(14).width = 15;  // N: 経度
 
   // サンプル行（地点IDは自動採番のため削除）
   const sampleValues = [
-    ['サンプル：東京エリア', 'UNIVERSEまたはTVer(SP)', 500, '直近1ヶ月', '', '', '検知者', '3回以上', '09:00', '18:00', '10分以上', '東京タワー', '東京都港区芝公園4-2-8', 35.6585805, 139.7454329],
-    ['サンプル：大阪エリア', 'UNIVERSEまたはTVer(SP)', 500, '直近3ヶ月', '', '', '居住者', '3回以上', '', '', '', '通天閣', '大阪府大阪市浪速区恵美須東1-18-6', 34.6523, 135.5061]
+    ['サンプル：東京エリア', 'UNIVERSEまたはTVer(SP)', 500, '直近1ヶ月', '', '', '検知者', '3回以上', '09:00', '18:00', '東京タワー', '東京都港区芝公園4-2-8', 35.6585805, 139.7454329],
+    ['サンプル：大阪エリア', 'UNIVERSEまたはTVer(SP)', 500, '直近3ヶ月', '', '', '居住者', '3回以上', '', '', '通天閣', '大阪府大阪市浪速区恵美須東1-18-6', 34.6523, 135.5061]
   ];
 
   sampleValues.forEach((vals, idx) => {
     const r = sheet.getRow(idx + 2);
     r.values = vals;
-    for (let c = 1; c <= 15; c++) r.getCell(c).style = SAMPLE_ROW_STYLE;
+    for (let c = 1; c <= 14; c++) r.getCell(c).style = SAMPLE_ROW_STYLE;
   });
 
   const maxRows = 300;
@@ -270,7 +269,7 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
 
   for (let r = 4; r <= maxRows; r++) {
     const row = sheet.getRow(r);
-    for (let c = 1; c <= 15; c++) {
+    for (let c = 1; c <= 14; c++) {
       row.getCell(c).style = EDITABLE_CELL_STYLE;
     }
 
@@ -341,26 +340,20 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
       showInputMessage: true, promptTitle: '検知時間（条件付き）', prompt: '対象者「検知者」の場合のみ入力可\n形式: HH:MM（例: 09:00）'
     };
 
-    // 11. 滞在時間 (Option Col E - 日本語あり、対象者が「検知者」の場合のみ入力可能)
-    row.getCell(11).dataValidation = {
-      type: 'list', allowBlank: true, formulae: [`'${optionsSheetName}'!$E$1:$E$5`],
-      showInputMessage: true, promptTitle: '滞在時間（条件付き）', prompt: '対象者「検知者」の場合のみ有効\nプルダウンから選択'
-    };
-
     // 地点情報（地点IDは自動採番のため削除）
-    row.getCell(12).dataValidation = {
+    row.getCell(11).dataValidation = {
       type: 'textLength', operator: 'lessThanOrEqual', formulae: [100],
       showInputMessage: true, promptTitle: '地点の名前（必須）', prompt: '100文字以内'
     };
-    row.getCell(13).dataValidation = {
+    row.getCell(12).dataValidation = {
       type: 'textLength', operator: 'lessThanOrEqual', formulae: [200],
       showInputMessage: true, promptTitle: '住所（必須）', prompt: '200文字以内\n緯度経度が未入力の場合、この住所から自動変換されます'
     };
-    row.getCell(14).dataValidation = {
+    row.getCell(13).dataValidation = {
       type: 'decimal', operator: 'between', formulae: [-90, 90],
       showInputMessage: true, promptTitle: '緯度（任意）', prompt: '-90〜90の小数\n例: 35.6585805（東京タワー）'
     };
-    row.getCell(15).dataValidation = {
+    row.getCell(14).dataValidation = {
       type: 'decimal', operator: 'between', formulae: [-180, 180],
       showInputMessage: true, promptTitle: '経度（任意）', prompt: '-180〜180の小数\n例: 139.7454329（東京タワー）'
     };
@@ -416,7 +409,7 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
     }]
   });
 
-  // 条件付き書式: 対象者が「検知者」以外の場合、I-K列（検知時間・滞在時間）をグレーアウト
+  // 条件付き書式: 対象者が「検知者」以外の場合、I-J列（検知時間）をグレーアウト
   sheet.addConditionalFormatting({
     ref: `I4:I${maxRows}`,
     rules: [{
@@ -430,17 +423,6 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
   });
   sheet.addConditionalFormatting({
     ref: `J4:J${maxRows}`,
-    rules: [{
-      type: 'expression',
-      formulae: ['NOT(G4="検知者")'],
-      style: {
-        fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFE0E0E0' } },
-        font: { color: { argb: 'FF808080' } }
-      }
-    }]
-  });
-  sheet.addConditionalFormatting({
-    ref: `K4:K${maxRows}`,
     rules: [{
       type: 'expression',
       formulae: ['NOT(G4="検知者")'],
@@ -464,7 +446,9 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
     { name: 'グループ番号（必須）', required: true },
     { name: '住所（必須）', required: true },
     { name: '緯度（任意）', required: false },
-    { name: '経度（任意）', required: false }
+    { name: '経度（任意）', required: false },
+    { name: '指定半径（任意）', required: false },
+    { name: '滞在時間（任意）', required: false }
   ];
 
   const headerRow = sheet.getRow(1);
@@ -477,21 +461,22 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
 
   // サンプル行（地点IDは自動採番のため削除）
   const sampleValues = [
-    ['東京タワー', 1, '東京都港区芝公園4-2-8', 35.6585805, 139.7454329],
-    ['スカイツリー', 1, '東京都墨田区押上1-1-2', 35.710063, 139.8107]
+    ['東京タワー', 1, '東京都港区芝公園4-2-8', 35.6585805, 139.7454329, '500m', ''],
+    ['スカイツリー', 1, '東京都墨田区押上1-1-2', 35.710063, 139.8107, '', '']
   ];
 
   sampleValues.forEach((vals, idx) => {
     const r = sheet.getRow(idx + 2);
     r.values = vals;
-    for (let c = 1; c <= 5; c++) r.getCell(c).style = SAMPLE_ROW_STYLE;
+    for (let c = 1; c <= 7; c++) r.getCell(c).style = SAMPLE_ROW_STYLE;
   });
 
   const maxRows = 300;
+  const optionsSheetName = '5.選択肢リスト';
 
   for (let r = 4; r <= maxRows; r++) {
     const row = sheet.getRow(r);
-    for (let c = 1; c <= 5; c++) {
+    for (let c = 1; c <= 7; c++) {
       row.getCell(c).style = EDITABLE_CELL_STYLE;
     }
 
@@ -517,10 +502,24 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
       type: 'decimal', operator: 'between', formulae: [-180, 180],
       showInputMessage: true, promptTitle: '経度（任意）', prompt: '-180〜180の小数\n例: 139.7454329（東京タワー）'
     };
+    row.getCell(6).dataValidation = {
+      type: 'list', allowBlank: true,
+      formulae: [`'${optionsSheetName}'!$F$1:$F$14`],
+      showErrorMessage: false,
+      showInputMessage: true, promptTitle: '指定半径（任意）',
+      prompt: '1〜1000m: 数値のみ入力（例: 500）\n1001m以上: プルダウンから選択'
+    };
+    row.getCell(7).dataValidation = {
+      type: 'list', allowBlank: true,
+      formulae: [`'${optionsSheetName}'!$E$1:$E$5`],
+      showInputMessage: true, promptTitle: '滞在時間（任意）',
+      prompt: 'プルダウンから選択（任意）'
+    };
   }
 
   sheet.columns = [
-    { width: 30 }, { width: 20 }, { width: 40 }, { width: 15 }, { width: 15 }
+    { width: 30 }, { width: 20 }, { width: 40 }, { width: 15 }, { width: 15 },
+    { width: 20 }, { width: 16 }
   ];
 
   sheet.views = [{ state: 'frozen', ySplit: 1 }];

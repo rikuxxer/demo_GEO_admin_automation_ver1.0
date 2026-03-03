@@ -88,6 +88,8 @@ export interface ExcelLocationData {
   latitude?: number;
   longitude?: number;
   location_id?: string;
+  designated_radius?: string;
+  stay_time?: string;
   poi_category?: 'tg' | 'visit_measurement';
   _rowNum?: number;
 }
@@ -509,15 +511,6 @@ function parseSegmentRow(row: any[], rowNum: number, errors: ExcelParseError[], 
     segment.detection_time_end = '';
   }
 
-  // K: 滞在時間（対象者が「検知者」の場合のみ有効）
-  if (segment.attribute === 'detector' && row[10]) {
-    if (stayTimeMapping[row[10]]) segment.stay_time = stayTimeMapping[row[10]];
-    else errors.push({ section: sectionName, row: rowNum, field: '滞在時間', message: '無効な滞在時間です' });
-  } else {
-    // 対象者が「検知者」以外の場合は滞在時間をクリア
-    segment.stay_time = '';
-  }
-
   return segment;
 }
 
@@ -582,15 +575,19 @@ function parseSegmentAndLocationSheet(
   const segments: ExcelSegmentData[] = [];
   const locations: ExcelLocationData[] = [];
   const data = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
-  
+
+  // 旧形式（K列に「滞在時間」あり）と新形式（K列が「地点の名前」）を判別
+  const hasStayTimeCol = String(data[0]?.[10] ?? '').includes('滞在時間');
+  const poiOffset = hasStayTimeCol ? 11 : 10;
+
   // ヘッダーは1行目、サンプルは2-3行目、データは4行目から
   for (let i = 3; i < data.length; i++) {
     const row = data[i];
     const rowNum = i + 1;
-    
+
     if (!row || row.length === 0) continue;
     if (isSampleRow(row)) continue;
-    
+
     const segmentName = row[0];
     if (!segmentName) continue;
 
@@ -604,8 +601,8 @@ function parseSegmentAndLocationSheet(
       }
     }
 
-    // 地点情報をパース（列12〜）
-    const poiName = row[11]; // L列: 地点の名前
+    // 地点情報をパース（新形式: K列から、旧形式: L列から）
+    const poiName = row[poiOffset];
     if (poiName) {
       const loc: any = {
         segment_name_ref: String(segmentName).trim(),
@@ -614,17 +611,15 @@ function parseSegmentAndLocationSheet(
         _rowNum: rowNum
       };
 
-      // M列: 住所
-      if (row[12]) loc.address = String(row[12]).trim();
+      if (row[poiOffset + 1]) loc.address = String(row[poiOffset + 1]).trim();
 
-      // N, O列: 緯度経度
-      if (row[13]) {
-        const lat = Number(row[13]);
+      if (row[poiOffset + 2]) {
+        const lat = Number(row[poiOffset + 2]);
         if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
         else errors.push({ section: sheetName, row: rowNum, field: '緯度', message: '-90〜90で指定してください' });
       }
-      if (row[14]) {
-        const lng = Number(row[14]);
+      if (row[poiOffset + 3]) {
+        const lng = Number(row[poiOffset + 3]);
         if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
         else errors.push({ section: sheetName, row: rowNum, field: '経度', message: '-180〜180で指定してください' });
       }
@@ -688,6 +683,20 @@ function parseVisitMeasurementLocationSheet(
       const lng = Number(row[4]);
       if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
       else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '経度', message: '-180〜180で指定してください' });
+    }
+
+    // F列: 指定半径（任意）
+    if (row[5]) {
+      const rStr = String(row[5]).trim();
+      const numMatch = rStr.match(/^(\d+)$/);
+      const mMatch = rStr.match(/^(\d+)m$/);
+      if (numMatch) loc.designated_radius = `${numMatch[1]}m`;
+      else if (mMatch) loc.designated_radius = rStr;
+    }
+
+    // G列: 滞在時間（任意）
+    if (row[6] && stayTimeMapping[String(row[6]).trim()]) {
+      loc.stay_time = stayTimeMapping[String(row[6]).trim()];
     }
 
     // 地点IDは自動採番のため、Excelからは読み取らない
