@@ -1287,10 +1287,17 @@ class BigQueryService {
   // ===== プロジェクトメッセージ (Project Messages) =====
 
   private normalizeMessage(m: any): ProjectMessage {
-    const created = m.created_at || m.timestamp;
+    let rawTs = m.created_at || m.timestamp;
+    // BigQuery v7 returns TIMESTAMP as {value: "..."} object
+    if (rawTs && typeof rawTs === 'object' && 'value' in rawTs) {
+      rawTs = rawTs.value;
+    }
+    const created = typeof rawTs === 'string'
+      ? rawTs
+      : (rawTs ? new Date(rawTs).toISOString() : new Date().toISOString());
     return {
       ...m,
-      created_at: typeof created === 'string' ? created : (created ? new Date(created).toISOString() : new Date().toISOString()),
+      created_at: created,
     };
   }
 
