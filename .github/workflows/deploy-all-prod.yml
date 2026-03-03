@@ -1,16 +1,6 @@
 name: Deploy All (Backend + Frontend) - Production
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'public/**'
-      - 'package.json'
-      - 'Dockerfile'
-      - 'config/prod/**'
-      - 'backend/**'
   workflow_dispatch:
     inputs:
       deploy_backend:
