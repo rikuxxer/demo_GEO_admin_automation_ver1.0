@@ -447,6 +447,8 @@ export async function updateProject(project_id: string, updates: any): Promise<v
     }
   }
 
+  if (Object.keys(processedUpdates).length === 0) return;
+
   const setClause = Object.keys(processedUpdates)
     .map(key => `${key} = @${key}`)
     .join(', ');
@@ -462,6 +464,14 @@ export async function updateProject(project_id: string, updates: any): Promise<v
   const paramTypes: Record<string, string | string[]> = {};
   for (const field of dateFields) {
     if (field in allParams) paramTypes[field] = 'DATE';
+  }
+  const stringFields = [
+    'project_name', 'advertiser_name', 'agency_name', 'appeal_point',
+    'person_in_charge', 'remarks', 'universe_service_id', 'universe_service_name',
+    'sub_person_in_charge', 'project_status',
+  ];
+  for (const field of stringFields) {
+    if (field in allParams) paramTypes[field] = 'STRING';
   }
 
   await initializeBigQueryClient().query({

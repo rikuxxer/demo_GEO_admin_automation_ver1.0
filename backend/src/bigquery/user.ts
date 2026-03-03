@@ -141,6 +141,8 @@ export async function updateUser(user_id: string, updates: any): Promise<void> {
       : null;
   }
 
+  if (Object.keys(processedUpdates).length === 0) return;
+
   const setClause = Object.keys(processedUpdates)
     .map(key => `${key} = @${key}`)
     .join(', ');
@@ -155,6 +157,10 @@ export async function updateUser(user_id: string, updates: any): Promise<void> {
   const allParams = { user_id, ...processedUpdates };
   const paramTypes: Record<string, string | string[]> = {};
   if ('last_login' in allParams) paramTypes.last_login = 'TIMESTAMP';
+  const stringFields = ['name', 'email', 'department', 'role', 'password_hash'];
+  for (const field of stringFields) {
+    if (field in allParams) paramTypes[field] = 'STRING';
+  }
 
   await initializeBigQueryClient().query({
     query,

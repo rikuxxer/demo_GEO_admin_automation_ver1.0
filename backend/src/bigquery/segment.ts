@@ -243,6 +243,8 @@ export async function updateSegment(segment_id: string, updates: any): Promise<v
     }
   }
 
+  if (Object.keys(processedUpdates).length === 0) return;
+
   const setClause = Object.keys(processedUpdates)
     .map(key => `${key} = @${key}`)
     .join(', ');
@@ -268,6 +270,15 @@ export async function updateSegment(segment_id: string, updates: any): Promise<v
   for (const field of timeFields) {
     if (field in allParams) paramTypes[field] = 'TIME';
   }
+  const stringFields = [
+    'segment_name', 'attribute', 'extraction_period', 'extraction_period_type',
+    'stay_time', 'designated_radius', 'poi_category', 'poi_type',
+    'location_request_status', 'data_link_status', 'ads_account_id', 'provider_segment_id',
+  ];
+  for (const field of stringFields) {
+    if (field in allParams) paramTypes[field] = 'STRING';
+  }
+  if ('detection_count' in allParams) paramTypes['detection_count'] = 'INT64';
 
   await initializeBigQueryClient().query({
     query,

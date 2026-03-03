@@ -461,6 +461,8 @@ export async function updatePoi(poi_id: string, updates: any): Promise<void> {
     }
   }
 
+  if (Object.keys(processedUpdates).length === 0) return;
+
   const setClause = Object.keys(processedUpdates)
     .map(key => `${key} = @${key}`)
     .join(', ');
@@ -472,12 +474,19 @@ export async function updatePoi(poi_id: string, updates: any): Promise<void> {
 
   const allPoiParams = { poi_id, ...processedUpdates };
 
-  const poiParamTypes: Record<string, string[]> = {};
+  const poiParamTypes: Record<string, string | string[]> = {};
   for (const [key, value] of Object.entries(allPoiParams)) {
     if (Array.isArray(value)) {
       poiParamTypes[key] = ['STRING'];
     }
   }
+  const poiStringFields = ['poi_name', 'address', 'poi_type', 'poi_category', 'designated_radius',
+    'segment_id', 'location_id', 'visit_measurement_group_id', 'polygon'];
+  for (const field of poiStringFields) {
+    if (field in allPoiParams) poiParamTypes[field] = 'STRING';
+  }
+  if ('latitude' in allPoiParams) poiParamTypes['latitude'] = 'FLOAT64';
+  if ('longitude' in allPoiParams) poiParamTypes['longitude'] = 'FLOAT64';
 
   await initializeBigQueryClient().query({
     query,

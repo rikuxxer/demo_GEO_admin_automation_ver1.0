@@ -340,6 +340,12 @@ export async function updateVisitMeasurementGroup(group_id: string, updates: any
   if ('extraction_end_date' in params) paramTypes.extraction_end_date = 'DATE';
   if ('detection_time_start' in params) paramTypes.detection_time_start = 'TIME';
   if ('detection_time_end' in params) paramTypes.detection_time_end = 'TIME';
+  const vmgStringFields = ['group_name', 'attribute', 'extraction_period', 'extraction_period_type', 'stay_time', 'designated_radius'];
+  for (const field of vmgStringFields) {
+    if (field in params) paramTypes[field] = 'STRING';
+  }
+  if ('detection_count' in params) paramTypes.detection_count = 'INT64';
+  paramTypes.updated_at = 'TIMESTAMP';
 
   await initializeBigQueryClient().query({
     query,
@@ -429,7 +435,22 @@ export async function updateFeatureRequest(request_id: string, updates: any): Pr
   });
   if (setParts.length === 0) return;
   const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.feature_requests\` SET ${setParts.join(', ')} WHERE request_id = @request_id`;
-  await initializeBigQueryClient().query({ query, params, location: BQ_LOCATION });
+  const paramTypes: Record<string, string> = {};
+  if ('reviewed_by' in params) paramTypes.reviewed_by = 'STRING';
+  if ('reviewed_at' in params) paramTypes.reviewed_at = 'TIMESTAMP';
+  if ('review_comment' in params) paramTypes.review_comment = 'STRING';
+  if ('implemented_at' in params) paramTypes.implemented_at = 'TIMESTAMP';
+  if ('title' in params) paramTypes.title = 'STRING';
+  if ('description' in params) paramTypes.description = 'STRING';
+  if ('category' in params) paramTypes.category = 'STRING';
+  if ('priority' in params) paramTypes.priority = 'STRING';
+  if ('status' in params) paramTypes.status = 'STRING';
+  await initializeBigQueryClient().query({
+    query,
+    params,
+    ...(Object.keys(paramTypes).length > 0 ? { types: paramTypes } : {}),
+    location: BQ_LOCATION,
+  });
 }
 
 // ==================== レポート作成依頼 (report_requests) ====================
@@ -572,6 +593,13 @@ export async function updateReportRequest(request_id: string, updates: any): Pro
   if ('end_date' in params) paramTypes.end_date = 'DATE';
   if ('reviewed_at' in params) paramTypes.reviewed_at = 'TIMESTAMP';
   if ('completed_at' in params) paramTypes.completed_at = 'TIMESTAMP';
+  const rrStringFields = [
+    'report_title', 'description', 'report_type', 'status',
+    'reviewed_by', 'review_comment', 'report_url', 'error_message',
+  ];
+  for (const field of rrStringFields) {
+    if (field in params) paramTypes[field] = 'STRING';
+  }
 
   await initializeBigQueryClient().query({
     query,
