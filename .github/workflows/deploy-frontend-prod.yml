@@ -1,15 +1,6 @@
 name: Deploy Frontend to Cloud Run (Production)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'public/**'
-      - 'package.json'
-      - 'Dockerfile'
-      - 'config/prod/**'
   workflow_dispatch:
     inputs:
       backend_url:

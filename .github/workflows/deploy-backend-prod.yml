@@ -1,11 +1,6 @@
 name: Deploy Backend to Cloud Run (Production)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
   workflow_dispatch:
     inputs:
       force_deploy:
