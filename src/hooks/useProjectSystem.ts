@@ -256,7 +256,7 @@ export function useProjectSystem() {
         detection_time_start: segmentData.detection_time_start,
         detection_time_end: segmentData.detection_time_end,
         stay_time: segmentData.stay_time,
-      });
+      }, allSegments);
 
       setSegments((prev) => [newSegment, ...prev]);
       setAllSegments((prev) => [newSegment, ...prev]); // 全体リストも更新

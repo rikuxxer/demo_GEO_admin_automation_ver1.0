@@ -66,6 +66,8 @@ router.post('/', async (req, res) => {
       projectData.person_in_charge = '営業A';
     }
 
+    let createdProjectData: any = null;
+
     if (!isProjectIdProvided) {
       let created = false;
       let lastError: any = null;
@@ -78,7 +80,7 @@ router.post('/', async (req, res) => {
             projectData.project_id = regeneratedProjectId;
           }
 
-          await getBqService().createProject(projectData);
+          createdProjectData = await getBqService().createProject(projectData);
           created = true;
           break;
         } catch (e: any) {
@@ -98,18 +100,13 @@ router.post('/', async (req, res) => {
         throw lastError || new Error('Failed to create project after retries');
       }
     } else {
-      await getBqService().createProject(projectData);
-    }
-
-    const createdProject = await getBqService().getProjectById(projectData.project_id);
-    if (!createdProject) {
-      throw new Error('Failed to retrieve created project');
+      createdProjectData = await getBqService().createProject(projectData);
     }
 
     res.status(201).json({
       message: 'Project created successfully',
       project_id: projectData.project_id,
-      project: createdProject,
+      project: createdProjectData,
     });
   } catch (error: any) {
     const errorDetails: any = {

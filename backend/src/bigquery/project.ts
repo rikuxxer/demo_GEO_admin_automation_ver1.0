@@ -253,7 +253,7 @@ export async function getProjectById(project_id: string): Promise<any> {
   return project;
 }
 
-export async function createProject(project: any): Promise<void> {
+export async function createProject(project: any): Promise<any> {
   try {
     const bq = initializeBigQueryClient();
     const currentProjectId = validateProjectId();
@@ -296,13 +296,6 @@ export async function createProject(project: any): Promise<void> {
     }
 
     console.log('✅ project_id検証成功:', project.project_id);
-
-    const existingProject = await getProjectById(project.project_id);
-    if (existingProject) {
-      console.error('❌ project_idが既に存在します:', project.project_id);
-      throw new Error(`project_id "${project.project_id}" already exists. Please use a different project_id.`);
-    }
-    console.log('✅ project_id重複チェック成功（重複なし）:', project.project_id);
 
     const allowedFields = [
       'project_id',
@@ -401,6 +394,8 @@ export async function createProject(project: any): Promise<void> {
       ...(Object.keys(insertParamTypes).length > 0 ? { types: insertParamTypes } : {}),
       location: BQ_LOCATION,
     });
+
+    return cleanedProject;
   } catch (error: any) {
     console.error('❌ BigQuery createProject error:', error);
     console.error('Error details:', {

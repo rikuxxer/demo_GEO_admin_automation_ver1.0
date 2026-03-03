@@ -391,18 +391,8 @@ class BigQueryService {
         if (result.project) {
           return result.project;
         }
-        
-        // project_idのみが返された場合、プロジェクトを取得
-        if (result.project_id) {
-          const createdProject = await this.getProject(result.project_id);
-          if (createdProject) {
-            return createdProject;
-          }
-        }
-        
-        // フォールバック: プロジェクト一覧から最新を取得
-        const projects = await this.getProjects();
-        return projects[0] || project as Project;
+
+        throw new Error('バックエンドからプロジェクト情報が返されませんでした');
       } catch (error) {
         if (error instanceof TypeError && error.message.includes('fetch')) {
           throw new Error('バックエンドサーバーに接続できませんでした。ネットワーク接続を確認してください。');
@@ -582,8 +572,8 @@ class BigQueryService {
     }
   }
 
-  async createSegment(segment: Omit<Segment, 'segment_id' | 'segment_registered_at'>): Promise<Segment> {
-    const segments = await this.getSegments();
+  async createSegment(segment: Omit<Segment, 'segment_id' | 'segment_registered_at'>, existingSegments?: Segment[]): Promise<Segment> {
+    const segments = existingSegments ?? await this.getSegments();
     let prefix = 'seg-uni';
     if (segment.media_id) {
       if (Array.isArray(segment.media_id)) {
