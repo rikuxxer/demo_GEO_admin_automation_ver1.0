@@ -308,6 +308,12 @@ export async function createVisitMeasurementGroup(row: any): Promise<void> {
       created: 'TIMESTAMP',
       updated_at: 'TIMESTAMP',
       extraction_dates: ['STRING'],
+      attribute: 'STRING',
+      extraction_period: 'STRING',
+      extraction_period_type: 'STRING',
+      detection_count: 'INT64',
+      stay_time: 'STRING',
+      designated_radius: 'STRING',
     },
     location: BQ_LOCATION,
   });
