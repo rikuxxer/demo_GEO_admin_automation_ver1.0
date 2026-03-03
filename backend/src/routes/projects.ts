@@ -46,6 +46,23 @@ router.post('/', async (req, res) => {
       });
     }
 
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const { delivery_start_date, delivery_end_date } = req.body;
+    if (!delivery_start_date || !dateRegex.test(delivery_start_date)) {
+      return res.status(400).json({
+        error: '配信開始日は YYYY-MM-DD 形式で入力してください',
+        type: 'ValidationError',
+        request_id: (req as any).request_id,
+      });
+    }
+    if (!delivery_end_date || !dateRegex.test(delivery_end_date)) {
+      return res.status(400).json({
+        error: '配信終了日は YYYY-MM-DD 形式で入力してください',
+        type: 'ValidationError',
+        request_id: (req as any).request_id,
+      });
+    }
+
     let projectData = { ...req.body };
     const isProjectIdProvided =
       !!projectData.project_id &&
@@ -155,6 +172,20 @@ router.post('/', async (req, res) => {
 
 router.put('/:project_id', async (req, res) => {
   try {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const { delivery_start_date, delivery_end_date } = req.body;
+    if (delivery_start_date !== undefined && (!delivery_start_date || !dateRegex.test(delivery_start_date))) {
+      return res.status(400).json({
+        error: '配信開始日は YYYY-MM-DD 形式で入力してください',
+        type: 'ValidationError',
+      });
+    }
+    if (delivery_end_date !== undefined && (!delivery_end_date || !dateRegex.test(delivery_end_date))) {
+      return res.status(400).json({
+        error: '配信終了日は YYYY-MM-DD 形式で入力してください',
+        type: 'ValidationError',
+      });
+    }
     await getBqService().updateProject(req.params.project_id, req.body);
     res.json({ message: 'Project updated successfully' });
   } catch (error: any) {
