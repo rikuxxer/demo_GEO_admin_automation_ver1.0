@@ -135,6 +135,20 @@ export function useProjectDetail({
     return selectedDate < sixMonthsAgo;
   };
 
+  const getFiveDaysAgoDate = (): string => {
+    const date = new Date();
+    date.setDate(date.getDate() - 5);
+    return date.toISOString().split('T')[0];
+  };
+
+  const isDateNewerThanFiveDaysAgo = (dateString: string): boolean => {
+    if (!dateString) return false;
+    const selectedDate = new Date(dateString);
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    return selectedDate > fiveDaysAgo;
+  };
+
   const tgPois = useMemo(
     () => pois.filter(p => p.poi_category === 'tg' || !p.poi_category),
     [pois]
@@ -1006,6 +1020,8 @@ export function useProjectDetail({
     extractionDatesEqual,
     getSixMonthsAgoDate,
     isDateMoreThanSixMonthsAgo,
+    getFiveDaysAgoDate,
+    isDateNewerThanFiveDaysAgo,
     // radius warnings
     showRadiusWarning,
     setShowRadiusWarning,

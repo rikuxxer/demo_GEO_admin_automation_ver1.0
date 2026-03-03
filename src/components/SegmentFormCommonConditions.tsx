@@ -454,12 +454,16 @@ function SegmentFormCommonConditionsInner({ formData, onChange, onDesignatedRadi
                       type="date"
                       value={d}
                       min={getSixMonthsAgoDate()}
-                      max={new Date().toISOString().split('T')[0]}
+                      max={getFiveDaysAgoDate()}
                       onChange={(e) => {
                         const selectedDate = e.target.value;
                         if (isDateMoreThanSixMonthsAgo(selectedDate)) {
                           setShowDateRangeWarning(true);
-                          return; // 日付を更新しない
+                          return;
+                        }
+                        if (isDateNewerThanFiveDaysAgo(selectedDate)) {
+                          toast.error('特定日付は5日以上前の日付を選択してください');
+                          return;
                         }
                         const arr = [...(formData.extraction_dates || [])];
                         arr[i] = selectedDate;
@@ -495,9 +499,14 @@ function SegmentFormCommonConditionsInner({ formData, onChange, onDesignatedRadi
                 <Input
                   type="date"
                   value={formData.extraction_start_date || ''}
+                  min={getSixMonthsAgoDate()}
                   max={getFiveDaysAgoDate()}
                   onChange={(e) => {
                     const selectedDate = e.target.value;
+                    if (isDateMoreThanSixMonthsAgo(selectedDate)) {
+                      toast.error('開始日は直近6か月以内の日付を指定してください');
+                      return;
+                    }
                     if (isDateNewerThanFiveDaysAgo(selectedDate)) {
                       toast.error('開始日は5日前以前の日付を指定してください');
                       return;
@@ -513,9 +522,14 @@ function SegmentFormCommonConditionsInner({ formData, onChange, onDesignatedRadi
                 <Input
                   type="date"
                   value={formData.extraction_end_date || ''}
+                  min={getSixMonthsAgoDate()}
                   max={getFiveDaysAgoDate()}
                   onChange={(e) => {
                     const selectedDate = e.target.value;
+                    if (isDateMoreThanSixMonthsAgo(selectedDate)) {
+                      toast.error('終了日は直近6か月以内の日付を指定してください');
+                      return;
+                    }
                     if (isDateNewerThanFiveDaysAgo(selectedDate)) {
                       toast.error('終了日は5日前以前の日付を指定してください');
                       return;

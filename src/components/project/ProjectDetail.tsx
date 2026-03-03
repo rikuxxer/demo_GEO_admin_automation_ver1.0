@@ -839,10 +839,14 @@ export function ProjectDetail(props: ProjectDetailProps) {
                               type="date"
                               value={d}
                               min={detail.getSixMonthsAgoDate()}
-                              max={new Date().toISOString().split('T')[0]}
+                              max={detail.getFiveDaysAgoDate()}
                               onChange={(e) => {
                                 const selectedDate = e.target.value;
                                 if (detail.isDateMoreThanSixMonthsAgo(selectedDate)) {
+                                  startTransition(() => detail.setShowDateRangeWarning(true));
+                                  return;
+                                }
+                                if (detail.isDateNewerThanFiveDaysAgo(selectedDate)) {
                                   startTransition(() => detail.setShowDateRangeWarning(true));
                                   return;
                                 }
@@ -882,7 +886,16 @@ export function ProjectDetail(props: ProjectDetailProps) {
                       <Input
                         type="date"
                         value={detail.extractionConditionsFormData.extraction_start_date || ''}
-                        onChange={(e) => detail.setExtractionConditionsDeferred(prev => ({ ...prev, extraction_start_date: e.target.value }))}
+                        min={detail.getSixMonthsAgoDate()}
+                        max={detail.getFiveDaysAgoDate()}
+                        onChange={(e) => {
+                          const selectedDate = e.target.value;
+                          if (detail.isDateMoreThanSixMonthsAgo(selectedDate) || detail.isDateNewerThanFiveDaysAgo(selectedDate)) {
+                            startTransition(() => detail.setShowDateRangeWarning(true));
+                            return;
+                          }
+                          detail.setExtractionConditionsDeferred(prev => ({ ...prev, extraction_start_date: selectedDate }));
+                        }}
                         disabled={detail.extractionConditionsFormData.attribute === 'resident' || detail.extractionConditionsFormData.attribute === 'worker' || detail.extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="bg-white"
                       />
@@ -890,7 +903,16 @@ export function ProjectDetail(props: ProjectDetailProps) {
                       <Input
                         type="date"
                         value={detail.extractionConditionsFormData.extraction_end_date || ''}
-                        onChange={(e) => detail.setExtractionConditionsDeferred(prev => ({ ...prev, extraction_end_date: e.target.value }))}
+                        min={detail.getSixMonthsAgoDate()}
+                        max={detail.getFiveDaysAgoDate()}
+                        onChange={(e) => {
+                          const selectedDate = e.target.value;
+                          if (detail.isDateMoreThanSixMonthsAgo(selectedDate) || detail.isDateNewerThanFiveDaysAgo(selectedDate)) {
+                            startTransition(() => detail.setShowDateRangeWarning(true));
+                            return;
+                          }
+                          detail.setExtractionConditionsDeferred(prev => ({ ...prev, extraction_end_date: selectedDate }));
+                        }}
                         disabled={detail.extractionConditionsFormData.attribute === 'resident' || detail.extractionConditionsFormData.attribute === 'worker' || detail.extractionConditionsFormData.attribute === 'resident_and_worker'}
                         className="bg-white"
                       />
@@ -1176,7 +1198,7 @@ export function ProjectDetail(props: ProjectDetailProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 6ヶ月以上前の日付選択警告ポップアップ */}
+      {/* 日付範囲制限の警告ポップアップ */}
       <AlertDialog open={detail.showDateRangeWarning} onOpenChange={detail.setShowDateRangeWarning}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1187,10 +1209,13 @@ export function ProjectDetail(props: ProjectDetailProps) {
             <AlertDialogDescription className="pt-4">
               <div className="space-y-2">
                 <p className="text-base font-medium text-gray-900">
-                  抽出対象日付は直近6ヶ月まで選択可能です。
+                  選択した日付は指定できません。
                 </p>
                 <p className="text-sm text-gray-700">
-                  6ヶ月以上前の日付を指定する場合は、アースラでBW依頼をしてください。
+                  データは直近6ヶ月分のみ利用可能で、かつデータ連携に5日かかるため、5日前以前の日付のみ指定できます。
+                </p>
+                <p className="text-sm text-gray-700">
+                  6ヶ月以上前の日付が必要な場合は、アースラでBW依頼をしてください。
                 </p>
               </div>
             </AlertDialogDescription>
