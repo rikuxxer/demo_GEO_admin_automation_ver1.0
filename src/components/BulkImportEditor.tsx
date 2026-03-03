@@ -4,7 +4,7 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { AlertCircle, CheckCircle, Pencil, X, Save, Calendar as CalendarIcon, Wand2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Pencil, X, Save, Calendar as CalendarIcon } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import {
   AlertDialog,
@@ -96,58 +96,6 @@ export function BulkImportEditor({
     return locationErrors.filter(e => e.row === location._rowNum);
   };
 
-  const handleAutoFixCommonIssues = () => {
-    // よくある入力ゆれ・ルール違反を自動補正
-    if (editingProject) {
-      setEditingProject({
-        ...editingProject,
-        advertiser_name: (editingProject.advertiser_name || '').trim(),
-        agency_name: (editingProject.agency_name || '').trim(),
-        appeal_point: (editingProject.appeal_point || '').trim(),
-      });
-    }
-
-    setEditingSegments(prev => prev.map(segment => {
-      const radiusRaw = String(segment.designated_radius || '').trim();
-      const numMatch = radiusRaw.match(/^(\d+)$/);
-      const mMatch = radiusRaw.match(/^(\d+)m$/);
-      const radiusNum = numMatch ? parseInt(numMatch[1], 10) : (mMatch ? parseInt(mMatch[1], 10) : NaN);
-      const normalizedRadius = Number.isNaN(radiusNum)
-        ? segment.designated_radius
-        : `${Math.min(10000, Math.max(0, radiusNum))}m`;
-
-      if (segment.attribute === 'resident' || segment.attribute === 'worker' || segment.attribute === 'resident_and_worker') {
-        return {
-          ...segment,
-          extraction_period: '3month',
-          extraction_start_date: '',
-          extraction_end_date: '',
-          detection_count: 3,
-          detection_time_start: '',
-          detection_time_end: '',
-          stay_time: '',
-          designated_radius: normalizedRadius,
-        };
-      }
-
-      const detectorCount = Math.min(15, Math.max(1, Number(segment.detection_count || 1)));
-      return {
-        ...segment,
-        extraction_period: segment.extraction_period || '1month',
-        detection_count: detectorCount,
-        designated_radius: normalizedRadius,
-      };
-    }));
-
-    setEditingLocations(prev => prev.map(location => ({
-      ...location,
-      poi_name: (location.poi_name || '').trim(),
-      address: (location.address || '').trim(),
-      segment_name_ref: location.segment_name_ref ? location.segment_name_ref.trim() : location.segment_name_ref,
-      group_name_ref: location.group_name_ref ? location.group_name_ref.trim() : location.group_name_ref,
-    })));
-  };
-
   const handleSave = () => {
     // UNIVERSEサービスIDのバリデーション
     if (editingProject?.universe_service_id && !/^\d{5,}$/.test(editingProject.universe_service_id)) {
@@ -167,10 +115,6 @@ export function BulkImportEditor({
       <div className="flex items-center justify-between">
         <h3 className="font-medium">データを修正</h3>
         <div className="flex gap-2">
-          <Button onClick={handleAutoFixCommonIssues} variant="outline" size="sm">
-            <Wand2 className="w-4 h-4 mr-1" />
-            よくある不整合を自動補正
-          </Button>
           <Button onClick={onCancel} variant="outline" size="sm">
             <X className="w-4 h-4 mr-1" />
             キャンセル

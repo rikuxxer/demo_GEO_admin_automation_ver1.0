@@ -456,6 +456,8 @@ function parseSegmentRow(row: any[], rowNum: number, errors: ExcelParseError[], 
   if (segment.extraction_period === 'custom') {
     if (!segment.extraction_start_date || !segment.extraction_end_date) {
       errors.push({ section: sectionName, row: rowNum, field: '抽出期間', message: '期間指定の場合は開始日と終了日を入力してください' });
+    } else if (segment.extraction_start_date > segment.extraction_end_date) {
+      errors.push({ section: sectionName, row: rowNum, field: '抽出終了日', message: '抽出終了日は抽出開始日以降にしてください' });
     }
   }
 

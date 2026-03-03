@@ -235,7 +235,26 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
     cell.value = h.name;
     cell.style = h.required ? REQUIRED_HEADER_STYLE : (h.group === 'seg' ? SEGMENT_HEADER_STYLE : LOCATION_HEADER_STYLE);
   });
-  headerRow.height = 22;
+  headerRow.height = 30;
+
+  // 列幅・numFmt をループ前に設定（sheet.columns = [...] はセルスタイルをリセットするため使用禁止）
+  sheet.getColumn(1).width = 25;   // A: セグメント名
+  sheet.getColumn(2).width = 20;   // B: 配信先
+  sheet.getColumn(3).width = 14;   // C: 配信範囲
+  sheet.getColumn(4).width = 15;   // D: 抽出期間
+  sheet.getColumn(5).width = 15;   // E: 抽出開始日
+  sheet.getColumn(5).numFmt = 'yyyy-mm-dd';
+  sheet.getColumn(6).width = 15;   // F: 抽出終了日
+  sheet.getColumn(6).numFmt = 'yyyy-mm-dd';
+  sheet.getColumn(7).width = 15;   // G: 対象者
+  sheet.getColumn(8).width = 18;   // H: 検知回数（検知者のみ）
+  sheet.getColumn(9).width = 14;   // I: 検知時間開始
+  sheet.getColumn(10).width = 14;  // J: 検知時間終了
+  sheet.getColumn(11).width = 12;  // K: 滞在時間
+  sheet.getColumn(12).width = 30;  // L: 地点の名前
+  sheet.getColumn(13).width = 40;  // M: 住所
+  sheet.getColumn(14).width = 15;  // N: 緯度
+  sheet.getColumn(15).width = 15;  // O: 経度
 
   // サンプル行（地点IDは自動採番のため削除）
   const sampleValues = [
@@ -297,13 +316,11 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
       showErrorMessage: true, error: '対象者が「検知者」かつ抽出期間が「期間指定」の場合のみ入力可',
       showInputMessage: true, promptTitle: '抽出開始日（条件付き）', prompt: '対象者「検知者」かつ抽出期間「期間指定」の場合のみ入力\n形式: YYYY-MM-DD'
     };
-    row.getCell(5).numFmt = 'yyyy-mm-dd';
     row.getCell(6).dataValidation = {
       type: 'custom', formulae: [dateConditionalFormula(`F${r}`)],
       showErrorMessage: true, error: '対象者が「検知者」かつ抽出期間が「期間指定」の場合のみ入力可',
       showInputMessage: true, promptTitle: '抽出終了日（条件付き）', prompt: '対象者「検知者」かつ抽出期間「期間指定」の場合のみ入力\n形式: YYYY-MM-DD'
     };
-    row.getCell(6).numFmt = 'yyyy-mm-dd';
 
     // 7. 対象者 (Option Col C - 日本語あり・居住者&勤務者を追加したので範囲をC1:C4に変更)
     row.getCell(7).dataValidation = {
@@ -355,12 +372,6 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
       showInputMessage: true, promptTitle: '経度（任意）', prompt: '-180〜180の小数\n例: 139.7454329（東京タワー）'
     };
   }
-
-  sheet.columns = [
-    { width: 25 }, { width: 20 }, { width: 12 }, { width: 15 }, { width: 15 }, { width: 15 },
-    { width: 15 }, { width: 12 }, { width: 10 }, { width: 10 }, { width: 12 },
-    { width: 30 }, { width: 40 }, { width: 15 }, { width: 15 }
-  ];
 
   // 条件付き書式: 対象者が「検知者」以外の場合、D列（抽出期間）をグレーアウト（居住者等は直近3ヶ月固定）
   sheet.addConditionalFormatting({

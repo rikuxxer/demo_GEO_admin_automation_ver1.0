@@ -197,27 +197,16 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
         newResult.errors.push({ section: '③セグメント設定', row, field: '対象者', message: '対象者は必須です' });
       }
 
-      // 居住者/勤務者/居住者&勤務者は抽出期間・検知回数を固定化
-      if (normalized.attribute && normalized.attribute !== 'detector') {
-        normalized.extraction_period = '3month';
-        normalized.extraction_start_date = '';
-        normalized.extraction_end_date = '';
-        normalized.detection_count = 3;
-        normalized.detection_time_start = '';
-        normalized.detection_time_end = '';
-        normalized.stay_time = '';
-      } else {
-        if (!normalized.extraction_period) {
-          newResult.errors.push({ section: '③セグメント設定', row, field: '抽出期間', message: '抽出期間は必須です' });
+      if (!normalized.extraction_period) {
+        newResult.errors.push({ section: '③セグメント設定', row, field: '抽出期間', message: '抽出期間は必須です' });
+      }
+      if (normalized.extraction_period === 'custom') {
+        if (!normalized.extraction_start_date || !normalized.extraction_end_date) {
+          newResult.errors.push({ section: '③セグメント設定', row, field: '抽出期間', message: '期間指定の場合は開始日と終了日を入力してください' });
         }
-        if (normalized.extraction_period === 'custom') {
-          if (!normalized.extraction_start_date || !normalized.extraction_end_date) {
-            newResult.errors.push({ section: '③セグメント設定', row, field: '抽出期間', message: '期間指定の場合は開始日と終了日を入力してください' });
-          }
-        }
-        if (!normalized.detection_count || normalized.detection_count < 1 || normalized.detection_count > 15) {
-          newResult.errors.push({ section: '③セグメント設定', row, field: '検知回数', message: '検知回数は1〜15回で指定してください' });
-        }
+      }
+      if (!normalized.detection_count || normalized.detection_count < 1 || normalized.detection_count > 15) {
+        newResult.errors.push({ section: '③セグメント設定', row, field: '検知回数', message: '検知回数は1〜15回で指定してください' });
       }
 
       return normalized;
