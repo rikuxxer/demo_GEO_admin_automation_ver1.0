@@ -400,7 +400,9 @@ export async function createFeatureRequest(row: any): Promise<void> {
     params: cleaned,
     types: {
       requested_at: 'TIMESTAMP',
+      reviewed_by: 'STRING',
       reviewed_at: 'TIMESTAMP',
+      review_comment: 'STRING',
       implemented_at: 'TIMESTAMP',
     },
     location: BQ_LOCATION,
