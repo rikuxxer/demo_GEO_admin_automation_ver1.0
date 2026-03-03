@@ -265,7 +265,7 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
     for (let c = 1; c <= 15; c++) r.getCell(c).style = SAMPLE_ROW_STYLE;
   });
 
-  const maxRows = 1000;
+  const maxRows = 300;
   const optionsSheetName = '5.選択肢リスト';
 
   for (let r = 4; r <= maxRows; r++) {
@@ -487,7 +487,7 @@ async function createVisitMeasurementLocationSheet(workbook: ExcelJS.Workbook) {
     for (let c = 1; c <= 5; c++) r.getCell(c).style = SAMPLE_ROW_STYLE;
   });
 
-  const maxRows = 1000;
+  const maxRows = 300;
 
   for (let r = 4; r <= maxRows; r++) {
     const row = sheet.getRow(r);
