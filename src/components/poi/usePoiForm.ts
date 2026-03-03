@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, startTransition } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PoiInfo, Segment } from '../../types/schema';
 import { getCitiesByPrefecture } from '../../utils/prefectureData';
 import { geocodeAddress } from '../../utils/geocoding';
@@ -1321,7 +1321,7 @@ export function usePoiForm({
   const handleChange = (field: keyof PoiInfo, value: string | number | string[] | undefined) => {
     if (field === 'designated_radius') {
       designatedRadiusRef.current = String(value ?? '');
-      startTransition(() => setFormData(prev => ({ ...prev, [field]: value })));
+      setFormData(prev => ({ ...prev, [field]: value }));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
     }

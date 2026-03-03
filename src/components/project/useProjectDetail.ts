@@ -111,7 +111,7 @@ export function useProjectDetail({
   const [showDateRangeWarning, setShowDateRangeWarning] = useState(false);
 
   const setExtractionConditionsDeferred = (updater: (prev: Partial<PoiInfo>) => Partial<PoiInfo>) => {
-    startTransition(() => setExtractionConditionsFormData(updater));
+    setExtractionConditionsFormData(updater);
   };
 
   const extractionDatesEqual = (a: string[] | undefined, b: string[] | undefined): boolean => {

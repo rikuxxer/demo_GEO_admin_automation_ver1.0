@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, startTransition } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -214,7 +214,7 @@ export function SegmentForm({ projectId, segment, existingSegments = [], pois = 
 
   const handleChange = useCallback((field: string, value: any) => {
     if (field === 'designated_radius' || field === 'extraction_period_type' || field === 'extraction_period' || field === 'extraction_dates' || field === 'extraction_start_date' || field === 'extraction_end_date') {
-      startTransition(() => setFormData(prev => ({ ...prev, [field]: value })));
+      setFormData(prev => ({ ...prev, [field]: value }));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
     }
