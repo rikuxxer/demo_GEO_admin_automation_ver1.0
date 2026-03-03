@@ -216,11 +216,11 @@ export function ProjectEditRequestDialog({
 
             <TabsContent value="request" className="flex-1 overflow-y-auto p-6 mt-0 min-h-0">
               {pendingRequests.length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-yellow-800">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-amber-800">
                     ⚠️ この案件には承認待ちの修正依頼が{pendingRequests.length}件あります。
                   </p>
-                  <p className="text-xs text-yellow-700 mt-1">
+                  <p className="text-xs text-amber-700 mt-1">
                     前の依頼が処理されるまで、新しい修正依頼を控えることをお勧めします。
                   </p>
                 </div>
@@ -233,13 +233,13 @@ export function ProjectEditRequestDialog({
                     <AlertCircle className="w-5 h-5 text-orange-500" />
                     <h3 className="text-sm text-gray-900">承認が必要な項目（管理部承認後に反映）</h3>
                   </div>
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-4">
+                  <div className="bg-gray-50/50 border border-gray-200 border-l-4 border-l-orange-400 rounded-lg p-4 space-y-4">
                     <div className="space-y-2">
                       <Label>広告主法人名</Label>
                       <Input
                         value={editedProject.advertiser_name || ''}
                         onChange={(e) => setEditedProject(prev => ({ ...prev, advertiser_name: e.target.value }))}
-                        className="border-orange-300 bg-white focus-visible:ring-orange-500"
+                        className="bg-white"
                       />
                     </div>
                     <div className="space-y-2">
@@ -247,7 +247,7 @@ export function ProjectEditRequestDialog({
                       <Input
                         value={editedProject.agency_name || ''}
                         onChange={(e) => setEditedProject(prev => ({ ...prev, agency_name: e.target.value }))}
-                        className="border-orange-300 bg-white focus-visible:ring-orange-500"
+                        className="bg-white"
                       />
                     </div>
                     <div className="space-y-2">
@@ -256,7 +256,7 @@ export function ProjectEditRequestDialog({
                         value={editedProject.appeal_point || ''}
                         onChange={(e) => setEditedProject(prev => ({ ...prev, appeal_point: e.target.value }))}
                         rows={3}
-                        className="border-orange-300 bg-white focus-visible:ring-orange-500"
+                        className="bg-white"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -267,7 +267,7 @@ export function ProjectEditRequestDialog({
                             <Button
                               variant="outline"
                               type="button"
-                              className="w-full justify-start text-left font-normal bg-white hover:bg-orange-50 border-orange-300"
+                              className="w-full justify-start text-left font-normal bg-white hover:bg-gray-50 border-gray-200"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {editedProject.delivery_start_date ? (
@@ -295,7 +295,7 @@ export function ProjectEditRequestDialog({
                             <Button
                               variant="outline"
                               type="button"
-                              className="w-full justify-start text-left font-normal bg-white hover:bg-orange-50 border-orange-300"
+                              className="w-full justify-start text-left font-normal bg-white hover:bg-gray-50 border-gray-200"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {editedProject.delivery_end_date ? (
@@ -323,7 +323,7 @@ export function ProjectEditRequestDialog({
                         <Input
                           value={editedProject.person_in_charge || ''}
                           onChange={(e) => setEditedProject(prev => ({ ...prev, person_in_charge: e.target.value }))}
-                          className="border-orange-300 bg-white focus-visible:ring-orange-500"
+                          className="bg-white"
                         />
                       </div>
                       <div className="space-y-2">
@@ -331,7 +331,7 @@ export function ProjectEditRequestDialog({
                         <Input
                           value={editedProject.sub_person_in_charge || ''}
                           onChange={(e) => setEditedProject(prev => ({ ...prev, sub_person_in_charge: e.target.value }))}
-                          className="border-orange-300 bg-white focus-visible:ring-orange-500"
+                          className="bg-white"
                         />
                       </div>
                     </div>
@@ -344,14 +344,14 @@ export function ProjectEditRequestDialog({
                     <CheckCircle className="w-5 h-5 text-green-500" />
                     <h3 className="text-sm text-gray-900">即時反映される項目（承認不要）</h3>
                   </div>
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
+                  <div className="bg-gray-50/50 border border-gray-200 border-l-4 border-l-green-400 rounded-lg p-4 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>UNIVERSEサービスID（任意）</Label>
                         <Input
                           value={editedProject.universe_service_id || ''}
                           onChange={(e) => setEditedProject(prev => ({ ...prev, universe_service_id: e.target.value }))}
-                          className="border-green-300 bg-white focus-visible:ring-green-500"
+                          className="bg-white"
                         />
                       </div>
                       <div className="space-y-2">
@@ -359,7 +359,7 @@ export function ProjectEditRequestDialog({
                         <Input
                           value={editedProject.universe_service_name || ''}
                           onChange={(e) => setEditedProject(prev => ({ ...prev, universe_service_name: e.target.value }))}
-                          className="border-green-300 bg-white focus-visible:ring-green-500"
+                          className="bg-white"
                         />
                       </div>
                     </div>
@@ -370,7 +370,7 @@ export function ProjectEditRequestDialog({
                         onChange={(e) => setEditedProject(prev => ({ ...prev, remarks: e.target.value }))}
                         rows={3}
                         placeholder="その他の補足情報を入力してください"
-                        className="border-green-300 bg-white focus-visible:ring-green-500"
+                        className="bg-white"
                       />
                     </div>
                   </div>
