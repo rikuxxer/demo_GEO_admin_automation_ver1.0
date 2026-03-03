@@ -44,6 +44,7 @@ export async function getPoisByProject(project_id: string): Promise<any[]> {
   const [rows] = await initializeBigQueryClient().query({
     query,
     params: { project_id },
+    location: BQ_LOCATION,
   });
   return rows;
 }
