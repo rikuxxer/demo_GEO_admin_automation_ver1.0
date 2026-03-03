@@ -466,7 +466,20 @@ export async function saveQaLogs(
     },
   ];
 
-  await bq.dataset(datasetId).table('qa_logs').insert(rows, { ignoreUnknownValues: true });
+  const qaInsertQuery = `
+    INSERT INTO \`${projectId}.${datasetId}.qa_logs\`
+    (log_id, session_id, user_id, role, content, created_at, source, feedback, latency_ms, context_chars, model_id)
+    VALUES
+    (@log_id, @session_id, @user_id, @role, @content, @created_at, @source, @feedback, @latency_ms, @context_chars, @model_id)
+  `;
+  for (const row of rows) {
+    await bq.query({
+      query: qaInsertQuery,
+      params: row,
+      types: { created_at: 'TIMESTAMP' },
+      location: BQ_LOCATION,
+    });
+  }
 }
 
 export async function updateFeedback(logId: string, feedback: 'good' | 'bad'): Promise<void> {

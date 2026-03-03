@@ -23,16 +23,6 @@ router.get('/project/:project_id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const segmentId = req.body?.segment_id;
-    if (segmentId) {
-      const existing = await getBqService().getSegmentById(segmentId);
-      if (existing) {
-        return res.status(409).json({
-          error: 'このセグメントIDは既に存在します。再度登録できません。',
-          code: 'SEGMENT_ALREADY_EXISTS',
-        });
-      }
-    }
     await getBqService().createSegment(req.body);
     res.status(201).json({ message: 'Segment created successfully' });
   } catch (error: any) {

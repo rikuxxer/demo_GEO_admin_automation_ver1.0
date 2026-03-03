@@ -1,7 +1,9 @@
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Alert, AlertDescription } from '../ui/alert';
 import { MapPin, Settings2, AlertCircle, Loader2 } from 'lucide-react';
+import { isGeocodingConfigured } from '@/utils/geocoding';
 import type { usePoiForm } from './usePoiForm';
 
 type UsePoiFormReturn = ReturnType<typeof usePoiForm>;
@@ -62,13 +64,21 @@ export function PoiFormManual({ form, poi, defaultCategory, visitMeasurementGrou
           <Button
             type="button"
             onClick={handleGeocodeAddress}
-            disabled={isGeocoding || !formData.address}
+            disabled={isGeocoding || !formData.address || !isGeocodingConfigured()}
             variant="outline"
-            className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : '緯度経度取得'}
           </Button>
         </div>
+        {!isGeocodingConfigured() && (
+          <Alert className="mt-1.5 bg-yellow-50 border-yellow-200 py-2">
+            <AlertCircle className="w-4 h-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800 text-xs">
+              Google Maps APIキーが未設定のため、緯度経度取得は使用できません。管理者に連絡してください。
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {/* 地点カテゴリ選択（defaultCategoryが設定されていない場合、または編集時のみ表示） */}

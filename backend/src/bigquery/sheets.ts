@@ -3,7 +3,6 @@ import {
   getCleanDatasetId,
   initializeBigQueryClient,
   BQ_LOCATION,
-  getDataset,
   formatTimestampForBigQuery,
   sleep,
 } from './utils';
@@ -326,8 +325,39 @@ export async function createSheetExport(exportRecord: any): Promise<void> {
     cleanedExport.created_at = formatTimestampForBigQuery(exportRecord.created_at || now);
     cleanedExport.updated_at = formatTimestampForBigQuery(exportRecord.updated_at || now);
 
-    await getDataset().table('sheet_exports').insert([cleanedExport], { ignoreUnknownValues: true });
-    console.log('✅ エクスポート履歴を作成しました:', exportRecord.export_id);
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    await initializeBigQueryClient().query({
+      query: `
+        INSERT INTO \`${currentProjectId}.${cleanDatasetId}.sheet_exports\`
+        (export_id, project_id, segment_id, exported_by, exported_by_name, export_status, spreadsheet_id, sheet_name, row_count, exported_at, completed_at, error_message, created_at, updated_at)
+        VALUES
+        (@export_id, @project_id, @segment_id, @exported_by, @exported_by_name, @export_status, @spreadsheet_id, @sheet_name, @row_count, @exported_at, @completed_at, @error_message, @created_at, @updated_at)
+      `,
+      params: {
+        export_id: cleanedExport.export_id,
+        project_id: cleanedExport.project_id ?? null,
+        segment_id: cleanedExport.segment_id ?? null,
+        exported_by: cleanedExport.exported_by ?? null,
+        exported_by_name: cleanedExport.exported_by_name ?? null,
+        export_status: cleanedExport.export_status ?? null,
+        spreadsheet_id: cleanedExport.spreadsheet_id ?? null,
+        sheet_name: cleanedExport.sheet_name ?? null,
+        row_count: cleanedExport.row_count ?? null,
+        exported_at: cleanedExport.exported_at ?? null,
+        completed_at: cleanedExport.completed_at ?? null,
+        error_message: cleanedExport.error_message ?? null,
+        created_at: cleanedExport.created_at,
+        updated_at: cleanedExport.updated_at,
+      },
+      types: {
+        exported_at: 'TIMESTAMP',
+        completed_at: 'TIMESTAMP',
+        created_at: 'TIMESTAMP',
+        updated_at: 'TIMESTAMP',
+      },
+      location: BQ_LOCATION,
+    });
   } catch (err: any) {
     console.error('[BQ insert sheet_export] error:', err?.message);
     throw err;
@@ -388,8 +418,42 @@ export async function createSheetExportDataBulk(exportData: any[]): Promise<void
       return cleaned;
     });
 
-    await getDataset().table('sheet_export_data').insert(cleanedData, { ignoreUnknownValues: true });
-    console.log(`✅ エクスポートデータを一括作成しました: ${cleanedData.length}件`);
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const sheetDataInsertQuery = `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.sheet_export_data\`
+      (export_data_id, export_id, project_id, segment_id, poi_id, category_id, brand_id, brand_name, poi_name, latitude, longitude, prefecture, city, radius, polygon, setting_flag, created, row_index, created_at)
+      VALUES
+      (@export_data_id, @export_id, @project_id, @segment_id, @poi_id, @category_id, @brand_id, @brand_name, @poi_name, @latitude, @longitude, @prefecture, @city, @radius, @polygon, @setting_flag, @created, @row_index, @created_at)
+    `;
+    for (const row of cleanedData) {
+      await initializeBigQueryClient().query({
+        query: sheetDataInsertQuery,
+        params: {
+          export_data_id: row.export_data_id,
+          export_id: row.export_id,
+          project_id: row.project_id,
+          segment_id: row.segment_id ?? null,
+          poi_id: row.poi_id ?? null,
+          category_id: row.category_id ?? null,
+          brand_id: row.brand_id ?? null,
+          brand_name: row.brand_name ?? null,
+          poi_name: row.poi_name ?? null,
+          latitude: row.latitude ?? null,
+          longitude: row.longitude ?? null,
+          prefecture: row.prefecture ?? null,
+          city: row.city ?? null,
+          radius: row.radius ?? null,
+          polygon: row.polygon ?? null,
+          setting_flag: row.setting_flag ?? null,
+          created: row.created ?? null,
+          row_index: row.row_index ?? null,
+          created_at: row.created_at,
+        },
+        types: { created_at: 'TIMESTAMP' },
+        location: BQ_LOCATION,
+      });
+    }
   } catch (err: any) {
     console.error('[BQ insert sheet_export_data bulk] error:', err?.message);
     throw err;

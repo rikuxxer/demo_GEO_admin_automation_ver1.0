@@ -113,6 +113,13 @@ jobs:
           echo "  tsconfig.json: $([ -f tsconfig.json ] && echo '✅ 存在' || echo '❌ 存在しない')"
           echo "  src/index.ts: $([ -f src/index.ts ] && echo '✅ 存在' || echo '❌ 存在しない')"
 
+      - name: Static checks (type-check + no-streaming-insert)
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run type-check
+          npm run check:no-streaming-insert
+
       - name: Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v3

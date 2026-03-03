@@ -3,7 +3,6 @@ import {
   getCleanDatasetId,
   initializeBigQueryClient,
   BQ_LOCATION,
-  getDataset,
   formatTimestampForBigQuery,
   formatBoolForBigQuery,
   formatDateForBigQuery,
@@ -105,28 +104,35 @@ export async function createMessage(message: any): Promise<void> {
       cleanedMessage.timestamp = formatTimestampForBigQuery(new Date());
     }
 
-    console.log('📋 Cleaned message data for BigQuery:', {
-      message_id: cleanedMessage.message_id,
-      project_id: cleanedMessage.project_id,
-      sender_id: cleanedMessage.sender_id,
-      allFields: Object.keys(cleanedMessage),
+    const currentProjectId = validateProjectId();
+    const cleanDatasetId = getCleanDatasetId();
+    const query = `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.messages\`
+      (message_id, project_id, sender_id, sender_name, sender_role, content, message_type, is_read, timestamp)
+      VALUES
+      (@message_id, @project_id, @sender_id, @sender_name, @sender_role, @content, @message_type, @is_read, @timestamp)
+    `;
+    await initializeBigQueryClient().query({
+      query,
+      params: {
+        message_id: cleanedMessage.message_id,
+        project_id: cleanedMessage.project_id,
+        sender_id: cleanedMessage.sender_id,
+        sender_name: cleanedMessage.sender_name,
+        sender_role: cleanedMessage.sender_role,
+        content: cleanedMessage.content,
+        message_type: cleanedMessage.message_type ?? null,
+        is_read: cleanedMessage.is_read ?? false,
+        timestamp: cleanedMessage.timestamp,
+      },
+      types: {
+        timestamp: 'TIMESTAMP',
+        is_read: 'BOOL',
+      },
+      location: BQ_LOCATION,
     });
-
-    await getDataset().table('messages').insert([cleanedMessage], { ignoreUnknownValues: true });
   } catch (err: any) {
-    console.error('[BQ insert messages] message:', err?.message);
-    console.error('[BQ insert messages] errors:', JSON.stringify(err?.errors, null, 2));
-
-    if (err.errors && Array.isArray(err.errors)) {
-      err.errors.forEach((error: any, index: number) => {
-        console.error(`[BQ insert messages] error[${index}]:`, {
-          message: error.message,
-          reason: error.reason,
-          location: error.location,
-        });
-      });
-    }
-
+    console.error('[BQ createMessage]', err?.message);
     throw err;
   }
 }
@@ -193,7 +199,22 @@ export async function createEditRequest(row: any): Promise<void> {
     reviewed_at: row.reviewed_at ? formatTimestampForBigQuery(row.reviewed_at) : null,
     review_comment: row.review_comment != null ? String(row.review_comment).trim() : null,
   };
-  await getDataset().table('edit_requests').insert([cleaned], { ignoreUnknownValues: true });
+  const currentProjectId = validateProjectId();
+  const cleanDatasetId = getCleanDatasetId();
+  await initializeBigQueryClient().query({
+    query: `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.edit_requests\`
+      (request_id, request_type, target_id, project_id, requested_by, requested_at, request_reason, status, changes, segment_id, reviewed_by, reviewed_at, review_comment)
+      VALUES
+      (@request_id, @request_type, @target_id, @project_id, @requested_by, @requested_at, @request_reason, @status, @changes, @segment_id, @reviewed_by, @reviewed_at, @review_comment)
+    `,
+    params: cleaned,
+    types: {
+      requested_at: 'TIMESTAMP',
+      reviewed_at: 'TIMESTAMP',
+    },
+    location: BQ_LOCATION,
+  });
 }
 
 export async function updateEditRequest(request_id: string, updates: any): Promise<void> {
@@ -269,7 +290,27 @@ export async function createVisitMeasurementGroup(row: any): Promise<void> {
     created: formatTimestampForBigQuery(row.created || now),
     updated_at: formatTimestampForBigQuery(row.updated_at || now),
   };
-  await getDataset().table('visit_measurement_groups').insert([cleaned], { ignoreUnknownValues: true });
+  const currentProjectId = validateProjectId();
+  const cleanDatasetId = getCleanDatasetId();
+  await initializeBigQueryClient().query({
+    query: `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\`
+      (project_id, group_id, group_name, attribute, extraction_period, extraction_period_type, extraction_start_date, extraction_end_date, extraction_dates, detection_count, detection_time_start, detection_time_end, stay_time, designated_radius, created, updated_at)
+      VALUES
+      (@project_id, @group_id, @group_name, @attribute, @extraction_period, @extraction_period_type, @extraction_start_date, @extraction_end_date, @extraction_dates, @detection_count, @detection_time_start, @detection_time_end, @stay_time, @designated_radius, @created, @updated_at)
+    `,
+    params: cleaned,
+    types: {
+      extraction_start_date: 'DATE',
+      extraction_end_date: 'DATE',
+      detection_time_start: 'TIME',
+      detection_time_end: 'TIME',
+      created: 'TIMESTAMP',
+      updated_at: 'TIMESTAMP',
+      extraction_dates: ['STRING'],
+    },
+    location: BQ_LOCATION,
+  });
 }
 
 export async function updateVisitMeasurementGroup(group_id: string, updates: any): Promise<void> {
@@ -347,7 +388,23 @@ export async function createFeatureRequest(row: any): Promise<void> {
     review_comment: row.review_comment != null ? String(row.review_comment).trim() : null,
     implemented_at: row.implemented_at ? formatTimestampForBigQuery(row.implemented_at) : null,
   };
-  await getDataset().table('feature_requests').insert([cleaned], { ignoreUnknownValues: true });
+  const currentProjectId = validateProjectId();
+  const cleanDatasetId = getCleanDatasetId();
+  await initializeBigQueryClient().query({
+    query: `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.feature_requests\`
+      (request_id, requested_by, requested_by_name, requested_at, title, description, category, priority, status, reviewed_by, reviewed_at, review_comment, implemented_at)
+      VALUES
+      (@request_id, @requested_by, @requested_by_name, @requested_at, @title, @description, @category, @priority, @status, @reviewed_by, @reviewed_at, @review_comment, @implemented_at)
+    `,
+    params: cleaned,
+    types: {
+      requested_at: 'TIMESTAMP',
+      reviewed_at: 'TIMESTAMP',
+      implemented_at: 'TIMESTAMP',
+    },
+    location: BQ_LOCATION,
+  });
 }
 
 export async function updateFeatureRequest(request_id: string, updates: any): Promise<void> {
@@ -449,7 +506,25 @@ export async function createReportRequest(row: any): Promise<void> {
     completed_at: row.completed_at ? formatTimestampForBigQuery(row.completed_at) : null,
     error_message: row.error_message != null ? String(row.error_message).trim() : null,
   };
-  await getDataset().table('report_requests').insert([cleaned], { ignoreUnknownValues: true });
+  const currentProjectId = validateProjectId();
+  const cleanDatasetId = getCleanDatasetId();
+  await initializeBigQueryClient().query({
+    query: `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.report_requests\`
+      (request_id, requested_by, requested_by_name, requested_at, project_id, report_type, report_title, description, start_date, end_date, segment_ids, status, reviewed_by, reviewed_at, review_comment, report_url, completed_at, error_message)
+      VALUES
+      (@request_id, @requested_by, @requested_by_name, @requested_at, @project_id, @report_type, @report_title, @description, @start_date, @end_date, @segment_ids, @status, @reviewed_by, @reviewed_at, @review_comment, @report_url, @completed_at, @error_message)
+    `,
+    params: cleaned,
+    types: {
+      requested_at: 'TIMESTAMP',
+      start_date: 'DATE',
+      end_date: 'DATE',
+      reviewed_at: 'TIMESTAMP',
+      completed_at: 'TIMESTAMP',
+    },
+    location: BQ_LOCATION,
+  });
 }
 
 export async function updateReportRequest(request_id: string, updates: any): Promise<void> {
@@ -540,5 +615,19 @@ export async function insertChangeHistory(row: any): Promise<void> {
     changes: row.changes ? (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes)) : null,
     deleted_data: row.deleted_data ? (typeof row.deleted_data === 'string' ? row.deleted_data : JSON.stringify(row.deleted_data)) : null,
   };
-  await getDataset().table('change_history').insert([cleaned], { ignoreUnknownValues: true });
+  const currentProjectId = validateProjectId();
+  const cleanDatasetId = getCleanDatasetId();
+  await initializeBigQueryClient().query({
+    query: `
+      INSERT INTO \`${currentProjectId}.${cleanDatasetId}.change_history\`
+      (history_id, entity_type, entity_id, project_id, segment_id, action, changed_by, changed_at, changes, deleted_data)
+      VALUES
+      (@history_id, @entity_type, @entity_id, @project_id, @segment_id, @action, @changed_by, @changed_at, @changes, @deleted_data)
+    `,
+    params: cleaned,
+    types: {
+      changed_at: 'TIMESTAMP',
+    },
+    location: BQ_LOCATION,
+  });
 }

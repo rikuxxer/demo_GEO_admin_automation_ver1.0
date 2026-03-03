@@ -46,6 +46,12 @@ export function usePoiForm({
     return date.toISOString().split('T')[0];
   };
 
+  const getFiveDaysAgoDate = (): string => {
+    const date = new Date();
+    date.setDate(date.getDate() - 5);
+    return date.toISOString().split('T')[0];
+  };
+
   const isDateMoreThanSixMonthsAgo = (dateString: string): boolean => {
     if (!dateString) return false;
     const selectedDate = new Date(dateString);
@@ -1046,7 +1052,8 @@ export function usePoiForm({
           }
         }
       }
-      if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon') {
+      if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon'
+          && entryMethod !== 'prefecture' && formData.poi_type !== 'prefecture') {
         if (!formData.poi_name || formData.poi_name.trim() === '') {
           setErrorMessage('地点名は必須項目です');
           return;
@@ -1064,7 +1071,8 @@ export function usePoiForm({
         return;
       }
 
-      if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon') {
+      if (entryMethod !== 'polygon' && formData.poi_type !== 'polygon'
+          && entryMethod !== 'prefecture' && formData.poi_type !== 'prefecture') {
         if (!formData.poi_name || formData.poi_name.trim() === '') {
           setErrorMessage('地点名は必須項目です');
           return;
@@ -1139,9 +1147,33 @@ export function usePoiForm({
         setErrorMessage('抽出期間の開始日と終了日を指定してください');
         return;
       }
+      if (formData.extraction_period_type === 'custom') {
+        const sixMonthsAgo = getSixMonthsAgoDate();
+        const fiveDaysAgo = getFiveDaysAgoDate();
+        if (formData.extraction_start_date && formData.extraction_start_date < sixMonthsAgo) {
+          setErrorMessage('抽出開始日は直近6か月以内で指定してください');
+          return;
+        }
+        if (formData.extraction_end_date && formData.extraction_end_date < sixMonthsAgo) {
+          setErrorMessage('抽出終了日は直近6か月以内で指定してください');
+          return;
+        }
+        if (formData.extraction_end_date && formData.extraction_end_date > fiveDaysAgo) {
+          setErrorMessage('抽出終了日は5日以上前の日付で指定してください（データ連携リードタイム）');
+          return;
+        }
+      }
       if (formData.extraction_period_type === 'specific_dates' && (!formData.extraction_dates || formData.extraction_dates.length === 0)) {
         setErrorMessage('抽出対象日付を少なくとも1つ選択してください');
         return;
+      }
+      if (formData.extraction_period_type === 'specific_dates') {
+        const fiveDaysAgo = getFiveDaysAgoDate();
+        const invalidDates = formData.extraction_dates?.filter(d => d > fiveDaysAgo);
+        if (invalidDates && invalidDates.length > 0) {
+          setErrorMessage('特定日付は5日以上前の日付を選択してください（データ連携リードタイム）');
+          return;
+        }
       }
     }
 
@@ -1320,15 +1352,6 @@ export function usePoiForm({
         longitude: result.longitude,
       }));
 
-      const isDevelopment = !process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY === 'YOUR_API_KEY_HERE';
-      if (isDevelopment) {
-        toast.success('緯度経度を取得しました（開発環境：推定座標）', {
-          description: '都道府県・市区町村から推定した座標です。正確な座標が必要な場合は手動で入力してください。',
-          duration: 5000,
-        });
-      } else {
-        toast.success('緯度経度を取得しました');
-      }
     } catch (error) {
       console.error('Geocoding error:', error);
       toast.error(error instanceof Error ? error.message : 'ジオコーディングに失敗しました');
@@ -1497,6 +1520,7 @@ export function usePoiForm({
     isFirstPoi,
     // helpers
     getSixMonthsAgoDate,
+    getFiveDaysAgoDate,
     isDateMoreThanSixMonthsAgo,
     // handlers
     handleSubmit,

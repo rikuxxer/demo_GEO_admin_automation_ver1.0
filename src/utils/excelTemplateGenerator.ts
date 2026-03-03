@@ -98,7 +98,7 @@ async function createGuideSheet(workbook: ExcelJS.Workbook) {
     ['・青色の濃いヘッダー（必須）＝必須項目'],
     ['・地点ID：自動採番されるため入力不要です'],
     ['・緯度経度：任意項目です。未入力の場合は住所から自動的に変換されます'],
-    ['・配信範囲（指定半径）：1〜1000mは数値で自由入力、1001m以上は選択肢から指定'],
+    ['・指定半径：1〜1000mは数値で自由入力（例: 500）、1001m以上はプルダウンから選択'],
     ['・1行目（ヘッダー）は編集できません。サンプル行を参考に入力行に入力してください。'],
     ['・TG地点と来店計測地点は別々のシートに入力してください。'],
     ['・来店計測地点はセグメントに紐づかず、案件全体で管理されます。'],
@@ -208,7 +208,7 @@ async function createProjectSheet(workbook: ExcelJS.Workbook) {
   };
   sheet.mergeCells('A4:F4');
 
-  sheet.columns = [{ width: 30 }, { width: 30 }, { width: 40 }, { width: 15 }, { width: 15 }, { width: 50 }];
+  sheet.columns = [{ width: 30 }, { width: 30 }, { width: 40 }, { width: 18 }, { width: 18 }, { width: 50 }];
   sheet.views = [{ state: 'frozen', ySplit: 1 }];
   await sheet.protect('password', { selectLockedCells: true, selectUnlockedCells: true, formatCells: false, insertRows: false, deleteRows: false });
 }
@@ -218,7 +218,7 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
   const sheet = workbook.addWorksheet('3.セグメント・TG地点設定');
   applySheetDefaults(sheet);
   const headers = [
-    { name: 'セグメント名（必須）', group: 'seg', required: true }, { name: '配信先（必須）', group: 'seg', required: true }, { name: '配信範囲（必須）', group: 'seg', required: true },
+    { name: 'セグメント名（必須）', group: 'seg', required: true }, { name: '配信先（必須）', group: 'seg', required: true }, { name: '指定半径（必須）', group: 'seg', required: true },
     { name: '抽出期間', group: 'seg', required: false }, { name: '抽出開始日', group: 'seg', required: false }, { name: '抽出終了日', group: 'seg', required: false },
     { name: '対象者（必須）', group: 'seg', required: true }, { name: '検知回数（検知者のみ）', group: 'seg', required: false }, { name: '検知時間開始', group: 'seg', required: false },
     { name: '検知時間終了', group: 'seg', required: false }, { name: '滞在時間', group: 'seg', required: false },
@@ -288,15 +288,11 @@ async function createSegmentAndLocationSheet(workbook: ExcelJS.Workbook, categor
     };
     // 3. 配信範囲 (1-1000は自由入力、1000以上は選択肢)
     row.getCell(3).dataValidation = {
-      type: 'custom',
+      type: 'list',
       allowBlank: true,
-      showErrorMessage: true,
-      error: '配信範囲は1-1000は自由入力（500 / 500m）、1000m以上は選択肢から指定してください',
-      errorStyle: 'warning',
-      formulae: [
-        `OR(C${r}="",AND(ISNUMBER(C${r}),C${r}>=1,C${r}<=1000),AND(RIGHT(C${r},1)="m",IFERROR(VALUE(LEFT(C${r},LEN(C${r})-1)),0)>=1,IFERROR(VALUE(LEFT(C${r},LEN(C${r})-1)),0)<=1000),COUNTIF('${optionsSheetName}'!$F$1:$F$14,C${r})>0)`
-      ],
-      showInputMessage: true, promptTitle: '配信範囲（必須）', prompt: '1〜1000m: 数値のみ入力（例: 500）\n1001m以上: プルダウンから選択'
+      formulae: [`'${optionsSheetName}'!$F$1:$F$14`],
+      showErrorMessage: false,
+      showInputMessage: true, promptTitle: '指定半径（必須）', prompt: '1〜1000m: 数値のみ入力（例: 500）\n1001m以上: プルダウンから選択'
     };
     // 4. 抽出期間 (Option Col B - 日本語あり)
     // プルダウンで選択可能（対象者が「居住者」等の場合はパーサー側で「直近3ヶ月」に強制変換）

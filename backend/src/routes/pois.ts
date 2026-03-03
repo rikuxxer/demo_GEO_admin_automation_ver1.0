@@ -23,16 +23,6 @@ router.get('/project/:project_id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const poiId = req.body?.poi_id;
-    if (poiId) {
-      const existing = await getBqService().getPoiById(poiId);
-      if (existing) {
-        return res.status(409).json({
-          error: 'この地点IDは既に存在します。再度登録できません。',
-          code: 'POI_ALREADY_EXISTS',
-        });
-      }
-    }
     await getBqService().createPoi(req.body);
     res.status(201).json({ message: 'POI created successfully' });
   } catch (error: any) {

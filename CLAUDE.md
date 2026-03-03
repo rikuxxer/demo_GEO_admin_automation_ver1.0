@@ -198,6 +198,16 @@ npm run build:prod    # 本番ビルド
 - フラグ値・定数・対応表など数値が絡む説明は、必ず該当コードを Read してから書く
 - 「前に読んだ」「実装したから覚えている」を理由にコードを読み飛ばさない
 
+### 12. BigQuery INSERT は DML を使う。Streaming Insert は user.ts 専用
+
+過去に `.table('xxx').insert([...])` (Streaming Insert) が Cloud Run 環境で失敗し、また INSERT 後に `getXxxById()` を呼んで SELECT が null を返すことで 500 エラーが発生した（INSERT 自体は成功しているのにユーザーには失敗と見えた）。
+
+- BigQuery への書き込みは必ず DML INSERT を使う:
+  `initializeBigQueryClient().query({ query, params, types, location })`
+- `.table('xxx').insert([...])` は **使用禁止**（`backend/src/bigquery/user.ts` のみ例外）
+- `createXxx()` 関数は INSERT したデータを直接 return する。INSERT 後に `getXxxById()` を呼んで再取得しない
+- CI の `check:no-streaming-insert` スクリプトが `user.ts` 以外の `.insert(` を検出するとデプロイが失敗する
+
 ## 言語
 
 - コードのコメント・変数名: 英語

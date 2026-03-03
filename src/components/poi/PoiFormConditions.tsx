@@ -25,6 +25,7 @@ export function PoiFormConditions({ form, isPopup = false }: PoiFormConditionsPr
     setShowRadiusWarning,
     setHasShownRadiusWarning,
     getSixMonthsAgoDate,
+    getFiveDaysAgoDate,
     isDateMoreThanSixMonthsAgo,
     setShowDateRangeWarning,
     handleChange,
@@ -237,7 +238,7 @@ export function PoiFormConditions({ form, isPopup = false }: PoiFormConditionsPr
                       type="date"
                       value={d}
                       min={getSixMonthsAgoDate()}
-                      max={new Date().toISOString().split('T')[0]}
+                      max={getFiveDaysAgoDate()}
                       onChange={(e) => {
                         const selectedDate = e.target.value;
                         if (isDateMoreThanSixMonthsAgo(selectedDate)) {
@@ -276,6 +277,8 @@ export function PoiFormConditions({ form, isPopup = false }: PoiFormConditionsPr
               <Input
                 type="date"
                 value={formData.extraction_start_date}
+                min={getSixMonthsAgoDate()}
+                max={getFiveDaysAgoDate()}
                 onChange={(e) => handleChange('extraction_start_date', e.target.value)}
                 className="bg-white"
               />
@@ -283,6 +286,8 @@ export function PoiFormConditions({ form, isPopup = false }: PoiFormConditionsPr
               <Input
                 type="date"
                 value={formData.extraction_end_date}
+                min={getSixMonthsAgoDate()}
+                max={getFiveDaysAgoDate()}
                 onChange={(e) => handleChange('extraction_end_date', e.target.value)}
                 className="bg-white"
               />
