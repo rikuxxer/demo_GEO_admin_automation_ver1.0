@@ -483,10 +483,12 @@ export function useProjectDetail({
   };
 
   const handleDataLinkRequest = (segment: Segment) => {
+    const requestDateTime = new Date().toISOString();
     onSegmentUpdate(segment.segment_id, {
       data_link_status: 'requested',
-      data_link_request_date: new Date().toISOString(),
+      data_link_request_date: requestDateTime,
       request_confirmed: true,
+      data_coordination_date: calculateDataCoordinationDate(requestDateTime),
     });
     toast.success('データ連携依頼を送信しました');
   };
