@@ -3,7 +3,7 @@ import {
   getCleanDatasetId,
   initializeBigQueryClient,
   BQ_LOCATION,
-  formatTimestampForBigQuery,
+  bqTimestamp,
   sleep,
 } from './utils';
 
@@ -309,7 +309,7 @@ export async function createSheetExport(exportRecord: any): Promise<void> {
     for (const field of allowedFields) {
       if (field in exportRecord && exportRecord[field] !== undefined && exportRecord[field] !== null) {
         if (field === 'exported_at' || field === 'completed_at') {
-          cleanedExport[field] = formatTimestampForBigQuery(exportRecord[field]);
+          cleanedExport[field] = bqTimestamp(exportRecord[field]);
         } else if (field === 'row_count') {
           const numValue = typeof exportRecord[field] === 'string' ? parseInt(exportRecord[field]) : exportRecord[field];
           if (!isNaN(numValue)) {
@@ -322,8 +322,8 @@ export async function createSheetExport(exportRecord: any): Promise<void> {
     }
 
     const now = new Date();
-    cleanedExport.created_at = formatTimestampForBigQuery(exportRecord.created_at || now);
-    cleanedExport.updated_at = formatTimestampForBigQuery(exportRecord.updated_at || now);
+    cleanedExport.created_at = bqTimestamp(exportRecord.created_at || now);
+    cleanedExport.updated_at = bqTimestamp(exportRecord.updated_at || now);
 
     const currentProjectId = validateProjectId();
     const cleanDatasetId = getCleanDatasetId();
@@ -413,7 +413,7 @@ export async function createSheetExportDataBulk(exportData: any[]): Promise<void
       }
 
       const now = new Date();
-      cleaned.created_at = formatTimestampForBigQuery(data.created_at || now);
+      cleaned.created_at = bqTimestamp(data.created_at || now);
 
       return cleaned;
     });
@@ -472,12 +472,16 @@ export async function updateSheetExportStatus(
     const updateFields: string[] = ['export_status', 'updated_at'];
     const updateValues: any = {
       export_status: status,
-      updated_at: formatTimestampForBigQuery(new Date()),
+      updated_at: bqTimestamp(new Date()),
+    };
+    const updateTypes: any = {
+      updated_at: 'TIMESTAMP',
     };
 
     if (status === 'completed') {
       updateFields.push('completed_at');
-      updateValues.completed_at = formatTimestampForBigQuery(new Date());
+      updateValues.completed_at = bqTimestamp(new Date());
+      updateTypes.completed_at = 'TIMESTAMP';
     }
 
     if (status === 'failed' && errorMessage) {
@@ -499,6 +503,7 @@ export async function updateSheetExportStatus(
         export_id: exportId,
         ...updateValues,
       },
+      types: updateTypes,
     };
 
     if (BQ_LOCATION && BQ_LOCATION.trim()) {

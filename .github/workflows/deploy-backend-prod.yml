@@ -96,6 +96,13 @@ jobs:
           
           revision_traffic: 'LATEST=100'
 
+      - name: Set SCHEDULER_SECRET
+        run: |
+          gcloud run services update ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --project=${{ secrets.GCP_PROJECT_ID || vars.GCP_PROJECT_ID }} \
+            --update-env-vars=SCHEDULER_SECRET=${{ secrets.SCHEDULER_SECRET }}
+
       - name: Deployment Summary
         run: |
           echo "## ✅ Backend Deployment Successful (Production)" >> $GITHUB_STEP_SUMMARY
