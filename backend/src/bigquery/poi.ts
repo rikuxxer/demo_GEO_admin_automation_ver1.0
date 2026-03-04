@@ -308,57 +308,73 @@ export async function createPoisBulk(pois: any[]): Promise<void> {
       if (!segmentToTypes.has(segId)) segmentToTypes.set(segId, new Set());
       segmentToTypes.get(segId)!.add(type);
     }
-    for (const [segId, types] of segmentToTypes) {
-      if (types.size > 1) {
-        throw new Error(
-          `セグメント「${segId}」に複数の地点タイプ（${[...types].join('・')}）を含めています。同一セグメント内では地点タイプを1種類に統一してください。`
-        );
-      }
-      const existingPois = await getPoisBySegment(segId);
-      const newType = [...types][0];
-      for (const existing of existingPois) {
-        const existingType = normalizePoiType(existing);
-        if (existingType !== newType) {
+
+    // Validate segment poi_type consistency in parallel
+    await Promise.all(
+      [...segmentToTypes.entries()].map(async ([segId, types]) => {
+        if (types.size > 1) {
           throw new Error(
-            `このセグメントには既に「${existingType}」タイプの地点が登録されています。同一セグメント内では地点タイプを1種類に統一してください。`
+            `セグメント「${segId}」に複数の地点タイプ（${[...types].join('・')}）を含めています。同一セグメント内では地点タイプを1種類に統一してください。`
           );
         }
-      }
-    }
-
-    console.log(`📋 Cleaned ${cleanedPois.length} POIs for BigQuery bulk insert`);
+        const existingPois = await getPoisBySegment(segId);
+        const newType = [...types][0];
+        for (const existing of existingPois) {
+          const existingType = normalizePoiType(existing);
+          if (existingType !== newType) {
+            throw new Error(
+              `このセグメントには既に「${existingType}」タイプの地点が登録されています。同一セグメント内では地点タイプを1種類に統一してください。`
+            );
+          }
+        }
+      })
+    );
 
     const currentProjectId = validateProjectId();
     const cleanDatasetId = getCleanDatasetId();
-    for (const cleanedPoi of cleanedPois) {
-      const poiColumns = Object.keys(cleanedPoi);
-      const poiInsertQuery = `
-        INSERT INTO \`${currentProjectId}.${cleanDatasetId}.pois\`
-        (${poiColumns.join(', ')})
-        VALUES (${poiColumns.map(c => `@${c}`).join(', ')})
-      `;
-      const insertParamTypes: Record<string, string | string[]> = {};
-      for (const f of ['created_at', 'updated_at']) {
-        if (f in cleanedPoi) insertParamTypes[f] = 'TIMESTAMP';
-      }
-      for (const f of ['prefectures', 'cities']) {
-        if (f in cleanedPoi && Array.isArray((cleanedPoi as any)[f])) {
-          insertParamTypes[f] = ['STRING'];
+    const table = `\`${currentProjectId}.${cleanDatasetId}.pois\``;
+
+    // Multi-row DML INSERT in batches of 200 (avoids sequential round-trips)
+    const BATCH_SIZE = 200;
+    for (let i = 0; i < cleanedPois.length; i += BATCH_SIZE) {
+      const batch = cleanedPois.slice(i, i + BATCH_SIZE);
+      const allColumns = [...new Set(batch.flatMap((p: any) => Object.keys(p) as string[]))];
+      const valueClauses = batch
+        .map((_: any, rowIdx: number) =>
+          `(${allColumns.map((col: string) => `@${col}_${rowIdx}`).join(', ')})`
+        )
+        .join(',\n');
+
+      const params: Record<string, any> = {};
+      const types: Record<string, any> = {};
+      for (let rowIdx = 0; rowIdx < batch.length; rowIdx++) {
+        for (const col of allColumns) {
+          const paramName = `${col}_${rowIdx}`;
+          const value = (batch[rowIdx] as any)[col] ?? null;
+          params[paramName] = value;
+          if (col === 'created_at' || col === 'updated_at') {
+            // Always declare TIMESTAMP type — required even for null values (bq client v7 bug)
+            types[paramName] = 'TIMESTAMP';
+          } else if ((col === 'prefectures' || col === 'cities') && Array.isArray(value)) {
+            types[paramName] = ['STRING'];
+          }
         }
       }
+
       await initializeBigQueryClient().query({
-        query: poiInsertQuery,
-        params: cleanedPoi,
-        ...(Object.keys(insertParamTypes).length > 0 ? { types: insertParamTypes } : {}),
+        query: `INSERT INTO ${table} (${allColumns.join(', ')}) VALUES\n${valueClauses}`,
+        params,
+        ...(Object.keys(types).length > 0 ? { types } : {}),
         location: BQ_LOCATION,
       });
     }
 
-    for (const [segId, types] of segmentToTypes) {
-      const poiType = [...types][0];
-      await updateSegment(segId, { poi_type: poiType });
-      console.log(`[BQ] segments.poi_type を更新（一括）: segment_id=${segId}, poi_type=${poiType}`);
-    }
+    // Update segment poi_type in parallel
+    await Promise.all(
+      [...segmentToTypes.entries()].map(([segId, types]) =>
+        updateSegment(segId, { poi_type: [...types][0] })
+      )
+    );
   } catch (err: any) {
     console.error('[BQ insert pois bulk] message:', err?.message);
     console.error('[BQ insert pois bulk] errors:', JSON.stringify(err?.errors, null, 2));
