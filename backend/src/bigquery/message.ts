@@ -262,7 +262,11 @@ export async function getVisitMeasurementGroups(project_id: string): Promise<any
       params: { project_id: project_id.trim() },
       location: BQ_LOCATION,
     });
-    return rows || [];
+    return (rows || []).map((row: any) => ({
+      ...row,
+      polygon: row.polygon ? (() => { try { return JSON.parse(row.polygon); } catch { return undefined; } })() : undefined,
+      polygons: row.polygons ? (() => { try { return JSON.parse(row.polygons); } catch { return undefined; } })() : undefined,
+    }));
   } catch (err: any) {
     if (err?.message?.includes('Not found') || err?.code === 404) return [];
     console.error('[BQ getVisitMeasurementGroups]', err?.message);
@@ -287,6 +291,13 @@ export async function createVisitMeasurementGroup(row: any): Promise<void> {
     detection_time_end: row.detection_time_end ? bqTime(row.detection_time_end) : null,
     stay_time: row.stay_time != null ? String(row.stay_time).trim() : null,
     designated_radius: row.designated_radius != null ? String(row.designated_radius).trim() : null,
+    use_polygon: row.use_polygon != null ? Boolean(row.use_polygon) : null,
+    polygon: Array.isArray(row.polygon) && row.polygon.length > 0
+      ? JSON.stringify(row.polygon)
+      : (typeof row.polygon === 'string' ? row.polygon : null),
+    polygons: Array.isArray(row.polygons) && row.polygons.length > 0
+      ? JSON.stringify(row.polygons)
+      : (typeof row.polygons === 'string' ? row.polygons : null),
     created: bqTimestamp(row.created || now),
     updated_at: bqTimestamp(row.updated_at || now),
   };
@@ -295,9 +306,9 @@ export async function createVisitMeasurementGroup(row: any): Promise<void> {
   await initializeBigQueryClient().query({
     query: `
       INSERT INTO \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\`
-      (project_id, group_id, group_name, attribute, extraction_period, extraction_period_type, extraction_start_date, extraction_end_date, extraction_dates, detection_count, detection_time_start, detection_time_end, stay_time, designated_radius, created, updated_at)
+      (project_id, group_id, group_name, attribute, extraction_period, extraction_period_type, extraction_start_date, extraction_end_date, extraction_dates, detection_count, detection_time_start, detection_time_end, stay_time, designated_radius, use_polygon, polygon, polygons, created, updated_at)
       VALUES
-      (@project_id, @group_id, @group_name, @attribute, @extraction_period, @extraction_period_type, @extraction_start_date, @extraction_end_date, @extraction_dates, @detection_count, @detection_time_start, @detection_time_end, @stay_time, @designated_radius, @created, @updated_at)
+      (@project_id, @group_id, @group_name, @attribute, @extraction_period, @extraction_period_type, @extraction_start_date, @extraction_end_date, @extraction_dates, @detection_count, @detection_time_start, @detection_time_end, @stay_time, @designated_radius, @use_polygon, @polygon, @polygons, @created, @updated_at)
     `,
     params: cleaned,
     types: {
@@ -314,6 +325,9 @@ export async function createVisitMeasurementGroup(row: any): Promise<void> {
       detection_count: 'INT64',
       stay_time: 'STRING',
       designated_radius: 'STRING',
+      use_polygon: 'BOOL',
+      polygon: 'STRING',
+      polygons: 'STRING',
     },
     location: BQ_LOCATION,
   });
@@ -322,11 +336,25 @@ export async function createVisitMeasurementGroup(row: any): Promise<void> {
 export async function updateVisitMeasurementGroup(group_id: string, updates: any): Promise<void> {
   const currentProjectId = validateProjectId();
   const cleanDatasetId = getCleanDatasetId();
-  const allowed = ['group_name', 'attribute', 'extraction_period', 'extraction_period_type', 'extraction_start_date', 'extraction_end_date', 'extraction_dates', 'detection_count', 'detection_time_start', 'detection_time_end', 'stay_time', 'designated_radius'];
+  const allowed = ['group_name', 'attribute', 'extraction_period', 'extraction_period_type', 'extraction_start_date', 'extraction_end_date', 'extraction_dates', 'detection_count', 'detection_time_start', 'detection_time_end', 'stay_time', 'designated_radius', 'use_polygon', 'polygon', 'polygons'];
   const setClause = allowed.filter(f => updates[f] !== undefined).map(f => `${f} = @${f}`).join(', ');
   if (!setClause) return;
   const params: any = { group_id: group_id.trim() };
-  allowed.forEach(f => { if (updates[f] !== undefined) params[f] = f === 'extraction_start_date' || f === 'extraction_end_date' ? bqDate(updates[f]) : f === 'detection_time_start' || f === 'detection_time_end' ? bqTime(updates[f]) : f === 'extraction_dates' ? updates[f] : updates[f]; });
+  allowed.forEach(f => {
+    if (updates[f] !== undefined) {
+      if (f === 'extraction_start_date' || f === 'extraction_end_date') {
+        params[f] = bqDate(updates[f]);
+      } else if (f === 'detection_time_start' || f === 'detection_time_end') {
+        params[f] = bqTime(updates[f]);
+      } else if (f === 'polygon' || f === 'polygons') {
+        params[f] = Array.isArray(updates[f]) && updates[f].length > 0
+          ? JSON.stringify(updates[f])
+          : (typeof updates[f] === 'string' ? updates[f] : null);
+      } else {
+        params[f] = updates[f];
+      }
+    }
+  });
   params.updated_at = bqTimestamp(new Date());
   const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\` SET ${setClause}, updated_at = @updated_at WHERE group_id = @group_id`;
 
@@ -340,11 +368,12 @@ export async function updateVisitMeasurementGroup(group_id: string, updates: any
   if ('extraction_end_date' in params) paramTypes.extraction_end_date = 'DATE';
   if ('detection_time_start' in params) paramTypes.detection_time_start = 'TIME';
   if ('detection_time_end' in params) paramTypes.detection_time_end = 'TIME';
-  const vmgStringFields = ['group_name', 'attribute', 'extraction_period', 'extraction_period_type', 'stay_time', 'designated_radius'];
+  const vmgStringFields = ['group_name', 'attribute', 'extraction_period', 'extraction_period_type', 'stay_time', 'designated_radius', 'polygon', 'polygons'];
   for (const field of vmgStringFields) {
     if (field in params) paramTypes[field] = 'STRING';
   }
   if ('detection_count' in params) paramTypes.detection_count = 'INT64';
+  if ('use_polygon' in params) paramTypes.use_polygon = 'BOOL';
   paramTypes.updated_at = 'TIMESTAMP';
 
   await initializeBigQueryClient().query({
