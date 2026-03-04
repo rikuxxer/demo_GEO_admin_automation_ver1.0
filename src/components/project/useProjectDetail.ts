@@ -570,7 +570,67 @@ export function useProjectDetail({
     });
 
     if (needsGeocoding.length === 0 && !hasPolygonPois) {
-      toast.info('ジオコーディングが必要な地点がありません');
+      const alreadyGeocodedPois = segmentPois.filter(poi =>
+        poi.poi_type !== 'polygon' &&
+        !(poi.polygon && Array.isArray(poi.polygon) && poi.polygon.length > 0) &&
+        poi.latitude !== undefined && poi.latitude !== null && poi.latitude !== 0 &&
+        poi.longitude !== undefined && poi.longitude !== null && poi.longitude !== 0
+      );
+
+      if (alreadyGeocodedPois.length === 0) {
+        toast.info('ジオコーディングが必要な地点がありません');
+        setIsGeocodingRunning(false);
+        return;
+      }
+
+      // 座標設定済み地点のみ → ジオコーディングをスキップして格納依頼へ
+      const requestDateTime = new Date().toISOString();
+      const coordinationDate = calculateDataCoordinationDate(requestDateTime);
+
+      onSegmentUpdate(segment.segment_id, {
+        location_request_status: 'storing',
+        data_coordination_date: coordinationDate,
+      });
+
+      if (user?.role === 'sales') {
+        try {
+          if (segmentPois.length > 0) {
+            const sheetResult = await exportPoisToSheet(segmentPois, project, segments, {
+              useAccumulation: true,
+              deferExport: true,
+              segmentId: segment.segment_id,
+              exportedBy: user?.email || user?.user_id || 'system',
+              exportedByName: user?.name || 'システム',
+            });
+            if (sheetResult.success) {
+              toast.success('エクスポートキューに登録しました（月・水・金 21:30 に送信）');
+            } else {
+              console.warn('⚠️ スプレッドシートキュー登録失敗:', sheetResult.message);
+            }
+          }
+        } catch (error) {
+          console.error('❌ スプレッドシート出力エラー:', error);
+        }
+      }
+
+      if (user) {
+        const messageContent = `地点データの格納依頼が完了しました。\n\nセグメント: ${segment.segment_name || segment.segment_id}\n地点数: ${segmentPois.length}件（座標設定済み）\n\n${dataLinkNote}`;
+        await bigQueryService.sendProjectMessage({
+          project_id: project.project_id,
+          sender_id: 'system',
+          sender_name: 'システム',
+          sender_role: 'admin',
+          content: messageContent,
+          message_type: 'system',
+        });
+        if (onUnreadCountUpdate) {
+          onUnreadCountUpdate();
+        }
+      }
+
+      toast.success(`地点データの格納依頼が完了しました（${segmentPois.length}件）`, {
+        description: dataLinkNote,
+      });
       setIsGeocodingRunning(false);
       return;
     }
