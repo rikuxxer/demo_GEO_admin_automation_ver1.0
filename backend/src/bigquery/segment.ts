@@ -221,6 +221,10 @@ export async function updateSegment(segment_id: string, updates: any): Promise<v
   if ('registerd_provider_segment' in processedUpdates && processedUpdates.registerd_provider_segment !== undefined) {
     processedUpdates.registerd_provider_segment = formatBoolForBigQuery(processedUpdates.registerd_provider_segment);
   }
+  if ('request_confirmed' in processedUpdates) {
+    processedUpdates.delivery_confirmed = formatBoolForBigQuery(processedUpdates.request_confirmed);
+    delete processedUpdates.request_confirmed;
+  }
 
   const dateFields = [
     'extraction_start_date',
