@@ -358,14 +358,11 @@ export function BulkImportEditor({
                     </div>
                     {hasSegmentErrors && (
                       <ul className="mb-3 text-xs text-red-700 list-disc list-inside space-y-1">
-                        {segmentErrorsForRow.slice(0, 3).map((error, i) => (
+                        {segmentErrorsForRow.map((error, i) => (
                           <li key={i}>
                             {error.field ? `[${error.field}] ` : ''}{error.message}
                           </li>
                         ))}
-                        {segmentErrorsForRow.length > 3 && (
-                          <li>...他 {segmentErrorsForRow.length - 3} 件</li>
-                        )}
                       </ul>
                     )}
 
@@ -376,9 +373,18 @@ export function BulkImportEditor({
                           <Input
                             value={segment.segment_name || ''}
                             onChange={(e) => {
-                              const updated = [...editingSegments];
-                              updated[segIndex] = { ...segment, segment_name: e.target.value };
-                              setEditingSegments(updated);
+                              const oldName = segment.segment_name;
+                              const newName = e.target.value;
+                              const updatedSegments = [...editingSegments];
+                              updatedSegments[segIndex] = { ...segment, segment_name: newName };
+                              setEditingSegments(updatedSegments);
+                              // sync segment_name_ref in locations
+                              const updatedLocations = editingLocations.map(loc =>
+                                loc.segment_name_ref === oldName
+                                  ? { ...loc, segment_name_ref: newName }
+                                  : loc
+                              );
+                              setEditingLocations(updatedLocations);
                             }}
                             className={`h-8 ${segmentError && segmentError.field === 'セグメント名' ? 'border-red-500' : ''}`}
                           />
@@ -687,12 +693,9 @@ export function BulkImportEditor({
                               </div>
                               {locationErrorsForRow.length > 0 && (
                                 <ul className="text-xs text-red-600 mt-2 list-disc list-inside space-y-1">
-                                  {locationErrorsForRow.slice(0, 2).map((e, i) => (
+                                  {locationErrorsForRow.map((e, i) => (
                                     <li key={i}>{e.field ? `[${e.field}] ` : ''}{e.message}</li>
                                   ))}
-                                  {locationErrorsForRow.length > 2 && (
-                                    <li>...他 {locationErrorsForRow.length - 2} 件</li>
-                                  )}
                                 </ul>
                               )}
                             </div>

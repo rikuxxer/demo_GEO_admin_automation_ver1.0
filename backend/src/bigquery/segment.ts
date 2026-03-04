@@ -11,6 +11,30 @@ import {
   formatDeliveryMediaForBigQuery,
 } from './utils';
 
+function bqDateVal(val: any): string | null {
+  if (!val) return null;
+  if (typeof val === 'string') return val;
+  if (val instanceof Date) return val.toISOString().split('T')[0];
+  if (typeof val === 'object' && 'value' in val) return String(val.value);
+  return null;
+}
+
+function bqTimestampVal(val: any): string | null {
+  if (!val) return null;
+  if (typeof val === 'string') return val;
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === 'object' && 'value' in val) return String(val.value);
+  return null;
+}
+
+function normalizeSegmentRow(row: any): any {
+  return {
+    ...row,
+    data_coordination_date: bqDateVal(row.data_coordination_date),
+    segment_registered_at: bqTimestampVal(row.segment_registered_at),
+  };
+}
+
 export async function getSegments(): Promise<any[]> {
   const currentProjectId = validateProjectId();
   const cleanDatasetId = getCleanDatasetId();
@@ -23,7 +47,7 @@ export async function getSegments(): Promise<any[]> {
     query,
     location: BQ_LOCATION,
   });
-  return rows;
+  return rows.map(normalizeSegmentRow);
 }
 
 export async function getSegmentsByProject(project_id: string): Promise<any[]> {
@@ -40,7 +64,7 @@ export async function getSegmentsByProject(project_id: string): Promise<any[]> {
     params: { project_id },
     location: BQ_LOCATION,
   });
-  return rows;
+  return rows.map(normalizeSegmentRow);
 }
 
 export async function getSegmentById(segment_id: string): Promise<any | null> {

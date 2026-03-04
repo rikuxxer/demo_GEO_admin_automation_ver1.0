@@ -151,12 +151,24 @@ function formatDateToYYYYMMDD(date: Date): string {
 /**
  * YYYY-MM-DD形式の日付をMM/DD形式にフォーマット（表示用）
  */
-export function formatDateToMMDD(dateString: string): string {
+export function formatDateToMMDD(dateString: any): string {
   if (!dateString) return '';
-  
-  const date = new Date(dateString);
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  
-  return `${month}/${day}`;
+
+  // BigQueryDate オブジェクト { value: 'YYYY-MM-DD' } を文字列に変換
+  const str: string =
+    typeof dateString === 'object' && dateString !== null && 'value' in dateString
+      ? String(dateString.value)
+      : String(dateString);
+
+  // YYYY-MM-DD 形式から直接パース（new Date() のタイムゾーン問題を回避）
+  const parts = str.split('-');
+  if (parts.length === 3) {
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+    if (!isNaN(month) && !isNaN(day)) {
+      return `${month}/${day}`;
+    }
+  }
+
+  return '';
 }

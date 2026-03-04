@@ -205,8 +205,12 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
           newResult.errors.push({ section: '③セグメント設定', row, field: '抽出期間', message: '期間指定の場合は開始日と終了日を入力してください' });
         }
       }
-      if (!normalized.detection_count || normalized.detection_count < 1 || normalized.detection_count > 15) {
-        newResult.errors.push({ section: '③セグメント設定', row, field: '検知回数', message: '検知回数は1〜15回で指定してください' });
+      if (normalized.attribute === 'detector') {
+        if (!normalized.detection_count) {
+          normalized.detection_count = 1;
+        } else if (normalized.detection_count > 15) {
+          newResult.errors.push({ section: '③セグメント設定', row, field: '検知回数', message: '検知回数は1〜15回で指定してください' });
+        }
       }
 
       return normalized;
@@ -287,37 +291,34 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
         console.log('✅ セグメント登録完了:', createdSegment);
       }
 
-      // 2.5. 来店計測グループを自動作成（グループ番号とIDのマップ）
+      // 2.5. 来店計測グループを並列作成（IDはサーバー側でユニーク生成されるためレースなし）
       const groupMap = new Map<string, string>();
       const visitMeasurementLocations = result.locations.filter(
         loc => loc.poi_category === 'visit_measurement' && loc.group_name_ref
       );
       const uniqueGroupNums = [...new Set(visitMeasurementLocations.map(loc => loc.group_name_ref!))];
       uniqueGroupNums.sort((a, b) => parseInt(a) - parseInt(b));
-      for (const groupNum of uniqueGroupNums) {
-        const createdGroup = await bigQueryService.createVisitMeasurementGroup({
-          project_id: createdProject.project_id,
-          group_name: `来店計測グループ${groupNum}`,
-        });
-        groupMap.set(groupNum, createdGroup.group_id);
-      }
+      const createdGroups = await Promise.all(
+        uniqueGroupNums.map(groupNum =>
+          bigQueryService.createVisitMeasurementGroup({
+            project_id: createdProject.project_id,
+            group_name: `来店計測グループ${groupNum}`,
+          })
+        )
+      );
+      uniqueGroupNums.forEach((groupNum, i) => {
+        groupMap.set(groupNum, createdGroups[i].group_id);
+      });
 
-      // 3. 地点を登録
-      let successCount = 0;
-      const createdPois: PoiInfo[] = []; // 作成された地点を蓄積（スプレッドシート出力用）
-      
+      // 3. 地点を一括登録（createPoisBulk で1回のAPI呼び出し）
+      const poisToCreate: Omit<PoiInfo, 'poi_id' | 'created'>[] = [];
+
       for (const location of result.locations) {
-        // 来店計測地点の場合はセグメント不要、グループ必須
         let segmentId: string | undefined;
         let segmentData: ExcelSegmentData | undefined;
         let visitMeasurementGroupId: string | undefined;
 
         if (location.poi_category === 'visit_measurement') {
-          // 来店計測地点：セグメント不要、グループ必須
-          segmentId = undefined;
-          segmentData = undefined;
-          
-          // グループ名からグループIDを取得
           if (location.group_name_ref) {
             visitMeasurementGroupId = groupMap.get(location.group_name_ref);
             if (!visitMeasurementGroupId) {
@@ -325,33 +326,28 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
               continue;
             }
           } else {
-            console.error(`❌ 来店計測地点にはグループ名が必要です`);
+            console.error('来店計測地点にはグループ名が必要です');
             continue;
           }
         } else {
-          // TG地点：セグメント必須
           segmentId = segmentMap.get(location.segment_name_ref || '');
           if (!segmentId) {
-            console.error(`❌ セグメント「${location.segment_name_ref}」が見つかりません`);
+            console.error(`セグメント「${location.segment_name_ref}」が見つかりません`);
             continue;
           }
-          // 対応するセグメントデータを取得（共通条件を引き継ぐため）
           segmentData = result.segments.find(s => s.segment_name === location.segment_name_ref);
         }
 
-        const createdPoi = await bigQueryService.createPoi({
+        poisToCreate.push({
           poi_name: location.poi_name,
           address: location.address || undefined,
           latitude: location.latitude,
           longitude: location.longitude,
           project_id: createdProject.project_id,
-          segment_id: segmentId, // 来店計測地点の場合はundefined
-          visit_measurement_group_id: visitMeasurementGroupId, // 来店計測地点の場合のみ
-          // 手動登録フォームとの整合性のため、poi_typeを設定
+          segment_id: segmentId,
+          visit_measurement_group_id: visitMeasurementGroupId,
           poi_type: 'manual',
-          // 地点カテゴリを設定（v4.0で追加）
           poi_category: location.poi_category || 'tg',
-          // セグメントの共通条件を地点にも引き継ぐ（TG地点の場合のみ）
           designated_radius: segmentData?.designated_radius,
           extraction_period: segmentData?.extraction_period,
           extraction_period_type: segmentData ? 'preset' : undefined,
@@ -363,15 +359,11 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
           detection_time_end: segmentData?.detection_time_end || '',
           stay_time: segmentData?.stay_time || '',
         });
-
-        // 作成された地点を蓄積（スプレッドシート出力用）
-        if (user?.role === 'sales') {
-          createdPois.push(createdPoi);
-        }
-
-        successCount++;
-        console.log('✅ 地点登録完了:', createdPoi);
       }
+
+      const allCreatedPois = await bigQueryService.createPoisBulk(poisToCreate);
+      const successCount = allCreatedPois.length;
+      const createdPois: PoiInfo[] = user?.role === 'sales' ? allCreatedPois : [];
 
       // 一括登録の場合、全ての地点をまとめてスプレッドシートに送信
       // 全地点を出力（TG地点・来店計測地点・ポリゴン地点を含む）
@@ -404,7 +396,7 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
         }
       }
 
-      alert(`一括登録が完了しました。\n案件: 1件\nセグメント: ${result.segments.length}件\n地点: ${successCount}件`);
+      toast.success(`一括登録が完了しました（案件: 1件 / セグメント: ${result.segments.length}件 / 地点: ${successCount}件）`);
       
       // ファイルと結果をリセット
       setFile(null);
@@ -415,7 +407,8 @@ export function BulkImport({ onImportComplete, onImportProgress }: BulkImportPro
       onImportComplete();
     } catch (error) {
       console.error('❌ 一括登録エラー:', error);
-      alert('一括登録中にエラーが発生しました。\n詳細はコンソールを確認してください。');
+      const message = error instanceof Error ? error.message : '不明なエラー';
+      toast.error(`一括登録中にエラーが発生しました: ${message}`);
     } finally {
       setImporting(false);
       onImportProgress?.(false);

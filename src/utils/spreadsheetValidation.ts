@@ -48,9 +48,7 @@ export function validateSheetRow(row: SheetRow): ValidationError[] {
     if (!row.longitude || row.longitude === '') {
       errors.push({ field: 'longitude', message: '経度は必須です（setting_flag=2の場合）' });
     }
-    if (!row.prefecture || row.prefecture.trim() === '') {
-      errors.push({ field: 'prefecture', message: '都道府県は必須です（setting_flag=2の場合）' });
-    }
+    // prefecture は任意（座標のみで登録されたPOIは住所・都道府県を持たない場合がある）
   }
 
   // setting_flag=4: 任意半径で指定（緯度経度、半径を入力）
