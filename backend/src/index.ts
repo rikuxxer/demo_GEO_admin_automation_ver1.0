@@ -36,7 +36,7 @@ const allowedOrigins = [
   /^https:\/\/universegeo.*\.run\.app$/,
 ].filter(Boolean);
 
-app.use(cors({
+const corsMiddleware = cors({
   origin: (origin, callback) => {
     // 本番環境ではOriginなしのリクエストを拒否（Postman等の直接アクセスを防ぐ）
     if (!origin) {
@@ -78,7 +78,16 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+});
+
+// Cloud Scheduler等のサーバー間リクエスト（Origin なし）はスケジューラー専用エンドポイントのみ許可
+// 認証は X-Scheduler-Token ヘッダーで担保する
+app.use((req, res, next) => {
+  if (!req.headers.origin && req.path === '/api/sheets/run-scheduled-export') {
+    return next();
+  }
+  corsMiddleware(req, res, next);
+});
 
 // Preflight
 app.options('*', cors());
