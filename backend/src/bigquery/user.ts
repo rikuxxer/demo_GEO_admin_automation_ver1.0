@@ -6,6 +6,7 @@ import {
   getDataset,
   formatTimestampForBigQuery,
   formatBoolForBigQuery,
+  bqTimestamp,
 } from './utils';
 
 export async function getUsers(): Promise<any[]> {
@@ -136,9 +137,7 @@ export async function updateUser(user_id: string, updates: any): Promise<void> {
 
   const processedUpdates = { ...updates };
   if ('last_login' in processedUpdates) {
-    processedUpdates.last_login = processedUpdates.last_login
-      ? formatTimestampForBigQuery(processedUpdates.last_login)
-      : null;
+    processedUpdates.last_login = bqTimestamp(processedUpdates.last_login);
   }
 
   if (Object.keys(processedUpdates).length === 0) return;

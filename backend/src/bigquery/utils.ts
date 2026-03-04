@@ -1,4 +1,4 @@
-import { BigQuery } from '@google-cloud/bigquery';
+import { BigQuery, BigQueryDate, BigQueryTime } from '@google-cloud/bigquery';
 
 function getDatasetId(): string {
   let datasetId = process.env.BQ_DATASET || 'universegeo_dataset';
@@ -218,6 +218,27 @@ export function formatTimeForBigQuery(timeValue: any): string | null {
 
   console.warn(`⚠️ Invalid time value: ${timeValue}, setting to null`);
   return null;
+}
+
+// BigQuery v7 クライアントは STRING + types:'TIMESTAMP'/'DATE'/'TIME' で parameterValue:{} になるバグがある。
+// ラッパーオブジェクトを使うことで正しく parameterValue:{value:'...'} が送られる。
+// クエリパラメータ専用（レスポンス整形には既存の formatXxx 関数を使うこと）。
+export function bqTimestamp(value: any): Date | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(
+    typeof value === 'object' && value !== null && 'value' in value ? value.value : value
+  );
+  return isNaN(d.getTime()) ? null : d;
+}
+
+export function bqDate(value: any): BigQueryDate | null {
+  const s = formatDateForBigQuery(value);
+  return s ? new BigQueryDate(s) : null;
+}
+
+export function bqTime(value: any): BigQueryTime | null {
+  const s = formatTimeForBigQuery(value);
+  return s ? new BigQueryTime(s) : null;
 }
 
 export function formatBoolForBigQuery(boolValue: any): boolean {

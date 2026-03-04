@@ -4,8 +4,8 @@ import {
   initializeBigQueryClient,
   BQ_LOCATION,
   datasetId,
-  formatDateForBigQuery,
-  formatTimestampForBigQuery,
+  bqDate,
+  bqTimestamp,
   getNextIdFromCounter,
 } from './utils';
 
@@ -335,7 +335,7 @@ export async function createProject(project: any): Promise<any> {
       if (field in project && project[field] !== undefined) {
         if (field === 'delivery_start_date' || field === 'delivery_end_date') {
           const originalValue = project[field];
-          const formattedDate = formatDateForBigQuery(originalValue);
+          const formattedDate = bqDate(originalValue);
 
           if (formattedDate !== null) {
             cleanedProject[field] = formattedDate;
@@ -361,9 +361,9 @@ export async function createProject(project: any): Promise<any> {
     });
 
     const now = new Date();
-    cleanedProject._register_datetime = formatTimestampForBigQuery(project._register_datetime || now);
-    cleanedProject.created_at = formatTimestampForBigQuery(project.created_at || now);
-    cleanedProject.updated_at = formatTimestampForBigQuery(project.updated_at || now);
+    cleanedProject._register_datetime = bqTimestamp(project._register_datetime || now);
+    cleanedProject.created_at = bqTimestamp(project.created_at || now);
+    cleanedProject.updated_at = bqTimestamp(project.updated_at || now);
 
     console.log('📋 Cleaned project data for BigQuery:', {
       project_id: cleanedProject.project_id,
@@ -441,9 +441,7 @@ export async function updateProject(project_id: string, updates: any): Promise<v
   const dateFields = ['delivery_start_date', 'delivery_end_date'];
   for (const field of dateFields) {
     if (field in processedUpdates) {
-      processedUpdates[field] = processedUpdates[field]
-        ? formatDateForBigQuery(processedUpdates[field])
-        : null;
+      processedUpdates[field] = bqDate(processedUpdates[field]);
     }
   }
 

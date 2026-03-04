@@ -3,9 +3,9 @@ import {
   getCleanDatasetId,
   initializeBigQueryClient,
   BQ_LOCATION,
-  formatTimestampForBigQuery,
-  formatDateForBigQuery,
-  formatTimeForBigQuery,
+  bqTimestamp,
+  bqDate,
+  bqTime,
   formatBoolForBigQuery,
   formatMediaIdArrayForBigQuery,
   formatDeliveryMediaForBigQuery,
@@ -109,7 +109,7 @@ export async function createSegment(segment: any): Promise<void> {
       project_id: segment.project_id.trim(),
     };
 
-    cleanedSegment.segment_registered_at = formatTimestampForBigQuery(segment.segment_registered_at || new Date());
+    cleanedSegment.segment_registered_at = bqTimestamp(segment.segment_registered_at || new Date());
     if (!(segment.location_request_status != null && segment.location_request_status !== '')) {
       cleanedSegment.location_request_status = 'not_requested';
     }
@@ -124,15 +124,15 @@ export async function createSegment(segment: any): Promise<void> {
     for (const field of allowedFields) {
       if (field in segment && segment[field] !== undefined && segment[field] !== null) {
         if (field === 'extraction_start_date' || field === 'extraction_end_date' || field === 'data_coordination_date') {
-          cleanedSegment[field] = formatDateForBigQuery(segment[field]);
+          cleanedSegment[field] = bqDate(segment[field]);
         } else if (field === 'data_link_request_date' || field === 'data_link_scheduled_date' || field === 'segment_expire_date') {
-          cleanedSegment[field] = formatDateForBigQuery(segment[field]);
+          cleanedSegment[field] = bqDate(segment[field]);
         } else if (field === 'detection_time_start' || field === 'detection_time_end') {
-          cleanedSegment[field] = formatTimeForBigQuery(segment[field]);
+          cleanedSegment[field] = bqTime(segment[field]);
         } else if (field === 'delivery_confirmed' || field === 'registerd_provider_segment') {
           cleanedSegment[field] = formatBoolForBigQuery(segment[field]);
         } else if (field === 'segment_registered_at') {
-          cleanedSegment[field] = formatTimestampForBigQuery(segment[field] || new Date());
+          cleanedSegment[field] = bqTimestamp(segment[field] || new Date());
         } else if (field === 'media_id') {
           const arr = formatMediaIdArrayForBigQuery(segment[field]);
           if (arr) cleanedSegment[field] = arr;
@@ -156,8 +156,8 @@ export async function createSegment(segment: any): Promise<void> {
     }
 
     const now = new Date();
-    cleanedSegment.created_at = formatTimestampForBigQuery(segment.created_at || now);
-    cleanedSegment.updated_at = formatTimestampForBigQuery(segment.updated_at || now);
+    cleanedSegment.created_at = bqTimestamp(segment.created_at || now);
+    cleanedSegment.updated_at = bqTimestamp(segment.updated_at || now);
 
     const currentProjectId = validateProjectId();
     const cleanDatasetId = getCleanDatasetId();
@@ -232,14 +232,14 @@ export async function updateSegment(segment_id: string, updates: any): Promise<v
   ];
   for (const field of dateFields) {
     if (field in processedUpdates) {
-      processedUpdates[field] = formatDateForBigQuery(processedUpdates[field]);
+      processedUpdates[field] = bqDate(processedUpdates[field]);
     }
   }
 
   const timeFields = ['detection_time_start', 'detection_time_end'];
   for (const field of timeFields) {
     if (field in processedUpdates) {
-      processedUpdates[field] = formatTimeForBigQuery(processedUpdates[field]);
+      processedUpdates[field] = bqTime(processedUpdates[field]);
     }
   }
 

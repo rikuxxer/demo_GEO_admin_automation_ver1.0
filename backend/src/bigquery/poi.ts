@@ -3,7 +3,7 @@ import {
   getCleanDatasetId,
   initializeBigQueryClient,
   BQ_LOCATION,
-  formatTimestampForBigQuery,
+  bqTimestamp,
 } from './utils';
 import { updateSegment } from './segment';
 
@@ -155,8 +155,8 @@ export async function createPoi(poi: any): Promise<void> {
     }
 
     const now = new Date();
-    cleanedPoi.created_at = formatTimestampForBigQuery(poi.created_at || now);
-    cleanedPoi.updated_at = formatTimestampForBigQuery(poi.updated_at || now);
+    cleanedPoi.created_at = bqTimestamp(poi.created_at || now);
+    cleanedPoi.updated_at = bqTimestamp(poi.updated_at || now);
 
     if (cleanedPoi.segment_id) {
       const existingPois = await getPoisBySegment(cleanedPoi.segment_id);
@@ -294,8 +294,8 @@ export async function createPoisBulk(pois: any[]): Promise<void> {
       }
 
       const now = new Date();
-      cleanedPoi.created_at = formatTimestampForBigQuery(poi.created_at || now);
-      cleanedPoi.updated_at = formatTimestampForBigQuery(poi.updated_at || now);
+      cleanedPoi.created_at = bqTimestamp(poi.created_at || now);
+      cleanedPoi.updated_at = bqTimestamp(poi.updated_at || now);
 
       return cleanedPoi;
     });

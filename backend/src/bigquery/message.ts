@@ -3,10 +3,10 @@ import {
   getCleanDatasetId,
   initializeBigQueryClient,
   BQ_LOCATION,
-  formatTimestampForBigQuery,
   formatBoolForBigQuery,
-  formatDateForBigQuery,
-  formatTimeForBigQuery,
+  bqTimestamp,
+  bqDate,
+  bqTime,
 } from './utils';
 
 // ==================== メッセージ ====================
@@ -90,7 +90,7 @@ export async function createMessage(message: any): Promise<void> {
         if (field === 'is_read') {
           cleanedMessage[field] = formatBoolForBigQuery(message[field]);
         } else if (field === 'timestamp') {
-          cleanedMessage[field] = formatTimestampForBigQuery(message[field] || new Date());
+          cleanedMessage[field] = bqTimestamp(message[field] || new Date());
         } else {
           cleanedMessage[field] = message[field];
         }
@@ -101,7 +101,7 @@ export async function createMessage(message: any): Promise<void> {
       cleanedMessage.is_read = formatBoolForBigQuery(false);
     }
     if (!cleanedMessage.timestamp) {
-      cleanedMessage.timestamp = formatTimestampForBigQuery(new Date());
+      cleanedMessage.timestamp = bqTimestamp(new Date());
     }
 
     const currentProjectId = validateProjectId();
@@ -123,7 +123,7 @@ export async function createMessage(message: any): Promise<void> {
         content: cleanedMessage.content,
         message_type: cleanedMessage.message_type ?? null,
         is_read: cleanedMessage.is_read ?? false,
-        timestamp: cleanedMessage.timestamp,
+        timestamp: bqTimestamp(cleanedMessage.timestamp),
       },
       types: {
         timestamp: 'TIMESTAMP',
@@ -190,13 +190,13 @@ export async function createEditRequest(row: any): Promise<void> {
     target_id: String(row.target_id).trim(),
     project_id: String(row.project_id).trim(),
     requested_by: String(row.requested_by).trim(),
-    requested_at: formatTimestampForBigQuery(row.requested_at || new Date()),
+    requested_at: bqTimestamp(row.requested_at || new Date()),
     request_reason: String(row.request_reason ?? '').trim(),
     status: String(row.status ?? 'pending').trim(),
     changes: changesStr,
     segment_id: row.segment_id != null ? String(row.segment_id).trim() : null,
     reviewed_by: row.reviewed_by != null ? String(row.reviewed_by).trim() : null,
-    reviewed_at: row.reviewed_at ? formatTimestampForBigQuery(row.reviewed_at) : null,
+    reviewed_at: row.reviewed_at ? bqTimestamp(row.reviewed_at) : null,
     review_comment: row.review_comment != null ? String(row.review_comment).trim() : null,
   };
   const currentProjectId = validateProjectId();
@@ -224,7 +224,7 @@ export async function updateEditRequest(request_id: string, updates: any): Promi
   const params: any = { request_id: request_id.trim() };
   if (updates.status != null) { setParts.push('status = @status'); params.status = String(updates.status).trim(); }
   if (updates.reviewed_by != null) { setParts.push('reviewed_by = @reviewed_by'); params.reviewed_by = String(updates.reviewed_by).trim(); }
-  if (updates.reviewed_at != null) { setParts.push('reviewed_at = @reviewed_at'); params.reviewed_at = formatTimestampForBigQuery(updates.reviewed_at); }
+  if (updates.reviewed_at != null) { setParts.push('reviewed_at = @reviewed_at'); params.reviewed_at = bqTimestamp(updates.reviewed_at); }
   if (updates.review_comment != null) { setParts.push('review_comment = @review_comment'); params.review_comment = String(updates.review_comment).trim(); }
   if (updates.changes != null) { setParts.push('changes = @changes'); params.changes = typeof updates.changes === 'string' ? updates.changes : JSON.stringify(updates.changes); }
   if (setParts.length === 0) return;
@@ -279,16 +279,16 @@ export async function createVisitMeasurementGroup(row: any): Promise<void> {
     attribute: row.attribute != null ? String(row.attribute).trim() : null,
     extraction_period: row.extraction_period != null ? String(row.extraction_period).trim() : null,
     extraction_period_type: row.extraction_period_type != null ? String(row.extraction_period_type).trim() : null,
-    extraction_start_date: row.extraction_start_date ? formatDateForBigQuery(row.extraction_start_date) : null,
-    extraction_end_date: row.extraction_end_date ? formatDateForBigQuery(row.extraction_end_date) : null,
+    extraction_start_date: row.extraction_start_date ? bqDate(row.extraction_start_date) : null,
+    extraction_end_date: row.extraction_end_date ? bqDate(row.extraction_end_date) : null,
     extraction_dates: Array.isArray(row.extraction_dates) ? row.extraction_dates : null,
     detection_count: row.detection_count != null ? (typeof row.detection_count === 'number' ? row.detection_count : parseInt(String(row.detection_count), 10)) : null,
-    detection_time_start: row.detection_time_start ? formatTimeForBigQuery(row.detection_time_start) : null,
-    detection_time_end: row.detection_time_end ? formatTimeForBigQuery(row.detection_time_end) : null,
+    detection_time_start: row.detection_time_start ? bqTime(row.detection_time_start) : null,
+    detection_time_end: row.detection_time_end ? bqTime(row.detection_time_end) : null,
     stay_time: row.stay_time != null ? String(row.stay_time).trim() : null,
     designated_radius: row.designated_radius != null ? String(row.designated_radius).trim() : null,
-    created: formatTimestampForBigQuery(row.created || now),
-    updated_at: formatTimestampForBigQuery(row.updated_at || now),
+    created: bqTimestamp(row.created || now),
+    updated_at: bqTimestamp(row.updated_at || now),
   };
   const currentProjectId = validateProjectId();
   const cleanDatasetId = getCleanDatasetId();
@@ -326,8 +326,8 @@ export async function updateVisitMeasurementGroup(group_id: string, updates: any
   const setClause = allowed.filter(f => updates[f] !== undefined).map(f => `${f} = @${f}`).join(', ');
   if (!setClause) return;
   const params: any = { group_id: group_id.trim() };
-  allowed.forEach(f => { if (updates[f] !== undefined) params[f] = f === 'extraction_start_date' || f === 'extraction_end_date' ? formatDateForBigQuery(updates[f]) : f === 'detection_time_start' || f === 'detection_time_end' ? formatTimeForBigQuery(updates[f]) : f === 'extraction_dates' ? updates[f] : updates[f]; });
-  params.updated_at = formatTimestampForBigQuery(new Date());
+  allowed.forEach(f => { if (updates[f] !== undefined) params[f] = f === 'extraction_start_date' || f === 'extraction_end_date' ? bqDate(updates[f]) : f === 'detection_time_start' || f === 'detection_time_end' ? bqTime(updates[f]) : f === 'extraction_dates' ? updates[f] : updates[f]; });
+  params.updated_at = bqTimestamp(new Date());
   const query = `UPDATE \`${currentProjectId}.${cleanDatasetId}.visit_measurement_groups\` SET ${setClause}, updated_at = @updated_at WHERE group_id = @group_id`;
 
   const paramTypes: Record<string, string | string[]> = {};
@@ -389,16 +389,16 @@ export async function createFeatureRequest(row: any): Promise<void> {
     request_id: String(row.request_id).trim(),
     requested_by: String(row.requested_by).trim(),
     requested_by_name: String(row.requested_by_name ?? '').trim(),
-    requested_at: formatTimestampForBigQuery(row.requested_at || now),
+    requested_at: bqTimestamp(row.requested_at || now),
     title: String(row.title ?? '').trim(),
     description: String(row.description ?? '').trim(),
     category: String(row.category ?? 'other').trim(),
     priority: String(row.priority ?? 'medium').trim(),
     status: String(row.status ?? 'pending').trim(),
     reviewed_by: row.reviewed_by != null ? String(row.reviewed_by).trim() : null,
-    reviewed_at: row.reviewed_at ? formatTimestampForBigQuery(row.reviewed_at) : null,
+    reviewed_at: row.reviewed_at ? bqTimestamp(row.reviewed_at) : null,
     review_comment: row.review_comment != null ? String(row.review_comment).trim() : null,
-    implemented_at: row.implemented_at ? formatTimestampForBigQuery(row.implemented_at) : null,
+    implemented_at: row.implemented_at ? bqTimestamp(row.implemented_at) : null,
   };
   const currentProjectId = validateProjectId();
   const cleanDatasetId = getCleanDatasetId();
@@ -430,7 +430,7 @@ export async function updateFeatureRequest(request_id: string, updates: any): Pr
   allowed.forEach(f => {
     if (updates[f] !== undefined) {
       setParts.push(`${f} = @${f}`);
-      params[f] = f === 'reviewed_at' || f === 'implemented_at' ? formatTimestampForBigQuery(updates[f]) : updates[f];
+      params[f] = f === 'reviewed_at' || f === 'implemented_at' ? bqTimestamp(updates[f]) : updates[f];
     }
   });
   if (setParts.length === 0) return;
@@ -519,20 +519,20 @@ export async function createReportRequest(row: any): Promise<void> {
     request_id: String(row.request_id).trim(),
     requested_by: String(row.requested_by).trim(),
     requested_by_name: String(row.requested_by_name ?? '').trim(),
-    requested_at: formatTimestampForBigQuery(row.requested_at || now),
+    requested_at: bqTimestamp(row.requested_at || now),
     project_id: String(row.project_id).trim(),
     report_type: String(row.report_type ?? 'custom').trim(),
     report_title: String(row.report_title ?? '').trim(),
     description: row.description != null ? String(row.description).trim() : null,
-    start_date: row.start_date ? formatDateForBigQuery(row.start_date) : null,
-    end_date: row.end_date ? formatDateForBigQuery(row.end_date) : null,
+    start_date: row.start_date ? bqDate(row.start_date) : null,
+    end_date: row.end_date ? bqDate(row.end_date) : null,
     segment_ids: row.segment_ids && Array.isArray(row.segment_ids) ? JSON.stringify(row.segment_ids) : null,
     status: String(row.status ?? 'pending').trim(),
     reviewed_by: row.reviewed_by != null ? String(row.reviewed_by).trim() : null,
-    reviewed_at: row.reviewed_at ? formatTimestampForBigQuery(row.reviewed_at) : null,
+    reviewed_at: row.reviewed_at ? bqTimestamp(row.reviewed_at) : null,
     review_comment: row.review_comment != null ? String(row.review_comment).trim() : null,
     report_url: row.report_url != null ? String(row.report_url).trim() : null,
-    completed_at: row.completed_at ? formatTimestampForBigQuery(row.completed_at) : null,
+    completed_at: row.completed_at ? bqTimestamp(row.completed_at) : null,
     error_message: row.error_message != null ? String(row.error_message).trim() : null,
   };
   const currentProjectId = validateProjectId();
@@ -570,13 +570,13 @@ export async function updateReportRequest(request_id: string, updates: any): Pro
     if (updates[f] !== undefined) {
       if (f === 'start_date' || f === 'end_date') {
         setParts.push(`${f} = @${f}`);
-        params[f] = formatDateForBigQuery(updates[f]);
+        params[f] = bqDate(updates[f]);
       } else if (f === 'segment_ids' && Array.isArray(updates[f])) {
         setParts.push(`${f} = @${f}`);
         params[f] = JSON.stringify(updates[f]);
       } else if (f === 'reviewed_at' || f === 'completed_at') {
         setParts.push(`${f} = @${f}`);
-        params[f] = formatTimestampForBigQuery(updates[f]);
+        params[f] = bqTimestamp(updates[f]);
       } else {
         setParts.push(`${f} = @${f}`);
         params[f] = updates[f];
@@ -647,7 +647,7 @@ export async function insertChangeHistory(row: any): Promise<void> {
     segment_id: row.segment_id != null ? String(row.segment_id).trim() : null,
     action: String(row.action).trim(),
     changed_by: String(row.changed_by).trim(),
-    changed_at: formatTimestampForBigQuery(row.changed_at || new Date()),
+    changed_at: bqTimestamp(row.changed_at || new Date()),
     changes: row.changes ? (typeof row.changes === 'string' ? row.changes : JSON.stringify(row.changes)) : null,
     deleted_data: row.deleted_data ? (typeof row.deleted_data === 'string' ? row.deleted_data : JSON.stringify(row.deleted_data)) : null,
   };
