@@ -299,6 +299,7 @@ export async function createProject(project: any): Promise<any> {
 
     const allowedFields = [
       'project_id',
+      'project_name',
       'advertiser_name',
       'agency_name',
       'appeal_point',
@@ -437,7 +438,23 @@ export async function createProject(project: any): Promise<any> {
 export async function updateProject(project_id: string, updates: any): Promise<void> {
   const currentProjectId = validateProjectId();
 
-  const processedUpdates = { ...updates };
+  // allowlist filtering - only allow known projects columns to prevent BQ errors
+  const projectAllowedUpdateFields = new Set([
+    'project_name',
+    'advertiser_name', 'agency_name', 'appeal_point',
+    'delivery_start_date', 'delivery_end_date',
+    'person_in_charge', 'sub_person_in_charge',
+    'remarks', 'project_status',
+    'universe_service_id', 'universe_service_name',
+  ]);
+
+  const processedUpdates: any = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (projectAllowedUpdateFields.has(key)) {
+      processedUpdates[key] = value;
+    }
+  }
+
   const dateFields = ['delivery_start_date', 'delivery_end_date'];
   for (const field of dateFields) {
     if (field in processedUpdates) {

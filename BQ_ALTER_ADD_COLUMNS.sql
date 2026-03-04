@@ -22,6 +22,7 @@
 -- 1. projects（案件）
 -- -----------------------------------------------------------------------------
 ALTER TABLE `your_project_id.universegeo_dataset.projects`
+  ADD COLUMN IF NOT EXISTS project_name STRING,
   ADD COLUMN IF NOT EXISTS agency_name STRING,
   ADD COLUMN IF NOT EXISTS remarks STRING,
   ADD COLUMN IF NOT EXISTS project_status STRING,

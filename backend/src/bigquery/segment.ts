@@ -199,7 +199,36 @@ export async function createSegment(segment: any): Promise<void> {
 export async function updateSegment(segment_id: string, updates: any): Promise<void> {
   const currentProjectId = validateProjectId();
 
-  const processedUpdates = { ...updates };
+  // Step1: frontend field name → BQ column name mapping
+  const rawUpdates: any = { ...updates };
+  if ('request_confirmed' in rawUpdates) {
+    rawUpdates.delivery_confirmed = rawUpdates.request_confirmed;
+    delete rawUpdates.request_confirmed;
+  }
+
+  // Step2: allowlist filtering - only allow known segments columns to prevent BQ errors
+  const segmentAllowedUpdateFields = new Set([
+    'segment_name', 'segment_registered_at',
+    'delivery_media', 'media_id',
+    'poi_category', 'poi_type', 'attribute',
+    'extraction_period', 'extraction_period_type',
+    'extraction_start_date', 'extraction_end_date', 'extraction_dates',
+    'detection_count', 'detection_time_start', 'detection_time_end',
+    'stay_time', 'designated_radius',
+    'location_request_status', 'data_link_status',
+    'data_link_request_date', 'data_link_scheduled_date',
+    'data_coordination_date', 'segment_expire_date',
+    'delivery_confirmed', 'registerd_provider_segment',
+    'ads_account_id', 'provider_segment_id',
+  ]);
+
+  const processedUpdates: any = {};
+  for (const [key, value] of Object.entries(rawUpdates)) {
+    if (segmentAllowedUpdateFields.has(key)) {
+      processedUpdates[key] = value;
+    }
+  }
+
   if ('media_id' in processedUpdates && processedUpdates.media_id !== undefined) {
     const arr = formatMediaIdArrayForBigQuery(processedUpdates.media_id);
     processedUpdates.media_id = arr;
@@ -220,10 +249,6 @@ export async function updateSegment(segment_id: string, updates: any): Promise<v
   }
   if ('registerd_provider_segment' in processedUpdates && processedUpdates.registerd_provider_segment !== undefined) {
     processedUpdates.registerd_provider_segment = formatBoolForBigQuery(processedUpdates.registerd_provider_segment);
-  }
-  if ('request_confirmed' in processedUpdates) {
-    processedUpdates.delivery_confirmed = formatBoolForBigQuery(processedUpdates.request_confirmed);
-    delete processedUpdates.request_confirmed;
   }
 
   const dateFields = [
