@@ -28,6 +28,10 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: asia-northeast1
 
+concurrency:
+  group: cloud-run-backend-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy-backend:
     name: Deploy Backend

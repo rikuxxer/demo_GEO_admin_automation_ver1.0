@@ -21,6 +21,10 @@ env:
   REGION: asia-northeast1
   SERVICE_NAME: universegeo-backend
 
+concurrency:
+  group: cloud-run-backend-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy-backend:
     name: Deploy Backend to Cloud Run
