@@ -121,7 +121,7 @@ export async function parseExcelFile(file: File): Promise<ExcelParseResult> {
   try {
     console.log('Excelファイルパース開始:', file.name);
     const buffer = await file.arrayBuffer();
-    const wb = XLSX.read(buffer, { type: 'array' });
+    const wb = XLSX.read(buffer, { type: 'array', cellDates: false });
     console.log('利用可能なシート:', wb.SheetNames);
 
     // v4.0形式（TG地点と来店計測地点が分離）の判定
@@ -486,7 +486,7 @@ function parseSegmentRow(row: any[], rowNum: number, errors: ExcelParseError[], 
   if (segment.attribute === 'detector') {
     // 対象者が「検知者」の場合のみ、入力値を使用
     if (!count) {
-      errors.push({ section: sectionName, row: rowNum, field: '検知回数', message: '検知回数は必須です' });
+      segment.detection_count = 1; // default: 1 or more
     } else if (detectionCountMapping[count]) {
       segment.detection_count = detectionCountMapping[count];
     } else {
@@ -546,14 +546,22 @@ function parseLocationSheet(ws: XLSX.WorkSheet, segments: ExcelSegmentData[], er
 
     // D, E: 緯度経度
     if (row[3]) {
-      const lat = Number(row[3]);
-      if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
-      else errors.push({ section: '地点リスト', row: i + 1, field: '緯度', message: '-90〜90で指定してください' });
+      if (row[3] instanceof Date) {
+        errors.push({ section: '地点リスト', row: i + 1, field: '緯度', message: 'Excelで日付書式になっています。セルの書式を「数値」に変更して再度お試しください' });
+      } else {
+        const lat = Number(row[3]);
+        if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
+        else errors.push({ section: '地点リスト', row: i + 1, field: '緯度', message: '-90〜90で指定してください' });
+      }
     }
     if (row[4]) {
-      const lng = Number(row[4]);
-      if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
-      else errors.push({ section: '地点リスト', row: i + 1, field: '経度', message: '-180〜180で指定してください' });
+      if (row[4] instanceof Date) {
+        errors.push({ section: '地点リスト', row: i + 1, field: '経度', message: 'Excelで日付書式になっています。セルの書式を「数値」に変更して再度お試しください' });
+      } else {
+        const lng = Number(row[4]);
+        if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
+        else errors.push({ section: '地点リスト', row: i + 1, field: '経度', message: '-180〜180で指定してください' });
+      }
     }
 
     // F: ID
@@ -614,14 +622,22 @@ function parseSegmentAndLocationSheet(
       if (row[poiOffset + 1]) loc.address = String(row[poiOffset + 1]).trim();
 
       if (row[poiOffset + 2]) {
-        const lat = Number(row[poiOffset + 2]);
-        if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
-        else errors.push({ section: sheetName, row: rowNum, field: '緯度', message: '-90〜90で指定してください' });
+        if (row[poiOffset + 2] instanceof Date) {
+          errors.push({ section: sheetName, row: rowNum, field: '緯度', message: 'Excelで日付書式になっています。セルの書式を「数値」に変更して再度お試しください' });
+        } else {
+          const lat = Number(row[poiOffset + 2]);
+          if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
+          else errors.push({ section: sheetName, row: rowNum, field: '緯度', message: '-90〜90で指定してください' });
+        }
       }
       if (row[poiOffset + 3]) {
-        const lng = Number(row[poiOffset + 3]);
-        if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
-        else errors.push({ section: sheetName, row: rowNum, field: '経度', message: '-180〜180で指定してください' });
+        if (row[poiOffset + 3] instanceof Date) {
+          errors.push({ section: sheetName, row: rowNum, field: '経度', message: 'Excelで日付書式になっています。セルの書式を「数値」に変更して再度お試しください' });
+        } else {
+          const lng = Number(row[poiOffset + 3]);
+          if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
+          else errors.push({ section: sheetName, row: rowNum, field: '経度', message: '-180〜180で指定してください' });
+        }
       }
 
       // 地点IDは自動採番のため、Excelからは読み取らない
@@ -675,14 +691,22 @@ function parseVisitMeasurementLocationSheet(
 
     // D, E列: 緯度経度
     if (row[3]) {
-      const lat = Number(row[3]);
-      if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
-      else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '緯度', message: '-90〜90で指定してください' });
+      if (row[3] instanceof Date) {
+        errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '緯度', message: 'Excelで日付書式になっています。セルの書式を「数値」に変更して再度お試しください' });
+      } else {
+        const lat = Number(row[3]);
+        if (!isNaN(lat) && lat >= -90 && lat <= 90) loc.latitude = lat;
+        else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '緯度', message: '-90〜90で指定してください' });
+      }
     }
     if (row[4]) {
-      const lng = Number(row[4]);
-      if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
-      else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '経度', message: '-180〜180で指定してください' });
+      if (row[4] instanceof Date) {
+        errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '経度', message: 'Excelで日付書式になっています。セルの書式を「数値」に変更して再度お試しください' });
+      } else {
+        const lng = Number(row[4]);
+        if (!isNaN(lng) && lng >= -180 && lng <= 180) loc.longitude = lng;
+        else errors.push({ section: '4.来店計測地点リスト', row: rowNum, field: '経度', message: '-180〜180で指定してください' });
+      }
     }
 
     // F列: 指定半径（任意）
