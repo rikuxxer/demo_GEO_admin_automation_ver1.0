@@ -915,8 +915,10 @@ class BigQueryService {
 
   async createPoisBulk(poisData: Omit<PoiInfo, 'poi_id' | 'created'>[]): Promise<PoiInfo[]> {
     try {
-      const existingPois = await this.getPoiInfos();
-      
+      // プロジェクト単位で取得（全POI取得を避けてパフォーマンスを改善）
+      const projectId = poisData[0]?.project_id ?? '';
+      const existingPois = projectId ? await this.getPoisByProject(projectId) : [];
+
       // カテゴリごとにグループ化（来店計測地点はプロジェクト単位、TG地点はセグメント単位）
       const visitMeasurementPois: Omit<PoiInfo, 'poi_id' | 'created'>[] = [];
       const tgPoisBySegment = new Map<string, Omit<PoiInfo, 'poi_id' | 'created'>[]>();
