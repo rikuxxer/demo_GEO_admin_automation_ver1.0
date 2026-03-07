@@ -141,10 +141,10 @@ export function Sidebar({ isCollapsed, onToggle, currentPage = 'projects', onPag
 
                 {!isCollapsed && (
                   <>
-                    <span className="flex-1">{item.label}</span>
+                    <span className="flex-1 truncate">{item.label}</span>
                     {item.disabled && (
-                      <span className="px-2.5 py-1 bg-gray-500/30 text-gray-600 rounded-md text-xs font-medium">
-                        Coming Soon
+                      <span className="px-1.5 py-0.5 bg-gray-500/30 text-gray-600 rounded-md text-[10px] font-medium whitespace-nowrap flex-shrink-0">
+                        Soon
                       </span>
                     )}
                     {item.count && !item.disabled && (
