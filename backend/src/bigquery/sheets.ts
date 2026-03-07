@@ -39,11 +39,11 @@ export async function exportToGoogleSheets(rows: any[]): Promise<{
         row.brand_name || '',
         row.poi_id || '',
         row.poi_name || '',
-        row.latitude !== undefined && row.latitude !== null ? String(row.latitude) : '',
-        row.longitude !== undefined && row.longitude !== null ? String(row.longitude) : '',
+        row.latitude !== undefined && row.latitude !== null ? Number(row.latitude) : '',
+        row.longitude !== undefined && row.longitude !== null ? Number(row.longitude) : '',
         row.prefecture || '',
         row.city || '',
-        row.radius || '',
+        row.radius !== undefined && row.radius !== null && row.radius !== '' ? Number(row.radius) : '',
         row.polygon || '',
         row.setting_flag || '2',
         createdValue,
@@ -87,7 +87,7 @@ export async function exportToGoogleSheets(rows: any[]): Promise<{
         const response = await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
           range: `${SHEET_NAME}!A:M`,
-          valueInputOption: 'RAW',
+          valueInputOption: 'USER_ENTERED',
           insertDataOption: 'INSERT_ROWS',
           resource: { values: chunk },
         });
