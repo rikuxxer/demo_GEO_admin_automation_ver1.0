@@ -170,7 +170,12 @@ export function ReportRequestPage({ isAdmin = false }: ReportRequestPageProps) {
               <option key={t} value={t}>{getReportTypeLabel(t)}</option>
             ))}
         </select>
-        <Button variant="outline" size="sm" onClick={loadData} className="h-9">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadData}
+          className="h-9 border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10"
+        >
           <RefreshCw className="w-3.5 h-3.5 mr-1" />
           更新
         </Button>
@@ -215,7 +220,11 @@ export function ReportRequestPage({ isAdmin = false }: ReportRequestPageProps) {
                 <TableCell>{getStatusBadge(r.status)}</TableCell>
                 <TableCell className="text-sm">{getReportTypeLabel(r.report_type)}</TableCell>
                 <TableCell className="text-sm font-medium max-w-[200px] truncate">{r.report_title}</TableCell>
-                <TableCell className="text-sm text-gray-600">{getProjectName(r.project_id)}</TableCell>
+                <TableCell className="text-sm text-gray-600">
+                  {getProjectName(r.project_id) !== r.project_id
+                    ? `${getProjectName(r.project_id)} (${r.project_id})`
+                    : r.project_id}
+                </TableCell>
                 <TableCell className="text-sm text-gray-600">
                   {r.start_date && r.end_date
                     ? `${formatDate(r.start_date)} 〜 ${formatDate(r.end_date)}`
