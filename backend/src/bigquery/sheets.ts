@@ -77,6 +77,18 @@ export async function exportToGoogleSheets(rows: any[]): Promise<{
 
     const sheets = google.sheets({ version: 'v4', auth });
 
+    // 現在の最終行を取得して、明示的に書き込み位置を指定する
+    let nextRow = 1;
+    try {
+      const existing = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A:A`,
+      });
+      nextRow = (existing.data.values?.length || 0) + 1;
+    } catch (_) {
+      // シートが空の場合は1行目から
+    }
+
     const CHUNK_SIZE = 50;
     let totalRowsAdded = 0;
     const chunkErrors: string[] = [];
@@ -84,14 +96,15 @@ export async function exportToGoogleSheets(rows: any[]): Promise<{
     for (let i = 0; i < values.length; i += CHUNK_SIZE) {
       const chunk = values.slice(i, i + CHUNK_SIZE);
       try {
-        const response = await sheets.spreadsheets.values.append({
+        const startRow = nextRow + totalRowsAdded;
+        const endRow = startRow + chunk.length - 1;
+        const response = await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
-          range: `${SHEET_NAME}!A:M`,
+          range: `${SHEET_NAME}!A${startRow}:M${endRow}`,
           valueInputOption: 'USER_ENTERED',
-          insertDataOption: 'INSERT_ROWS',
           resource: { values: chunk },
         });
-        totalRowsAdded += response.data.updates?.updatedRows || chunk.length;
+        totalRowsAdded += response.data.updatedRows || chunk.length;
       } catch (chunkErr: any) {
         chunkErrors.push(`chunk[${i}..${i + chunk.length - 1}]: ${chunkErr?.message}`);
       }
