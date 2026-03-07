@@ -207,7 +207,7 @@ export function SheetExportHistory({ currentUserId, currentUserName }: SheetExpo
           <h2 className="text-xl font-semibold text-gray-900">スプレッドシートエクスポート履歴</h2>
           <p className="text-sm text-gray-600 mt-1">エクスポート履歴の確認と再エクスポートができます</p>
         </div>
-        <Button onClick={fetchExports} variant="outline" size="sm" disabled={loading}>
+        <Button onClick={fetchExports} variant="outline" size="sm" disabled={loading} className="!border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10">
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           更新
         </Button>
@@ -247,7 +247,7 @@ export function SheetExportHistory({ currentUserId, currentUserName }: SheetExpo
               }}
               variant="outline"
               size="sm"
-              className="w-full"
+              className="w-full !border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10"
             >
               フィルターをリセット
             </Button>
@@ -327,7 +327,7 @@ export function SheetExportHistory({ currentUserId, currentUserName }: SheetExpo
                             }}
                             variant="outline"
                             size="sm"
-                            className="h-8"
+                            className="h-8 !border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10"
                           >
                             <RefreshCw className="w-4 h-4 mr-1" />
                             再エクスポート
@@ -466,6 +466,7 @@ export function SheetExportHistory({ currentUserId, currentUserName }: SheetExpo
                     setExportData([]);
                   }}
                   variant="outline"
+                  className="!border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10"
                 >
                   閉じる
                 </Button>
