@@ -1,10 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
-import { BarChart3, ClipboardCheck, AlertCircle, CheckCircle, Clock, TrendingDown, Target, DollarSign, Package, MapPin, Activity, FileText } from 'lucide-react';
+import { BarChart3, ClipboardCheck, AlertCircle, CheckCircle, Clock, TrendingDown, Target, DollarSign, Package, MapPin, Activity, FileText, CalendarIcon } from 'lucide-react';
 import { Card } from './ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
 import * as Recharts from 'recharts';
+import { subDays, startOfDay, endOfDay, format } from 'date-fns';
+import { ja } from 'date-fns/locale';
+import type { DateRange } from 'react-day-picker';
 import type { Project, Segment, EditRequest } from '../types/schema';
-import { 
-  calculateAverageRegistrationTime, 
+import {
+  calculateAverageRegistrationTime,
   getRegistrationTimeTrend,
   getRegistrationTimeInMinutes
 } from '../utils/registrationTime';
@@ -36,41 +41,75 @@ export function AdminDashboard({
   const [activeTab, setActiveTab] = useState<'dashboard' | 'exports' | 'reports'>('dashboard');
   const canRenderResponsiveCharts =
     typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
-  
+
+  // 集計期間の状態（null = 全期間）
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | null>({
+    from: subDays(new Date(), 90),
+    to: new Date(),
+  });
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // 案件を期間でフィルタ
+  const filteredProjects = useMemo(() => {
+    if (!dateRange) return projects;
+    const from = startOfDay(dateRange.from);
+    const to = endOfDay(dateRange.to);
+    return projects.filter(p => {
+      if (!p._register_datetime) return false;
+      const d = new Date(p._register_datetime);
+      return d >= from && d <= to;
+    });
+  }, [projects, dateRange]);
+
+  // セグメント・修正依頼も連動フィルタ
+  const filteredProjectIds = useMemo(() =>
+    new Set(filteredProjects.map(p => p.project_id)),
+    [filteredProjects]
+  );
+  const filteredSegments = useMemo(() =>
+    segments.filter(s => filteredProjectIds.has(s.project_id)),
+    [segments, filteredProjectIds]
+  );
+  const filteredEditRequests = useMemo(() =>
+    editRequests.filter(r => filteredProjectIds.has(r.project_id)),
+    [editRequests, filteredProjectIds]
+  );
+
   // 案件ステータス別カウント（メモ化）
   const projectsByStatus = useMemo(() => ({
-    draft: projects.filter(p => p.project_status === 'draft').length,
-    in_progress: projects.filter(p => p.project_status === 'in_progress').length,
-    pending: projects.filter(p => p.project_status === 'pending').length,
-    completed: projects.filter(p => p.project_status === 'completed').length,
-    cancelled: projects.filter(p => p.project_status === 'cancelled').length,
-  }), [projects]);
+    draft: filteredProjects.filter(p => p.project_status === 'draft').length,
+    in_progress: filteredProjects.filter(p => p.project_status === 'in_progress').length,
+    pending: filteredProjects.filter(p => p.project_status === 'pending').length,
+    completed: filteredProjects.filter(p => p.project_status === 'completed').length,
+    cancelled: filteredProjects.filter(p => p.project_status === 'cancelled').length,
+  }), [filteredProjects]);
 
   // セグメントステータス別カウント（メモ化）
   const segmentsByStatus = useMemo(() => ({
-    before_poi_registration: segments.filter(s => s.data_link_status === 'before_poi_registration').length,
-    requested: segments.filter(s => s.data_link_status === 'requested').length,
-    linking: segments.filter(s => s.data_link_status === 'linking').length,
-    completed: segments.filter(s => s.data_link_status === 'completed').length,
-    error: segments.filter(s => s.data_link_status === 'error').length,
-  }), [segments]);
+    before_poi_registration: filteredSegments.filter(s => s.data_link_status === 'before_poi_registration').length,
+    requested: filteredSegments.filter(s => s.data_link_status === 'requested').length,
+    linking: filteredSegments.filter(s => s.data_link_status === 'linking').length,
+    completed: filteredSegments.filter(s => s.data_link_status === 'completed').length,
+    error: filteredSegments.filter(s => s.data_link_status === 'error').length,
+  }), [filteredSegments]);
 
   // 営業全員の平均登録時間（メモ化）
-  const averageRegistrationTime = useMemo(() => 
-    calculateAverageRegistrationTime(projects), 
-    [projects]
-  );
-  
-  // 時系列での推移データ（過去30日）（メモ化）
-  const registrationTimeTrend = useMemo(() => 
-    getRegistrationTimeTrend(projects, 30), 
-    [projects]
+  const averageRegistrationTime = useMemo(() =>
+    calculateAverageRegistrationTime(filteredProjects),
+    [filteredProjects]
   );
 
+  // 時系列での推移データ（メモ化）
+  const registrationTimeTrend = useMemo(() => {
+    const from = dateRange ? dateRange.from : subDays(new Date(), 90);
+    const to = dateRange ? dateRange.to : new Date();
+    return getRegistrationTimeTrend(filteredProjects, from, to);
+  }, [filteredProjects, dateRange]);
+
   // デバッグ: 参照しているデータを確認（開発環境のみ）
-  const projectsWithStartTime = useMemo(() => 
-    projects.filter(p => p.project_registration_started_at), 
-    [projects]
+  const projectsWithStartTime = useMemo(() =>
+    filteredProjects.filter(p => p.project_registration_started_at),
+    [filteredProjects]
   );
   
   const registrationTimes = useMemo(() => 
@@ -84,7 +123,7 @@ export function AdminDashboard({
   useEffect(() => {
     if (import.meta.env.MODE === 'development') {
       console.log('🔍 削減時間の計算に使用しているデータ:');
-      console.log(`  全案件数: ${projects.length}件`);
+      console.log(`  全案件数: ${filteredProjects.length}件`);
       console.log(`  登録開始時点が記録されている案件数: ${projectsWithStartTime.length}件`);
       console.log(`  有効な登録時間データ数: ${registrationTimes.length}件`);
       if (registrationTimes.length > 0) {
@@ -102,7 +141,7 @@ export function AdminDashboard({
         console.log(`  登録時間の詳細（最初の10件）:`, registrationTimes.slice(0, 10));
       }
     }
-  }, [projects.length, projectsWithStartTime.length, registrationTimes, averageRegistrationTime]);
+  }, [filteredProjects.length, projectsWithStartTime.length, registrationTimes, averageRegistrationTime]);
 
   // 削減時間、想定アポ創出数、想定売上金額を計算（メモ化）
   const metrics = useMemo(() => {
@@ -119,15 +158,15 @@ export function AdminDashboard({
 
     // 1件あたりの削減時間 = 20分 - 平均登録時間
     const reducedTimePerProject = Math.max(0, 20 - averageRegistrationTime);
-    
+
     // 削減時間 = (20分 - 平均登録時間) × 総案件数（分単位）
-    const reducedTimeMinutes = reducedTimePerProject * projects.length;
-    
+    const reducedTimeMinutes = reducedTimePerProject * filteredProjects.length;
+
     // 削減時間を時間に変換
     const reducedTimeHours = reducedTimeMinutes / 60;
-    
+
     if (import.meta.env.MODE === 'development') {
-      console.log(`📐 削減時間の計算: (20分 - ${averageRegistrationTime}分) × ${projects.length}件 = ${reducedTimeMinutes}分 (${reducedTimeHours.toFixed(2)}時間)`);
+      console.log(`📐 削減時間の計算: (20分 - ${averageRegistrationTime}分) × ${filteredProjects.length}件 = ${reducedTimeMinutes}分 (${reducedTimeHours.toFixed(2)}時間)`);
       console.log(`   1件あたりの削減時間: ${reducedTimePerProject}分`);
     }
 
@@ -146,7 +185,7 @@ export function AdminDashboard({
     if (import.meta.env.MODE === 'development') {
       console.log('📊 効果計測指標の計算結果:', {
         averageRegistrationTime,
-        totalProjects: projects.length,
+        totalProjects: filteredProjects.length,
         reducedTimePerProject,
         reducedTimeMinutes: result.reducedTime,
         reducedTimeHours: reducedTimeHours.toFixed(2),
@@ -156,7 +195,7 @@ export function AdminDashboard({
     }
 
     return result;
-  }, [averageRegistrationTime, projects.length]);
+  }, [averageRegistrationTime, filteredProjects.length]);
 
   // 変更履歴から工数分析（非同期取得）
   const emptyWorkTimeStats: OperationTimeStats = {
@@ -170,20 +209,20 @@ export function AdminDashboard({
   const [workTimeStats, setWorkTimeStats] = useState<OperationTimeStats>(emptyWorkTimeStats);
   useEffect(() => {
     let cancelled = false;
-    analyzeWorkTime(projects).then((stats) => {
+    analyzeWorkTime(filteredProjects).then((stats) => {
       if (!cancelled) setWorkTimeStats(stats);
     }).catch((error) => {
       console.error('Error analyzing work time:', error);
       if (!cancelled) setWorkTimeStats(emptyWorkTimeStats);
     });
     return () => { cancelled = true; };
-  }, [projects]);
+  }, [filteredProjects]);
 
   // デバッグ: データの確認（開発環境のみ、useEffectで副作用として実行）
   useEffect(() => {
     if (import.meta.env.MODE === 'development') {
       console.log('📊 登録時間データの確認:');
-      console.log(`  全案件数: ${projects.length}`);
+      console.log(`  全案件数: ${filteredProjects.length}`);
       console.log(`  開始時点が記録されている案件数: ${projectsWithStartTime.length}`);
       if (projectsWithStartTime.length > 0) {
         console.log('  サンプル案件:', projectsWithStartTime[0]);
@@ -197,7 +236,7 @@ export function AdminDashboard({
       console.log(`  想定アポ創出数: ${metrics.estimatedAppointments}件`);
       console.log(`  想定売上金額: ¥${metrics.estimatedSales?.toLocaleString() || 'なし'}`);
     }
-  }, [projects.length, projectsWithStartTime, averageRegistrationTime, registrationTimeTrend, metrics]);
+  }, [filteredProjects.length, projectsWithStartTime, averageRegistrationTime, registrationTimeTrend, metrics]);
 
   return (
     <div className="space-y-6">
@@ -250,6 +289,54 @@ export function AdminDashboard({
         <SheetExportHistory currentUserId={_currentUserId} />
       ) : (
         <>
+          {/* 集計期間セレクター */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-medium text-gray-700">集計期間:</span>
+            <button
+              onClick={() => setDateRange(null)}
+              className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                dateRange === null
+                  ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              全期間
+            </button>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                    dateRange !== null
+                      ? 'bg-[#5b5fff] text-white border-[#5b5fff]'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <CalendarIcon className="w-4 h-4" />
+                  {dateRange
+                    ? `${format(dateRange.from, 'yyyy/MM/dd')} 〜 ${format(dateRange.to, 'yyyy/MM/dd')}`
+                    : '期間を選択'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={dateRange ? { from: dateRange.from, to: dateRange.to } : undefined}
+                  onSelect={(range: DateRange | undefined) => {
+                    if (range?.from && range?.to) {
+                      setDateRange({ from: range.from, to: range.to });
+                      setCalendarOpen(false);
+                    } else if (range?.from) {
+                      setDateRange({ from: range.from, to: range.from });
+                    }
+                  }}
+                  numberOfMonths={2}
+                  locale={ja}
+                  disabled={{ after: new Date() }}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
           {/* 統計カード */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="p-6 border border-gray-200">
@@ -259,7 +346,7 @@ export function AdminDashboard({
             </div>
             <div>
               <p className="text-muted-foreground">総案件数</p>
-              <p className="text-gray-900">{projects.length}件</p>
+              <p className="text-gray-900">{filteredProjects.length}件</p>
             </div>
           </div>
           <div className="space-y-1 text-sm">
@@ -281,7 +368,7 @@ export function AdminDashboard({
             </div>
             <div>
               <p className="text-muted-foreground">総セグメント数</p>
-              <p className="text-gray-900">{segments.length}件</p>
+              <p className="text-gray-900">{filteredSegments.length}件</p>
             </div>
           </div>
           <div className="space-y-1 text-sm">
@@ -326,8 +413,8 @@ export function AdminDashboard({
             <div>
               <p className="text-muted-foreground">完了率</p>
               <p className="text-gray-900">
-                {segments.length > 0 
-                  ? Math.round((segmentsByStatus.completed / segments.length) * 100) 
+                {filteredSegments.length > 0
+                  ? Math.round((segmentsByStatus.completed / filteredSegments.length) * 100)
                   : 0}%
               </p>
             </div>
@@ -339,7 +426,7 @@ export function AdminDashboard({
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">未完了</span>
-              <span className="text-gray-600">{segments.length - segmentsByStatus.completed}件</span>
+              <span className="text-gray-600">{filteredSegments.length - segmentsByStatus.completed}件</span>
             </div>
           </div>
         </Card>
@@ -351,17 +438,17 @@ export function AdminDashboard({
             </div>
             <div>
               <p className="text-muted-foreground">修正依頼</p>
-              <p className="text-gray-900">{editRequests.filter(r => r.status === 'pending').length}件</p>
+              <p className="text-gray-900">{filteredEditRequests.filter(r => r.status === 'pending').length}件</p>
             </div>
           </div>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">承認待ち</span>
-              <span className="text-orange-600">{editRequests.filter(r => r.status === 'pending').length}件</span>
+              <span className="text-orange-600">{filteredEditRequests.filter(r => r.status === 'pending').length}件</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">承認済み</span>
-              <span className="text-green-600">{editRequests.filter(r => r.status === 'approved').length}件</span>
+              <span className="text-green-600">{filteredEditRequests.filter(r => r.status === 'approved').length}件</span>
             </div>
           </div>
         </Card>
@@ -395,12 +482,12 @@ export function AdminDashboard({
               <div className="flex justify-between">
                 <span className="text-gray-600">計測対象</span>
                 <span className="text-indigo-600">
-                  {projects.filter(p => p.project_registration_started_at).length}件
+                  {filteredProjects.filter(p => p.project_registration_started_at).length}件
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">全案件</span>
-                <span className="text-gray-600">{projects.length}件</span>
+                <span className="text-gray-600">{filteredProjects.length}件</span>
               </div>
             </div>
           </Card>
@@ -502,7 +589,11 @@ export function AdminDashboard({
       <Card className="border border-gray-200">
         <div className="p-6 border-b border-gray-200">
           <h3 className="text-gray-900">案件登録時間の推移</h3>
-          <p className="text-muted-foreground mt-0.5">過去30日間の平均登録時間の推移</p>
+          <p className="text-muted-foreground mt-0.5">
+            {dateRange
+              ? `${format(dateRange.from, 'yyyy/MM/dd')} 〜 ${format(dateRange.to, 'yyyy/MM/dd')} の平均登録時間の推移`
+              : '全期間の平均登録時間の推移'}
+          </p>
         </div>
         <div className="p-6">
           {canRenderResponsiveCharts ? (
@@ -565,7 +656,7 @@ export function AdminDashboard({
           )}
           {registrationTimeTrend.filter(d => d.count > 0).length === 0 && (
             <div className="text-center text-muted-foreground mt-4 text-sm">
-              データがありません（過去30日間に登録開始時点が記録されている案件がありません）
+              データがありません（選択期間内に登録開始時点が記録されている案件がありません）
             </div>
           )}
         </div>
