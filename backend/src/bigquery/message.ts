@@ -212,6 +212,10 @@ export async function createEditRequest(row: any): Promise<void> {
     types: {
       requested_at: 'TIMESTAMP',
       reviewed_at: 'TIMESTAMP',
+      changes: 'STRING',
+      segment_id: 'STRING',
+      reviewed_by: 'STRING',
+      review_comment: 'STRING',
     },
     location: BQ_LOCATION,
   });
