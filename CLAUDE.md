@@ -220,7 +220,7 @@ npm run build:prod    # 本番ビルド
 
 過去にページ内の「更新」ボタンがデフォルト色で表示され、他のボタンと色が不統一になった。
 - プライマリアクション: `bg-[#5b5fff] hover:bg-[#4949dd] text-white`
-- アウトラインアクション: `border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10`
+- アウトラインアクション: `!border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10`（`!` は shadcn/ui の variant 内部スタイルを上書きするために必須）
 - フォーカスリング: `focus:ring-[#5b5fff]`
 - shadcn/ui の `variant="outline"` をそのまま使うと色がデフォルトになるため、必ず上記クラスを追加する
 
