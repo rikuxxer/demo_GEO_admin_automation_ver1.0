@@ -46,7 +46,7 @@ export async function exportToGoogleSheets(rows: any[]): Promise<{
         row.radius !== undefined && row.radius !== null && row.radius !== '' ? Number(row.radius) : '',
         row.polygon || '',
         row.setting_flag || '2',
-        createdValue,
+        createdValue ? `'${createdValue}` : '',
       ];
     });
 
@@ -89,6 +89,21 @@ export async function exportToGoogleSheets(rows: any[]): Promise<{
       // シートが空の場合は1行目から
     }
 
+    // 書き込み先のシートIDを取得（書式クリアに必要）
+    let sheetId = 0;
+    try {
+      const meta = await sheets.spreadsheets.get({
+        spreadsheetId: SPREADSHEET_ID,
+        fields: 'sheets.properties',
+      });
+      const targetSheet = meta.data.sheets?.find(
+        (s: any) => s.properties?.title === SHEET_NAME
+      );
+      if (targetSheet?.properties?.sheetId !== undefined) {
+        sheetId = targetSheet.properties.sheetId;
+      }
+    } catch (_) {}
+
     const CHUNK_SIZE = 50;
     let totalRowsAdded = 0;
     const chunkErrors: string[] = [];
@@ -98,6 +113,27 @@ export async function exportToGoogleSheets(rows: any[]): Promise<{
       try {
         const startRow = nextRow + totalRowsAdded;
         const endRow = startRow + chunk.length - 1;
+
+        // 書き込み先セルの書式をクリア（既存のテキスト書式が残ると型が不統一になる）
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: SPREADSHEET_ID,
+          requestBody: {
+            requests: [{
+              repeatCell: {
+                range: {
+                  sheetId,
+                  startRowIndex: startRow - 1,
+                  endRowIndex: endRow,
+                  startColumnIndex: 0,
+                  endColumnIndex: 13,
+                },
+                cell: { userEnteredFormat: { numberFormat: { type: 'NONE' } } },
+                fields: 'userEnteredFormat.numberFormat',
+              },
+            }],
+          },
+        });
+
         const response = await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
           range: `${SHEET_NAME}!A${startRow}:M${endRow}`,
