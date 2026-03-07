@@ -174,7 +174,7 @@ export function ReportRequestPage({ isAdmin = false }: ReportRequestPageProps) {
           variant="outline"
           size="sm"
           onClick={loadData}
-          className="h-9 border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10"
+          className="h-9 !border-[#5b5fff] text-[#5b5fff] hover:bg-[#5b5fff]/10"
         >
           <RefreshCw className="w-3.5 h-3.5 mr-1" />
           更新
