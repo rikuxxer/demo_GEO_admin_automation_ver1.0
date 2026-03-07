@@ -798,6 +798,9 @@ CREATE TABLE `universegeo_dataset.report_requests` (
   report_url STRING,
   completed_at TIMESTAMP,
   error_message STRING,
+  aggregation_level STRING,
+  measurement_group_ids STRING,
+  struct_number STRING,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 )
@@ -805,6 +808,14 @@ PARTITION BY DATE(requested_at)
 OPTIONS(
   description="レポート作成依頼"
 );
+```
+
+**新カラム追加DDL（既存テーブルに対して実行）**:
+```sql
+ALTER TABLE `{project}.{dataset}.report_requests`
+ADD COLUMN aggregation_level STRING,
+ADD COLUMN measurement_group_ids STRING,
+ADD COLUMN struct_number STRING;
 ```
 
 **フィールド定義**:
@@ -816,7 +827,7 @@ OPTIONS(
 | `requested_by_name` | STRING | NO | 依頼者名 | `営業太郎` |
 | `requested_at` | TIMESTAMP | NO | 依頼日時（パーティションキー） | `2025-01-13 10:00:00 UTC` |
 | `project_id` | STRING | NO | 案件ID（外部キー） | `PRJ-1` |
-| `report_type` | STRING | NO | レポート種別 | `delivery_performance`, `effectiveness`, `custom` |
+| `report_type` | STRING | NO | レポート種別 | `visit_measurement`, `location_detail`（旧値: `delivery_performance`, `effectiveness`, `custom` も有効） |
 | `report_title` | STRING | NO | レポートタイトル | `2025年1月配信実績レポート` |
 | `description` | STRING | YES | レポート説明 | `詳細な説明...` |
 | `start_date` | DATE | YES | 期間開始日 | `2025-01-01` |
@@ -829,16 +840,22 @@ OPTIONS(
 | `report_url` | STRING | YES | 生成されたレポートのURL | `https://storage.googleapis.com/...` |
 | `completed_at` | TIMESTAMP | YES | レポート生成完了日時 | `2025-01-13 12:00:00 UTC` |
 | `error_message` | STRING | YES | エラーメッセージ | `レポート生成に失敗しました` |
+| `aggregation_level` | STRING | YES | 集計粒度（来訪計測レポート用） | `campaign`, `struct` |
+| `measurement_group_ids` | STRING | YES | 計測グループID（JSON配列形式） | `["VMG-001", "VMG-002"]` |
+| `struct_number` | STRING | YES | ストラクト番号（struct時のみ） | `12345` |
 | `created_at` | TIMESTAMP | YES | 作成日時 | `2025-01-13 10:00:00 UTC` |
 | `updated_at` | TIMESTAMP | YES | 更新日時 | `2025-01-13 12:00:00 UTC` |
 
 **ビジネスルール**:
 - `request_id`は自動採番（形式: `RPT-{YYYYMMDD}-{連番}`）
-- `report_type`は`delivery_performance`, `effectiveness`, `custom`のみ
+- `report_type`は`visit_measurement`, `location_detail`が現行値。旧値（`delivery_performance`, `effectiveness`, `custom`）も後方互換として有効
 - `status`は`pending`, `approved`, `rejected`, `in_progress`, `completed`, `failed`のみ
 - `project_id`は必須（`projects`テーブルに存在する必要がある）
 - `end_date`は`start_date`より後である必要がある
 - `segment_ids`はJSON配列形式の文字列として保存（例: `["SEG-1", "SEG-2"]`）
+- `measurement_group_ids`はJSON配列形式の文字列として保存（例: `["VMG-001"]`）
+- `aggregation_level`は`campaign`または`struct`。`report_type=visit_measurement`時のみ使用
+- `struct_number`は`aggregation_level=struct`時のみ使用
 
 ---
 

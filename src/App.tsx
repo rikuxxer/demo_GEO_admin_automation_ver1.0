@@ -19,6 +19,7 @@ import { UserGuideTour } from "./components/UserGuideTour";
 import { OperationGuide } from "./components/OperationGuide";
 import { ChatBot } from "./components/ChatBot";
 import { FeatureRequestList } from "./components/FeatureRequestList";
+import { ReportRequestPage } from "./components/ReportRequestPage";
 import { UserManagement } from "./components/UserManagement";
 import { TopProgressBar } from "./components/TopProgressBar";
 import { UserApprovalManagement } from "./components/UserApprovalManagement";
@@ -483,6 +484,10 @@ function AppContent() {
                 onUnreadCountUpdate={loadUnreadNotifications}
               />
             </div>
+          )}
+
+          {currentPage === "report" && (
+            <ReportRequestPage />
           )}
 
           {currentPage === "feature-requests" && (

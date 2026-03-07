@@ -323,27 +323,47 @@ export interface ReportRequest {
   requested_by_name: string; // 依頼者名
   requested_at: string; // 依頼日時（ISO 8601形式）
   project_id: string; // 案件ID
-  report_type: 'delivery_performance' | 'effectiveness' | 'custom'; // レポート種別
+  report_type: 'visit_measurement' | 'location_detail' | 'delivery_performance' | 'effectiveness' | 'custom';
   report_title: string; // レポートタイトル
   description?: string; // レポート説明
   start_date?: string; // 期間開始日（ISO 8601形式）
   end_date?: string; // 期間終了日（ISO 8601形式）
   segment_ids?: string[]; // 対象セグメントID（配列）
-  status: 'pending' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'failed'; // ステータス
+  status: 'pending' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'failed';
   reviewed_by?: string; // レビューした管理者のuser_id
   reviewed_at?: string; // レビュー日時（ISO 8601形式）
   review_comment?: string; // レビューコメント
   report_url?: string; // 生成されたレポートのURL
   completed_at?: string; // レポート生成完了日時（ISO 8601形式）
   error_message?: string; // エラーメッセージ
+  aggregation_level?: 'campaign' | 'struct'; // 集計粒度（来訪計測レポート用）
+  measurement_group_ids?: string[]; // 計測グループID（来訪計測レポート用）
+  struct_number?: string; // ストラクト番号（struct時のみ）
 }
 
 // レポート種別の選択肢
 export const REPORT_TYPE_OPTIONS = [
-  { value: 'delivery_performance', label: '配信実績レポート' },
-  { value: 'effectiveness', label: '効果測定レポート' },
-  { value: 'custom', label: 'カスタムレポート' },
+  { value: 'visit_measurement', label: '来訪計測レポート' },
+  { value: 'location_detail', label: '地点別レポート' },
 ] as const;
+
+// 集計粒度の選択肢（来訪計測レポート用）
+export const AGGREGATION_LEVEL_OPTIONS = [
+  { value: 'campaign', label: 'キャンペーン単位' },
+  { value: 'struct', label: 'ストラクト単位' },
+] as const;
+
+// 旧report_typeも含めたラベル取得ヘルパー
+export function getReportTypeLabel(type: string): string {
+  const found = REPORT_TYPE_OPTIONS.find(o => o.value === type);
+  if (found) return found.label;
+  const legacy: Record<string, string> = {
+    delivery_performance: '配信実績レポート',
+    effectiveness: '効果測定レポート',
+    custom: 'カスタムレポート',
+  };
+  return legacy[type] || 'その他';
+}
 
 // レポート作成依頼ステータスの選択肢
 export const REPORT_REQUEST_STATUS_OPTIONS = [

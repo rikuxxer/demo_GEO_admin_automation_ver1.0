@@ -10,6 +10,7 @@ import {
 } from '../utils/registrationTime';
 import { analyzeWorkTime, formatWorkTime, type OperationTimeStats } from '../utils/workTimeAnalysis';
 import { SheetExportHistory } from './SheetExportHistory';
+import { ReportRequestPage } from './ReportRequestPage';
 
 interface AdminDashboardProps {
   projects: Project[];
@@ -32,7 +33,7 @@ export function AdminDashboard({
   currentUserId: _currentUserId = '',
   onRefresh: _onRefresh
 }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'exports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'exports' | 'reports'>('dashboard');
   const canRenderResponsiveCharts =
     typeof window !== 'undefined' && typeof window.ResizeObserver === 'function';
   
@@ -230,10 +231,22 @@ export function AdminDashboard({
         >
           エクスポート履歴
         </button>
+        <button
+          onClick={() => setActiveTab('reports')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${
+            activeTab === 'reports'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          レポート依頼
+        </button>
       </div>
 
       {/* タブコンテンツ */}
-      {activeTab === 'exports' ? (
+      {activeTab === 'reports' ? (
+        <ReportRequestPage isAdmin />
+      ) : activeTab === 'exports' ? (
         <SheetExportHistory currentUserId={_currentUserId} />
       ) : (
         <>

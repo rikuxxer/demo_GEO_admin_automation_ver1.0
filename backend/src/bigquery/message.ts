@@ -516,6 +516,11 @@ export async function getReportRequests(project_id?: string, status?: string): P
     return (rows || []).map((r: any) => ({
       ...r,
       segment_ids: r.segment_ids ? (typeof r.segment_ids === 'string' ? JSON.parse(r.segment_ids) : r.segment_ids) : [],
+      measurement_group_ids: r.measurement_group_ids
+        ? (typeof r.measurement_group_ids === 'string' ? JSON.parse(r.measurement_group_ids) : r.measurement_group_ids)
+        : [],
+      aggregation_level: r.aggregation_level || null,
+      struct_number: r.struct_number || null,
     }));
   } catch (err: any) {
     if (err?.message?.includes('Not found') || err?.code === 404) return [];
@@ -538,6 +543,11 @@ export async function getReportRequestById(request_id: string): Promise<any | nu
     return {
       ...r,
       segment_ids: r.segment_ids ? (typeof r.segment_ids === 'string' ? JSON.parse(r.segment_ids) : r.segment_ids) : [],
+      measurement_group_ids: r.measurement_group_ids
+        ? (typeof r.measurement_group_ids === 'string' ? JSON.parse(r.measurement_group_ids) : r.measurement_group_ids)
+        : [],
+      aggregation_level: r.aggregation_level || null,
+      struct_number: r.struct_number || null,
     };
   } catch (err: any) {
     if (err?.message?.includes('Not found') || err?.code === 404) return null;
@@ -567,15 +577,19 @@ export async function createReportRequest(row: any): Promise<void> {
     report_url: row.report_url != null ? String(row.report_url).trim() : null,
     completed_at: row.completed_at ? bqTimestamp(row.completed_at) : null,
     error_message: row.error_message != null ? String(row.error_message).trim() : null,
+    aggregation_level: row.aggregation_level != null ? String(row.aggregation_level).trim() : null,
+    measurement_group_ids: row.measurement_group_ids && Array.isArray(row.measurement_group_ids)
+      ? JSON.stringify(row.measurement_group_ids) : null,
+    struct_number: row.struct_number != null ? String(row.struct_number).trim() : null,
   };
   const currentProjectId = validateProjectId();
   const cleanDatasetId = getCleanDatasetId();
   await initializeBigQueryClient().query({
     query: `
       INSERT INTO \`${currentProjectId}.${cleanDatasetId}.report_requests\`
-      (request_id, requested_by, requested_by_name, requested_at, project_id, report_type, report_title, description, start_date, end_date, segment_ids, status, reviewed_by, reviewed_at, review_comment, report_url, completed_at, error_message)
+      (request_id, requested_by, requested_by_name, requested_at, project_id, report_type, report_title, description, start_date, end_date, segment_ids, status, reviewed_by, reviewed_at, review_comment, report_url, completed_at, error_message, aggregation_level, measurement_group_ids, struct_number)
       VALUES
-      (@request_id, @requested_by, @requested_by_name, @requested_at, @project_id, @report_type, @report_title, @description, @start_date, @end_date, @segment_ids, @status, @reviewed_by, @reviewed_at, @review_comment, @report_url, @completed_at, @error_message)
+      (@request_id, @requested_by, @requested_by_name, @requested_at, @project_id, @report_type, @report_title, @description, @start_date, @end_date, @segment_ids, @status, @reviewed_by, @reviewed_at, @review_comment, @report_url, @completed_at, @error_message, @aggregation_level, @measurement_group_ids, @struct_number)
     `,
     params: cleaned,
     types: {
@@ -594,7 +608,8 @@ export async function updateReportRequest(request_id: string, updates: any): Pro
   const cleanDatasetId = getCleanDatasetId();
   const allowed = [
     'report_title', 'description', 'report_type', 'start_date', 'end_date', 'segment_ids',
-    'status', 'reviewed_by', 'reviewed_at', 'review_comment', 'report_url', 'completed_at', 'error_message'
+    'status', 'reviewed_by', 'reviewed_at', 'review_comment', 'report_url', 'completed_at', 'error_message',
+    'aggregation_level', 'measurement_group_ids', 'struct_number',
   ];
   const setParts: string[] = [];
   const params: any = { request_id: request_id.trim() };
@@ -604,7 +619,7 @@ export async function updateReportRequest(request_id: string, updates: any): Pro
       if (f === 'start_date' || f === 'end_date') {
         setParts.push(`${f} = @${f}`);
         params[f] = bqDate(updates[f]);
-      } else if (f === 'segment_ids' && Array.isArray(updates[f])) {
+      } else if ((f === 'segment_ids' || f === 'measurement_group_ids') && Array.isArray(updates[f])) {
         setParts.push(`${f} = @${f}`);
         params[f] = JSON.stringify(updates[f]);
       } else if (f === 'reviewed_at' || f === 'completed_at') {
@@ -629,6 +644,7 @@ export async function updateReportRequest(request_id: string, updates: any): Pro
   const rrStringFields = [
     'report_title', 'description', 'report_type', 'status',
     'reviewed_by', 'review_comment', 'report_url', 'error_message',
+    'aggregation_level', 'struct_number',
   ];
   for (const field of rrStringFields) {
     if (field in params) paramTypes[field] = 'STRING';
